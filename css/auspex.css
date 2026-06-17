@@ -1,21 +1,47 @@
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 
 :root {
-  --bg:#030409;
-  --glass:rgba(6,8,20,.82);
-  --glass-card:rgba(8,11,26,.76);
-  --b1:rgba(255,255,255,.06);
+  /* ── Aurora Watch palette ───────────────────────── */
+  --bg:#04060d;          /* near-black navy */
+  --bg-2:#070c16;        /* panels / glass base */
+  --glass:rgba(7,12,22,.82);
+  --glass-card:rgba(8,12,24,.76);
+  --b1:rgba(255,255,255,.08);
   --b2:rgba(255,255,255,.14);
-  --t1:#F0F2FF;
-  --t2:#8A93C8;
-  --t3:#6B749E;
-  --geo:#FF2D55;
+  --line:rgba(255,255,255,.08);
+  --line-2:rgba(255,255,255,.14);
+  --t1:#e8eefb;          /* primary text */
+  --t2:#9fb0cc;          /* secondary text */
+  --t3:#5d6b86;          /* muted text */
+
+  /* The breathing signature — the "aura" */
+  --aura-calm:#8a7fff;   /* violet — world is quiet */
+  --aura-active:#5ac8fa; /* cyan — world is active */
+  --aura-alert:#ff4d6d;  /* red — a real high-severity peril is live */
+  --aura:#8a7fff;        /* LIVE value, set by js/aura.js; defaults to calm */
+  --aura-soft:rgba(138,127,255,.18); /* glow tint, recomputed with --aura */
+
+  /* Signature gradient (wordmark, loading bar, key accents) */
+  --sig:linear-gradient(90deg,#7fe9ff,#c9b8ff);
+
+  /* News category semantics (secondary — must not dominate the chrome) */
+  --geo:#5ac8fa;         /* retuned off red → cyan, the ambient accent */
   --mil:#FF9F0A;
   --fin:#FFD60A;
   --cli:#30D158;
-  --tec:#0A84FF;
-  --brk:#C1121F;
-  --all:#7B61FF;
+  --tec:#5ac8fa;         /* align to aura cyan */
+  --brk:#7fe9ff;         /* "breaking" chrome accent → cyan, not red */
+  --all:#8a7fff;         /* aggregate accent → aura violet */
+
+  /* Peril severity scale (events) — danger only */
+  --sev-low:#FFD60A;
+  --sev-mid:#FF9F0A;
+  --sev-high:#FF4D6D;
+
+  /* Breakthroughs (Plan 2) */
+  --brk-cyan:#5AC8FA;
+  --brk-gold:#FFD489;
+
   --sb-w:368px;
   --hdr-h:58px;
   --tkr-h:38px;
