@@ -4,6 +4,12 @@
   "version": "0.1.0",
   "description": "AUSPEX — a living instrument for watching over the world. Planetary early-warning commons, built on the Meridian globe platform.",
   "scripts": {
-    "dev": "npx -y serve -l 8800 -s ."
+    "dev": "npx -y serve -l 8800 -s .",
+    "worker": "node worker/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "vitest": "^1.6.0"
   }
 }
