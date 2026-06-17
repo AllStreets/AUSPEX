@@ -936,9 +936,9 @@ async function initCountryBorders() {
       const res = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json');
       if (!res.ok) throw new Error('HTTP ' + res.status);
       _borderTopoJSON = await res.json();
-      console.log('[MERIDIAN] Border topojson loaded');
+      console.log('[AUSPEX] Border topojson loaded');
     } catch(e) {
-      console.warn('[MERIDIAN] Border topojson unavailable:', e.message);
+      console.warn('[AUSPEX] Border topojson unavailable:', e.message);
       return;
     }
   }
@@ -969,7 +969,7 @@ function _rebuildBorderPaths() {
   ];
 
   if (typeof refreshAllPaths === 'function') refreshAllPaths();
-  console.log('[MERIDIAN] Border paths built:', borderPaths.length, 'segments');
+  console.log('[AUSPEX] Border paths built:', borderPaths.length, 'segments');
 }
 
 // Called after fresh Supabase COUNTRY_DATA arrives
@@ -986,9 +986,9 @@ setInterval(async () => {
     if (fresh.length) {
       COUNTRY_DATA = fresh;
       updateConflictBorders();
-      console.log('[MERIDIAN] Weekly conflict data refresh complete');
+      console.log('[AUSPEX] Weekly conflict data refresh complete');
     }
-  } catch(e) { console.warn('[MERIDIAN] Weekly refresh error:', e.message); }
+  } catch(e) { console.warn('[AUSPEX] Weekly refresh error:', e.message); }
 }, 7 * 24 * 60 * 60 * 1000);
 
 // ═══════════════════════════════════════════

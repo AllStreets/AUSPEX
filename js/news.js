@@ -149,7 +149,7 @@ async function fetchNews() {
       });
     }
 
-    console.info(`[MERIDIAN] Fetch wave ${_fetchWave}: ${raw.length} raw → ${stories.length} passed (junk/age/coords filters)`);
+    console.info(`[AUSPEX] Fetch wave ${_fetchWave}: ${raw.length} raw → ${stories.length} passed (junk/age/coords filters)`);
     if (stories.length < 5) throw new Error('Too few locatable stories');
 
     // Merge new stories into accumulative cache — stories persist until cap is hit
@@ -172,8 +172,8 @@ async function fetchNews() {
     applyLiveNews(merged);
     scheduleRefresh(NEWS_CACHE_TTL);
   } catch(err) {
-    console.error('[MERIDIAN] NewsAPI fetch failed:', err.message || err);
-    console.info('[MERIDIAN] If you see CORS errors, run: python3 -m http.server 8765 and open http://localhost:8765');
+    console.error('[AUSPEX] NewsAPI fetch failed:', err.message || err);
+    console.info('[AUSPEX] If you see CORS errors, run: python3 -m http.server 8765 and open http://localhost:8765');
     const lbl2 = document.getElementById('refresh-lbl');
     if (lbl2) lbl2.textContent = 'SEEDED';
     const ind2 = document.getElementById('refresh-ind');
@@ -245,10 +245,10 @@ async function bootstrapFromSupabase() {
       _saveAccumCache(existing);
       const merged = _mapToSortedStories(existing);
       applyLiveNews(merged);
-      console.log(`[MERIDIAN] Bootstrap: +${added} stories from server (pool now ${merged.length})`);
+      console.log(`[AUSPEX] Bootstrap: +${added} stories from server (pool now ${merged.length})`);
     }
   } catch(e) {
-    console.warn('[MERIDIAN] Bootstrap error:', e.message);
+    console.warn('[AUSPEX] Bootstrap error:', e.message);
   }
 }
 

@@ -10,7 +10,7 @@ let _sb = null;
 function getSB() {
   if (!_sb) {
     if (typeof window.supabase === 'undefined') {
-      console.warn('[MERIDIAN] Supabase SDK not loaded');
+      console.warn('[AUSPEX] Supabase SDK not loaded');
       return null;
     }
     _sb = window.supabase.createClient(SUPA_URL, SUPA_KEY);
@@ -52,10 +52,10 @@ async function sbArchiveStories(stories) {
       onConflict: 'title_key',
       ignoreDuplicates: false,
     });
-    if (error) console.warn('[MERIDIAN] Archive error:', error.message);
-    else console.log(`[MERIDIAN] Archived ${rows.length} stories to Supabase`);
+    if (error) console.warn('[AUSPEX] Archive error:', error.message);
+    else console.log(`[AUSPEX] Archived ${rows.length} stories to Supabase`);
   } catch(e) {
-    console.warn('[MERIDIAN] Supabase unavailable:', e.message);
+    console.warn('[AUSPEX] Supabase unavailable:', e.message);
   }
 }
 
@@ -82,7 +82,7 @@ async function sbSearchHistory({ query = '', cat = '', days = 90, limit = 30 } =
     if (error) throw error;
     return (data || []).map(normalizeHistStory);
   } catch(e) {
-    console.warn('[MERIDIAN] History search error:', e.message);
+    console.warn('[AUSPEX] History search error:', e.message);
     return [];
   }
 }
@@ -112,7 +112,7 @@ async function sbFetchRelatedHistory(pinnedStories, limit = 10) {
     if (error) throw error;
     return (data || []).map(normalizeHistStory);
   } catch(e) {
-    console.warn('[MERIDIAN] Related history error:', e.message);
+    console.warn('[AUSPEX] Related history error:', e.message);
     return [];
   }
 }
@@ -137,7 +137,7 @@ async function sbFetchRecentStories(limit = 600, days = 30) {
     if (error) throw error;
     return (data || []).map(normalizeHistStory);
   } catch(e) {
-    console.warn('[MERIDIAN] sbFetchRecentStories error:', e.message);
+    console.warn('[AUSPEX] sbFetchRecentStories error:', e.message);
     return [];
   }
 }
@@ -202,7 +202,7 @@ async function sbFetchCities(maxTier = 2) {
     _citiesCache = data || [];
     return _citiesCache;
   } catch(e) {
-    console.warn('[MERIDIAN] Cities fetch error:', e.message);
+    console.warn('[AUSPEX] Cities fetch error:', e.message);
     return [];
   }
 }
@@ -219,7 +219,7 @@ async function sbFetchCountries() {
     _countriesCache = data || [];
     return _countriesCache;
   } catch(e) {
-    console.warn('[MERIDIAN] Countries fetch error:', e.message);
+    console.warn('[AUSPEX] Countries fetch error:', e.message);
     return [];
   }
 }
@@ -237,7 +237,7 @@ async function sbFetchRegions() {
     _regionsCache = data || [];
     return _regionsCache;
   } catch(e) {
-    console.warn('[MERIDIAN] Regions fetch error:', e.message);
+    console.warn('[AUSPEX] Regions fetch error:', e.message);
     return [];
   }
 }
