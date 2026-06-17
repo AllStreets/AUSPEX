@@ -1,4 +1,14 @@
-.superpowers/
+# dependencies
 node_modules/
+
+# secrets — never commit (use js/keys.example.js as the template)
+js/keys.js
 .env
+.env.*
+
+# brainstorm companion (local only)
+.superpowers/
+
+# os
 .DS_Store
+**/.DS_Store

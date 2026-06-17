@@ -14,11 +14,17 @@ the world seeing and using it.
 
 ## 1. The one sentence
 
-AUSPEX is an **open, beautiful, real-time early-warning instrument for the whole planet** — a living
-globe where autonomous AI agents continuously sense the world's signals (disasters, conflict,
-supply-chain shocks, climate, outbreaks, mass events) and render them, clearly and honestly, so that
-*anyone* — not just governments and Bloomberg terminals — can see what is happening to our world and
-act in time.
+AUSPEX is an **open, beautiful, real-time instrument for sensing the whole pulse of the planet** —
+its perils *and* its breakthroughs. A living globe where autonomous AI agents continuously read the
+world's signals — disasters, conflict, supply-chain shocks, climate, outbreaks, and mass events, but
+equally the world's progress: financial turns, space milestones, medical and physics breakthroughs,
+scientific firsts, human achievement — and render them, clearly and honestly, so that *anyone* — not
+just governments and Bloomberg terminals — can see what is happening to our world, in time to act on
+the dangers and in time to share in the good.
+
+> The word *auspicious* comes from *auspex*: the watcher announced **favorable** omens too, not only
+> warnings. AUSPEX reading the world's breakthroughs beside its perils is not an expansion of the
+> idea — it is the truest form of the name. AUSPEX reads the world's signs, dark **and** bright.
 
 ## 2. The problem worth solving
 
@@ -69,11 +75,24 @@ you understand what to do with what you now know.
 
 ## 5. What it senses (the domains)
 
-Disasters (earthquake, flood, fire, storm), conflict and unrest, supply-chain and economic shocks,
-climate and environment, public-health and outbreak signals, and large-scale human events. Each
-domain is an open, autonomous sensing pipeline over public sources — and the lineage is already
+AUSPEX reads two halves of the same pulse.
+
+**Perils** — disasters (earthquake, flood, fire, storm, volcano), conflict and unrest, supply-chain
+and economic shocks, climate and environment, public-health and outbreak signals, and large-scale
+human events.
+
+**Breakthroughs** — the world's progress, watched with the same seriousness as its dangers:
+financial and market turns, space milestones (launches, landings, discoveries), medical breakthroughs,
+physics and fundamental-science firsts, technological achievement, and human triumph. Most of the
+world only ever hears the alarms; AUSPEX also carries the good news that actually moves us forward.
+
+Each domain is an open, autonomous sensing pipeline over public sources — and the lineage is already
 proven in Meridian (live news → geolocated globe), Flexport (AIS/ADS-B telemetry, resilient live
 feeds, signal→impact matching), and Chicago (multi-source real-time fusion with graceful degradation).
+
+**Build order:** v1 proves the whole instrument on a single domain — **Disasters** — carried from
+sensing to the living globe, flawless and honest. Phase 2 reuses that vertical slice to add the rest,
+perils and breakthroughs alike. (See the phasing in the founding brainstorm.)
 
 ## 6. The intelligence (how AI is used, in new ways)
 

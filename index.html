@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AUSPEX — Global Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&family=Manrope:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/meridian.css">
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loading">
+  <div class="ld-wordmark">MERI<em>D</em>IAN</div>
+  <div class="ld-bar"><div class="ld-prog"></div></div>
+  <div class="ld-status" id="ld-st">ACQUIRING SIGNAL...</div>
+</div>
+
+<canvas id="stars"></canvas>
+<div id="globe-wrap"></div>
+<div id="vignette"></div>
+<div id="scanlines"></div>
+
+<!-- HEADER -->
+<header id="hdr">
+  <div class="logo">
+    <div class="logo-orb"><div class="logo-core"></div></div>
+    <div class="logo-text">
+      <div>AUSPEX</div>
+      <div>GLOBAL INTELLIGENCE NETWORK</div>
+    </div>
+  </div>
+  <div class="live-badge"><div class="live-dot"></div><span class="live-txt">LIVE</span></div>
+  <div id="layer-ctrl">
+    <button class="lc-search-icon" id="lc-search-icon" onclick="toggleNavSearch()" title="Search layers">⌕</button>
+    <div id="lc-search-wrap">
+      <input id="lc-search-input" type="text" placeholder="SEARCH LAYERS…" oninput="filterNavButtons(this.value)" autocomplete="off" spellcheck="false">
+      <button class="lc-search-x" onclick="closeNavSearch()">✕</button>
+    </div>
+    <button class="lc-btn" id="lc-silence"  onclick="toggleSilence()"    title="Silence anomaly">SILENCE</button>
+    <button class="lc-btn" id="lc-diverge"  onclick="toggleDivergence()" title="Narrative divergence">DIVERGE</button>
+    <button class="lc-btn" id="lc-cascade"  onclick="toggleCascade()"    title="Cascade predictor">CASCADE</button>
+    <button class="lc-btn" id="lc-threats"  onclick="toggleThreats()"    title="Orbital threat rings">THREATS</button>
+    <button class="lc-btn" id="lc-cities"   onclick="toggleCities()"     title="City intelligence layer">CITIES</button>
+    <button class="lc-btn" id="lc-countries" onclick="toggleCountries()" title="Country status layer">COUNTRIES</button>
+    <button class="lc-btn" id="lc-sanctions" onclick="toggleSanctions()" title="Sanctions mesh">SANCTIONS</button>
+    <button class="lc-btn" id="lc-cables"   onclick="toggleCables()"     title="Subsea cable pulse">CABLES</button>
+    <button class="lc-btn" id="lc-flights"  onclick="toggleFlights()"    title="Flight anomaly overlay">FLIGHTS</button>
+    <button class="lc-btn" id="lc-shipping" onclick="toggleShipping()"   title="Shipping chokepoints">SHIPPING</button>
+    <button class="lc-btn" id="lc-eq"       onclick="toggleEQ()"         title="Earthquake overlay">QUAKES</button>
+    <button class="lc-btn" id="lc-livenews" onclick="toggleLiveNews()"   title="Live broadcast news panel">BROADCAST</button>
+    <button class="lc-btn" id="lc-webcams"  onclick="toggleWebcamPanel()" title="Windy live webcams near story">WEBCAMS</button>
+    <button class="lc-btn lc-wargame" id="lc-wargame" onclick="openWargame()" title="Temporal wargame scenario engine">WARGAME</button>
+  </div>
+  <div class="hdr-sep"></div>
+  <div class="hdr-stat"><span class="hs-v" id="story-count">20</span><span class="hs-l">Stories</span></div>
+  <div class="hdr-sep"></div>
+  <div id="dnd"><span class="dnd-icon" id="dnd-icon"></span><span id="dnd-lbl">NIGHT</span></div>
+  <div class="hdr-sep"></div>
+  <div id="utc">--:--:--</div>
+  <div class="hdr-sep"></div>
+  <div id="refresh-ind"><div class="ri-dot"></div><span id="refresh-lbl">LIVE</span></div>
+  <div class="hdr-sep"></div>
+  <div id="srch-wrap">
+    <button id="srch-btn" onclick="toggleSearch()" title="Search stories"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
+    <input id="srch" placeholder="Search stories, regions..." oninput="handleSearch(this.value)">
+  </div>
+</header>
+
+<!-- FLIGHT DATA BADGE — shown right of ANALYST when flights are active -->
+<div id="flight-data-badge" style="display:none">
+  <span class="fdb-dot"></span>
+  <span class="fdb-txt" id="fdb-label">LIVE DATA</span>
+</div>
+
+<!-- COMMAND PANEL -->
+<div id="cmd-panel">
+  <button class="cmd-btn" style="--lc:#1A7FA8" onclick="openAnalystMode()">
+    <svg class="cmd-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+    ANALYST
+  </button>
+  <button class="cmd-btn" id="cmd-brief-btn" style="--lc:#4A8CA8" onclick="openDailyBrief()">
+    <svg class="cmd-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+    BRIEF
+  </button>
+  <button class="cmd-btn" id="cmd-mapkey-btn" onclick="toggleMapKey()">
+    <svg class="cmd-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+    MAP KEY
+  </button>
+</div>
+
+<!-- MAP KEY DROPDOWN -->
+<div id="mapkey-drop">
+  <div class="mk-hdr-lbl">MAP LEGEND</div>
+  <div class="mk-list" id="mk-list"></div>
+  <button class="mk-collapse-btn" onclick="toggleMapKey()">▲ COLLAPSE</button>
+</div>
+
+<!-- DAILY BRIEF MODAL -->
+<div id="brief-bd" onclick="closeDailyBrief()"></div>
+<div id="brief-modal">
+  <div class="bm-hdr">
+    <div class="bm-title-block">
+      <div class="bm-eyebrow">AUSPEX INTELLIGENCE NETWORK</div>
+      <div class="bm-title">DAILY SITUATION REPORT</div>
+      <div class="bm-date" id="bm-date"></div>
+    </div>
+    <button class="bm-close" onclick="closeDailyBrief()">×</button>
+  </div>
+  <div class="bm-body" id="bm-body"><div class="bm-loading">ASSEMBLING BRIEF…</div></div>
+  <div class="bm-footer">
+    <span class="bm-meta" id="bm-meta"></span>
+    <button class="bm-export-btn" onclick="exportDailyBrief()">EXPORT HTML</button>
+  </div>
+</div>
+
+<!-- CATEGORY RAIL -->
+<nav id="cat-rail">
+  <button class="cat-btn on" data-cat="all"      style="--cc:var(--all)"><div class="cat-pip"></div><span class="cat-lbl">ALL COVERAGE</span><span class="cat-n" id="cn-all">20</span></button>
+  <button class="cat-btn"    data-cat="geo"      style="--cc:var(--geo)"><div class="cat-pip"></div><span class="cat-lbl">GEOPOLITICAL</span><span class="cat-n" id="cn-geo">5</span><span class="cat-sent" id="sent-geo">—</span></button>
+  <button class="cat-btn"    data-cat="tech"     style="--cc:var(--tec)"><div class="cat-pip"></div><span class="cat-lbl">TECHNOLOGY</span><span class="cat-n" id="cn-tech">4</span><span class="cat-sent" id="sent-tech">—</span></button>
+  <button class="cat-btn"    data-cat="military" style="--cc:var(--mil)"><div class="cat-pip"></div><span class="cat-lbl">MILITARY</span><span class="cat-n" id="cn-military">3</span><span class="cat-sent" id="sent-military">—</span></button>
+  <button class="cat-btn"    data-cat="finance"  style="--cc:var(--fin)"><div class="cat-pip"></div><span class="cat-lbl">FINANCE</span><span class="cat-n" id="cn-finance">5</span><span class="cat-sent" id="sent-finance">—</span></button>
+  <button class="cat-btn"    data-cat="climate"  style="--cc:var(--cli)"><div class="cat-pip"></div><span class="cat-lbl">CLIMATE</span><span class="cat-n" id="cn-climate">3</span><span class="cat-sent" id="sent-climate">—</span></button>
+</nav>
+
+<!-- SIDEBAR -->
+<aside id="sidebar">
+  <div class="sb-hdr">
+    <span class="sb-title">INTELLIGENCE FEED</span>
+    <span class="sb-count" id="sb-count">20 STORIES</span>
+    <button class="sb-wl-btn" id="wl-toggle-btn" onclick="toggleWatchlistFilter()" title="Show saved stories">★</button>
+    <button class="sb-x" onclick="toggleSidebar()">×</button>
+  </div>
+  <div id="news-feed"></div>
+</aside>
+<button id="sb-tab" onclick="toggleSidebar()">&#8249;</button>
+
+<!-- LOCATION PICKER -->
+<div id="picker">
+  <div class="pk-hdr">
+    <span class="pk-loc" id="pk-loc">MULTIPLE STORIES</span>
+    <span class="pk-count" id="pk-count"></span>
+    <button class="pk-close" onclick="closePicker()">×</button>
+  </div>
+  <div class="pk-list" id="pk-list"></div>
+</div>
+
+<!-- ARTICLE PANEL -->
+<div id="art-bd" onclick="closeArticle()"></div>
+<div id="art-panel">
+  <div class="ap-hdr">
+    <div class="ap-meta">
+      <span id="ap-cat" class="ap-cat"></span>
+      <span id="ap-brk" class="brk" style="display:none">BREAKING</span>
+    </div>
+    <div id="ap-title" class="ap-title"></div>
+    <div class="ap-byline">
+      <span id="ap-src"></span><span>·</span>
+      <span id="ap-time"></span><span>·</span>
+      <span id="ap-region"></span>
+    </div>
+    <button class="ap-close" onclick="closeArticle()">×</button>
+  </div>
+  <div class="ap-body">
+    <p id="ap-lead" class="ap-lead"></p>
+    <p id="ap-text" class="ap-text"></p>
+    <div style="display:flex;align-items:center;gap:10px;margin-top:18px;flex-wrap:wrap">
+      <a id="ap-link" class="ap-link" target="_blank" rel="noopener" style="display:none;margin-top:0">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        READ FULL ARTICLE
+      </a>
+      <button id="ap-pin-btn" onclick="pinStoryFromArticle()" style="display:inline-flex;align-items:center;gap:7px;padding:9px 16px;background:rgba(0,212,255,.05);border:1px solid rgba(0,212,255,.2);border-radius:3px;font-family:var(--f-mono);font-size:10px;color:rgba(0,212,255,.7);letter-spacing:.08em;cursor:pointer;transition:all .18s" onmouseover="this.style.background='rgba(0,212,255,.12)';this.style.borderColor='rgba(0,212,255,.5)';this.style.color='#00D4FF'" onmouseout="this.style.background=analystAssets.includes(_apStoryId)?'rgba(0,212,255,.12)':'rgba(0,212,255,.05)';this.style.borderColor=analystAssets.includes(_apStoryId)?'rgba(0,212,255,.45)':'rgba(0,212,255,.2)';this.style.color=analystAssets.includes(_apStoryId)?'#00D4FF':'rgba(0,212,255,.7)'">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        <span id="ap-pin-lbl">PIN TO ANALYST</span>
+      </button>
+    </div>
+    <div class="ap-foot">
+      <div class="ap-cdot" id="ap-cdot"></div>
+      <span id="ap-coords"></span>
+    </div>
+  </div>
+</div>
+
+<!-- RESET -->
+<button id="reset-btn" onclick="resetGlobe()" title="Reset globe view">
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+</button>
+
+<!-- SPIN TOGGLE -->
+<button id="spin-btn" class="on" onclick="toggleSpin()" title="Toggle globe rotation">
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><ellipse cx="12" cy="12" rx="4" ry="10"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
+</button>
+
+<!-- MARKET BAR -->
+<div id="market-bar">
+  <div class="mkt-lbl" onclick="toggleMarket()" style="cursor:pointer">MARKETS</div>
+  <div class="mkt-track"><div class="mkt-inner" id="mkt-inner"></div></div>
+</div>
+
+<!-- SCRUBBER -->
+<div id="scrubber">
+  <span class="scrb-lbl">TIMELINE</span>
+  <div class="scrb-track">
+    <input type="range" id="scrb-range" min="0" max="100" value="100">
+    <div class="scrb-ticks" id="scrb-ticks"></div>
+  </div>
+  <div id="scrb-time-lbl">LIVE</div>
+  <div id="scrb-badge" onclick="scrubToLive()"><span class="scrb-dot"></span>LIVE</div>
+</div>
+
+<!-- ANALYST OVERLAY -->
+<div id="analyst-overlay">
+  <div class="am-bar">
+    <span class="am-wordmark">◆ AUSPEX ANALYST</span>
+    <span class="am-status-line" id="am-status">SYSTEM READY · <span id="am-asset-count">0</span> ASSETS PINNED</span>
+    <div class="am-bar-acts">
+      <button class="am-save-btn" onclick="saveAnalystBoard()">SAVE</button>
+      <button class="am-export-brief-btn" onclick="exportBrief()">EXPORT BRIEF</button>
+      <button class="am-synth-btn-bar" onclick="synthesizeBrief()">SYNTHESIZE</button>
+      <button class="am-consensus-btn" onclick="runConsensusBoard()">CONSENSUS</button>
+      <div class="am-tools-wrap" id="am-tools-wrap">
+        <button class="am-tools-btn" id="am-tools-btn" onclick="toggleToolsMenu()">TOOLS</button>
+        <div class="am-tools-menu" id="am-tools-menu">
+          <button onclick="generatePlaybook();toggleToolsMenu()">▸ ADVERSARY PLAYBOOK</button>
+          <button onclick="openRedTeamBrief();toggleToolsMenu()">⬡ RED TEAM</button>
+          <button onclick="openNarrativeTimeline();toggleToolsMenu()">⏱ NARRATIVE TIMELINE</button>
+          <button id="dr-tools-btn" onclick="toggleDeadReckoning()">◎ DEAD RECKONING</button>
+          <button onclick="openEscalationMatrix();toggleToolsMenu()">⊞ ESCALATION MATRIX</button>
+          <button onclick="openSavedBoards();toggleToolsMenu()">◈ SAVED BOARDS</button>
+        </div>
+      </div>
+      <div class="am-bar-sep"></div>
+      <button class="am-act danger" onclick="clearAssets()">CLEAR BOARD</button>
+      <button class="am-close-btn" onclick="closeAnalystMode()">EXIT ANALYST</button>
+    </div>
+  </div>
+  <div class="am-body">
+    <div class="am-col">
+      <div class="am-col-hdr">
+        <span class="am-col-title">◆ ASSET BOARD</span>
+        <span class="am-col-meta" id="am-col-meta">PIN STORIES FROM FEED</span>
+      </div>
+      <div class="am-hist-bar">
+        <input id="am-hist-input" class="am-hist-inp" placeholder="Search history (30 days)…" oninput="debounceHistSearch(this.value)">
+        <select id="am-hist-cat" class="am-hist-sel" onchange="debounceHistSearch(document.getElementById('am-hist-input').value)">
+          <option value="">ALL DOMAINS</option>
+          <option value="geo">GEO</option>
+          <option value="military">MIL</option>
+          <option value="finance">FIN</option>
+          <option value="climate">CLM</option>
+          <option value="tech">TECH</option>
+        </select>
+      </div>
+      <div id="am-hist-results" class="am-hist-results" style="display:none"></div>
+      <div class="am-asset-scroll" id="am-asset-scroll">
+        <div class="am-asset-empty" id="am-asset-empty">DRAG STORIES FROM THE INTELLIGENCE FEED<br>OR CLICK THE PIN ICON ON ANY CARD</div>
+      </div>
+    </div>
+    <div class="am-col" style="position:relative">
+      <div class="am-col-hdr">
+        <span class="am-col-title">◆ ENTITY NETWORK</span>
+        <span class="am-col-meta" id="am-net-meta">NO CONNECTIONS</span>
+      </div>
+      <canvas id="am-canvas"></canvas>
+      <div class="am-net-empty" id="am-net-empty">PIN ASSETS TO REVEAL<br>ENTITY CONNECTIONS</div>
+      <button id="am-net-reset" onclick="resetNetworkView()" title="Reset view">⊙ RESET</button>
+    </div>
+    <div class="am-col">
+      <div class="am-col-hdr">
+        <span class="am-col-title">◆ INTELLIGENCE BRIEF</span>
+        <span class="am-col-meta" id="am-brief-meta">—</span>
+      </div>
+      <div class="am-brief-scroll" id="am-brief-scroll">
+        <div class="am-brief-empty" id="am-brief-empty">
+          PIN ASSETS AND CLICK SYNTHESIZE<br>TO GENERATE INTELLIGENCE BRIEF
+          <button class="am-synth-btn" onclick="synthesizeBrief()">SYNTHESIZE NOW</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADVERSARY PLAYBOOK -->
+<div id="playbook-modal">
+  <div class="pb-bar">
+    <span class="pb-wordmark">▸ ADVERSARY PLAYBOOK</span>
+    <span id="pb-status">READY · SELECT ASSETS AND GENERATE</span>
+    <button class="pb-act" onclick="generatePlaybook()">GENERATE PLAYBOOK</button>
+    <button class="pb-act" id="pb-export-btn" onclick="exportPlaybook()" style="display:none">EXPORT HTML</button>
+    <button class="pb-close-btn" onclick="document.getElementById('playbook-modal').classList.remove('on')">EXIT</button>
+  </div>
+  <div class="pb-body"><div id="pb-content"><div class="pb-loading pb-loading-anim">PIN ASSETS TO ANALYST BOARD · THEN GENERATE PLAYBOOK</div></div></div>
+</div>
+
+<!-- SAVED BOARDS MODAL -->
+<div id="sb-bd" onclick="closeSavedBoards()"></div>
+<div id="sb-modal">
+  <div class="sb-bar">
+    <span class="sb-wordmark">◈ SAVED ANALYST BOARDS</span>
+    <button class="sb-close-btn" onclick="closeSavedBoards()">EXIT</button>
+  </div>
+  <div class="sb-body" id="sb-body"></div>
+</div>
+
+<!-- ESCALATION MATRIX -->
+<div id="matrix-bd" onclick="document.getElementById('matrix-modal').classList.remove('on');this.classList.remove('on')"></div>
+<div id="matrix-modal">
+  <div class="mx-bar">
+    <span class="mx-wordmark">⊞ CROSS-DOMAIN ESCALATION MATRIX</span>
+    <span id="mx-calc-ts" style="font-family:var(--f-mono);font-size:7px;letter-spacing:.1em;color:var(--t3);flex:1"></span>
+    <button class="mx-act" id="mx-recalc-btn" onclick="recalculateMatrix()">RECALCULATE</button>
+    <button class="mx-close-btn" onclick="document.getElementById('matrix-modal').classList.remove('on');document.getElementById('matrix-bd').classList.remove('on')">EXIT</button>
+  </div>
+  <div class="mx-body">
+    <div id="mx-content"></div>
+    <div id="mx-story-panel"></div>
+    <div class="mx-legend">
+      <span style="color:#FF2D55">■ CRITICAL</span>
+      <span style="color:#FF9F0A">■ HIGH</span>
+      <span style="color:#B7950B">■ ELEVATED</span>
+      <span style="color:rgba(100,100,140,.55)">■ LOW</span>
+      <span class="mx-leg-note">· diagonal = within-domain intensity · off-diagonal = cross-domain coupling</span>
+    </div>
+  </div>
+</div>
+
+<!-- NARRATIVE TIMELINE -->
+<div id="timeline-bd" onclick="document.getElementById('timeline-modal').classList.remove('on');this.classList.remove('on')"></div>
+<div id="timeline-modal">
+  <div class="tl-bar">
+    <span class="tl-wordmark">⏱ NARRATIVE TIMELINE</span>
+    <span id="tl-status">—</span>
+    <button class="tl-close-btn" onclick="document.getElementById('timeline-modal').classList.remove('on');document.getElementById('timeline-bd').classList.remove('on')">EXIT</button>
+  </div>
+  <div class="tl-body"><div id="tl-content"></div></div>
+</div>
+
+<!-- TICKER -->
+<div id="ticker">
+  <div class="tkr-lbl" onclick="toggleMarket()" style="cursor:pointer">BREAKING</div>
+  <div class="tkr-track"><div class="tkr-inner" id="tkr-inner"></div></div>
+</div>
+
+<!-- D2 RED TEAM BRIEF -->
+<div id="redteam-modal">
+  <div class="rt-bar">
+    <span class="rt-wordmark">◆ AUSPEX RED TEAM</span>
+    <span id="rt-status">READY · SELECT ASSETS AND GENERATE</span>
+    <button class="rt-act" onclick="generateRedTeamBrief()">GENERATE BRIEF</button>
+    <button class="rt-act" id="rt-export-btn" onclick="exportRedTeamPDF()" style="display:none">EXPORT HTML</button>
+    <button class="rt-close-btn" onclick="document.getElementById('redteam-modal').classList.remove('on');openAnalystMode()">EXIT</button>
+  </div>
+  <div class="rt-body">
+    <div id="rt-content">
+      <div class="rt-loading rt-loading-anim">PIN ASSETS TO ANALYST BOARD · THEN CLICK GENERATE BRIEF</div>
+    </div>
+  </div>
+</div>
+
+<!-- D1 WARGAME OVERLAY -->
+<div id="wargame-overlay">
+  <div class="wg-bar">
+    <span class="wg-wordmark">◆ AUSPEX WARGAME</span>
+    <span class="wg-status" id="wg-status">CLICK ANY GLOBE MARKER TO GENERATE 72-HOUR SCENARIO</span>
+    <div class="wg-bar-acts">
+      <button class="wg-act" onclick="resetWargameArcs()">RESET ARCS</button>
+      <button class="wg-close-btn" onclick="closeWargame()">EXIT WARGAME</button>
+    </div>
+  </div>
+  <div class="wg-body">
+    <div class="wg-left">
+      <div class="wg-left-hdr">
+        <div class="wg-lbl">SCENARIO SUBJECT</div>
+        <div id="wg-title" style="color:var(--t3);font-style:italic;font-size:11px">No story selected</div>
+        <div id="wg-region"></div>
+      </div>
+      <div id="wg-scenarios">
+        <div class="wg-loading">CLICK A STORY MARKER ON THE GLOBE<br>TO GENERATE PROBABILITY-WEIGHTED<br>72-HOUR SCENARIO PROJECTIONS</div>
+      </div>
+    </div>
+    <div class="wg-right">
+      <div class="wg-hint">GLOBE INTERACTIVE · CLICK MARKERS TO GENERATE SCENARIOS</div>
+    </div>
+  </div>
+</div>
+
+<!-- A2 NARRATIVE DIVERGENCE PANEL -->
+<div id="div-panel">
+  <div class="div-hdr drag-handle">◆ NARRATIVE DIVERGENCE RADAR<button class="div-close" onclick="toggleDivergence()">×</button></div>
+  <div class="div-pairs" id="div-pairs"></div>
+  <div class="div-counts" id="div-counts"></div>
+  <div class="div-top-words" id="div-top-words"></div>
+</div>
+
+<!-- A3 SILENCE OVERLAY -->
+<div id="silence-overlay"></div>
+
+<!-- B1 THREAT RINGS PANEL -->
+<div id="threats-panel">
+  <div class="thr-hdr drag-handle">⚠ TOP THREATS TO US INTERESTS<button class="thr-close" onclick="toggleThreats()">×</button></div>
+  <div class="thr-list" id="thr-list"></div>
+</div>
+
+<!-- A1 CASCADE WIDGET -->
+<div id="cascade-widget">
+  <button id="cascade-close" onclick="toggleCascade()">×</button>
+  <div class="cw-lbl">CASCADE PATTERN MATCH</div>
+  <div id="cascade-match">UNKNOWN</div>
+  <div id="cascade-conf">—</div>
+</div>
+
+<!-- C2 SHIPPING PANEL -->
+<div id="shipping-panel">
+  <div class="sp-hdr drag-handle">◆ CHOKEPOINT MONITOR<button class="sp-close" onclick="toggleShipping()">×</button></div>
+  <div id="shipping-rows"></div>
+</div>
+
+<!-- CITY INTEL PANEL -->
+<div id="city-panel">
+  <div class="cip-hdr">
+    <div class="cip-hdr-inner">
+      <div class="cip-type-icon" id="cip-type-icon"></div>
+      <div class="cip-hdr-text">
+        <div class="cip-name" id="cip-name">—</div>
+        <div class="cip-meta" id="cip-meta">—</div>
+      </div>
+    </div>
+    <button class="cip-pin-btn" id="cip-pin-btn" onclick="if(window._cipCurrentCity)pinGeoAsset('city',window._cipCurrentCity)" title="Pin to Analyst Board">PIN</button>
+    <button class="cip-close" onclick="closeCityPanel()">×</button>
+  </div>
+  <div class="cip-body">
+    <div class="cip-section">
+      <div class="cip-sec-lbl">◉ 24H CITY INTELLIGENCE</div>
+      <div class="cip-brief" id="cip-city-brief"><span class="cip-loading">SCANNING FEEDS…</span></div>
+    </div>
+    <div class="cip-divider"></div>
+    <div class="cip-section">
+      <div class="cip-sec-lbl">◎ 24H NATIONAL BRIEFING</div>
+      <div class="cip-brief" id="cip-nation-brief"><span class="cip-loading">SCANNING FEEDS…</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- C3 SANCTIONS PANEL -->
+<div id="sanctions-panel">
+  <div class="san-hdr drag-handle">◆ SANCTIONS MESH TRACKER<button class="san-close" onclick="toggleSanctions()">×</button></div>
+  <div class="san-count" id="san-count">0 ENTITY MATCHES</div>
+  <div class="san-list" id="san-list"></div>
+</div>
+
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://unpkg.com/globe.gl/dist/globe.gl.min.js" onerror="document.getElementById('ld-st').textContent='FAILED TO LOAD GLOBE — CHECK CONNECTION'"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
+
+<!-- App scripts — load order matters: config first, main last -->
+<script src="js/keys.js"></script>
+<script src="js/config.js"></script>
+<script src="js/supabase.js"></script>
+<script src="js/data.js"></script>
+<script src="js/news.js"></script>
+<script src="js/globe.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/analyst.js"></script>
+<script src="js/overlay.js"></script>
+<script src="js/features.js"></script>
+<script src="js/main.js"></script>
+
+<!-- ════════════════════════════════════════
+     NASA SATELLITE MODE BADGE
+     ═══════════════════════════════════════ -->
+<div id="sat-badge">
+  <span class="sat-pulse"></span>
+  <span id="sat-date-lbl">MODIS TERRA</span>
+  <span style="opacity:.4;margin:0 2px">·</span>
+  <span style="opacity:.6">LIVE EARTH</span>
+</div>
+
+<!-- ════════════════════════════════════════
+     LIVE BROADCAST PANEL
+     ═══════════════════════════════════════ -->
+<div id="live-news-panel">
+  <div class="lnp-hdr" id="lnp-drag-handle">
+    <span class="lnp-signal"></span>
+    <span class="lnp-wordmark">◉ LIVE BROADCAST</span>
+    <span class="lnp-loc" id="lnp-loc">GLOBAL FEED</span>
+    <button class="lnp-close" onclick="closeLiveNews()">×</button>
+  </div>
+  <div class="lnp-tabs" id="lnp-tabs"><!-- populated by JS --></div>
+  <div class="lnp-video-wrap">
+    <iframe id="lnp-iframe"
+      allow="autoplay; encrypted-media; picture-in-picture"
+      allowfullscreen
+      src="about:blank">
+    </iframe>
+    <div class="lnp-error-overlay" id="lnp-error">
+      <div class="lnp-error-msg" id="lnp-error-msg">VIDEO UNAVAILABLE<br>STREAM MAY HAVE MOVED OR ENDED</div>
+      <a class="lnp-yt-btn" id="lnp-yt-fallback" href="#" target="_blank" rel="noopener">▶ OPEN ON YOUTUBE</a>
+    </div>
+  </div>
+  <div class="lnp-footer">
+    <span class="lnp-station-name" id="lnp-station-name">—</span>
+    <a class="lnp-ext-link" id="lnp-ext-link" href="#" target="_blank" rel="noopener">▶ YOUTUBE</a>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     WINDY WEBCAM PANEL
+     ═══════════════════════════════════════ -->
+<div id="webcam-panel">
+  <div class="wcp-hdr">
+    <span class="wcp-dot"></span>
+    <span class="wcp-wordmark">◉ LIVE CAMERAS</span>
+    <span class="wcp-loc" id="wcp-loc">—</span>
+    <button class="wcp-close" onclick="closeWebcamPanel()">×</button>
+  </div>
+  <!-- loading state -->
+  <div class="wcp-loading" id="wcp-loading" style="display:none">SCANNING NEARBY CAMERAS…</div>
+  <!-- empty state -->
+  <div class="wcp-empty" id="wcp-empty" style="display:none">
+    NO CAMERAS FOUND<br>WITHIN 50 KM
+  </div>
+  <!-- thumbnail grid -->
+  <div class="wcp-grid" id="wcp-grid"></div>
+  <!-- player -->
+  <div class="wcp-player" id="wcp-player">
+    <iframe id="wcp-iframe" allow="autoplay" allowfullscreen src="about:blank"></iframe>
+    <div class="wcp-player-bar">
+      <button class="wcp-back-btn" onclick="closeWebcamPlayer()">← CAMERAS</button>
+      <span class="wcp-cam-name" id="wcp-cam-name">—</span>
+    </div>
+  </div>
+</div>
+<!-- WEBCAM LIGHTBOX -->
+<div id="wcam-lightbox" onclick="if(event.target===this)closeWebcamLightbox()">
+  <div class="wcam-lb-box">
+    <button class="wcam-lb-close" onclick="closeWebcamLightbox()">×</button>
+    <span class="wcam-lb-title" id="wcam-lb-title">—</span>
+    <iframe id="wcam-lb-iframe" allow="autoplay" allowfullscreen src="about:blank"></iframe>
+  </div>
+</div>
+</body>
+</html>
