@@ -678,7 +678,10 @@ function openSingleEq(eq) {
   }
   document.getElementById('ap-cat').textContent = `M${eq.mag.toFixed(1)}`;
   document.getElementById('ap-cat').style.cssText = `color:${eq.color};background:${eq.color}20`;
-  document.getElementById('ap-brk').style.display = eq.mag >= 6 ? 'inline-flex' : 'none';
+  const eqBrk = document.getElementById('ap-brk');
+  eqBrk.textContent = 'BREAKING';
+  eqBrk.style.color = '';
+  eqBrk.style.display = eq.mag >= 6 ? 'inline-flex' : 'none';
   document.getElementById('ap-title').textContent = eq.place;
   document.getElementById('ap-src').textContent = 'USGS';
   document.getElementById('ap-time').textContent = eq.time;

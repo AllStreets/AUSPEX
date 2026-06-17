@@ -200,6 +200,8 @@ function openArticle(story) {
   document.getElementById('ap-cat').textContent = cfg.label;
   document.getElementById('ap-cat').style.cssText = `color:${story.color};background:${story.color}18`;
   const brkEl = document.getElementById('ap-brk');
+  brkEl.textContent = 'BREAKING';
+  brkEl.style.color = '';
   brkEl.style.display = story.brk ? 'inline-flex' : 'none';
   document.getElementById('ap-title').textContent = story.title;
   document.getElementById('ap-src').textContent = story.src;
