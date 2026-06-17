@@ -6,11 +6,11 @@
 
 // Loading screen message cycler
 const LD_MSGS = [
-  'ACQUIRING SIGNAL...',
-  'LOADING GLOBE ASSETS...',
-  'CALIBRATING COORDINATES...',
-  'CONNECTING INTELLIGENCE FEEDS...',
-  'ALL SYSTEMS NOMINAL.',
+  'ESTABLISHING UPLINK...',
+  'RENDERING THE EARTH...',
+  "READING THE WORLD'S SIGNS...",
+  'SYNCING THE SENSES...',
+  'THE WATCH IS LIVE.',
 ];
 let li = 0;
 const ldInt = setInterval(() => {
