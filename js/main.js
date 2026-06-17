@@ -51,6 +51,8 @@ setTimeout(() => { if (typeof refreshAllPaths === 'function') refreshAllPaths();
 // Fetch live news + supporting data after globe is ready
 setTimeout(() => fetchNews(), 800);
 setTimeout(() => fetchEarthquakes(), 2000);
+setTimeout(() => fetchSnapshot(), 3000);
+setInterval(() => fetchSnapshot(), 3 * 60 * 1000);
 // Bootstrap from Supabase server — seeds local cache with accumulated history
 setTimeout(() => bootstrapFromSupabase(), 5000);
 
@@ -64,7 +66,7 @@ setTimeout(async () => {
     if (regions.length || countries.length) updateAllGlobeElements();
     // Defer border rendering so it doesn't block the globe's initial paint
     setTimeout(() => initCountryBorders(), 500);
-  } catch(e) { console.warn('[MERIDIAN] Map layer load failed:', e.message); }
+  } catch(e) { console.warn('[AUSPEX] Map layer load failed:', e.message); }
 }, 3000);
 // Re-fetch market data every 5 minutes when panel is open
 setInterval(() => { if (marketVisible) fetchMarketData(); }, 5 * 60 * 1000);
@@ -147,7 +149,7 @@ setInterval(() => { if (marketVisible) fetchMarketData(); }, 5 * 60 * 1000);
         // Already here — nothing to do
         break;
       default:
-        console.log('[MERIDIAN] Unknown cmd:', cmd);
+        console.log('[AUSPEX] Unknown cmd:', cmd);
     }
   }
 

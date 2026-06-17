@@ -976,3 +976,20 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 .dr-n{font-family:var(--f-mono);font-size:7px;color:var(--t3)}
 .dr-domains{grid-column:1/-1;grid-row:2;display:flex;gap:6px;flex-wrap:wrap}
 .dr-domain{font-family:var(--f-mono);font-size:6.5px;letter-spacing:.1em;opacity:.75}
+
+/* ═══════════════════════════════════════════
+   AUSPEX EVENT MARKERS — holographic disaster/breakthrough sense
+   ═══════════════════════════════════════════ */
+.auspex-m { cursor:pointer; }
+.auspex-tip { position:absolute; top:120%; left:50%; transform:translateX(-50%);
+  font:500 9px/1 var(--f-mono,monospace); color:#cfe0f5; white-space:nowrap;
+  opacity:0; transition:opacity .15s; pointer-events:none; letter-spacing:.05em; }
+.auspex-m:hover .auspex-tip { opacity:1; }
+@keyframes auspex-pulse {
+  0%   { opacity:.9; transform:translate(-50%,-50%) scale(1); }
+  100% { opacity:0;  transform:translate(-50%,-50%) scale(2.8); }
+}
+
+/* AUSPEX event card — honest confidence chip + brief */
+.art-panel--event #ap-lead { font-size:13px; line-height:1.6; color:#cfe0f5; }
+.art-panel--event #ap-brk { border:1px solid currentColor; border-radius:999px; padding:2px 8px; font-size:9px; letter-spacing:.14em; }

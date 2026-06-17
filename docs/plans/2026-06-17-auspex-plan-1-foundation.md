@@ -346,13 +346,14 @@ Expected: FAIL — cannot resolve `../src/filter.js`.
 ```js
 // src/filter.js — pure, no I/O, no globals
 export function buildFilterPredicate(f = {}) {
-  const { senses, minSeverity = 0, confirmedOnly = false, timeWindowHours = 48 } = f;
-  const cutoff = Date.now() - timeWindowHours * 3600_000;
+  const { senses, minSeverity = 0, confirmedOnly = false, timeWindowHours } = f;
+  // Time window is only applied when explicitly provided; otherwise no time bound.
+  const cutoff = timeWindowHours == null ? null : Date.now() - timeWindowHours * 3600_000;
   return (event) => {
     if (senses?.length && !senses.includes(event.sense)) return false;
     if ((event.severity ?? 0) < minSeverity) return false;
     if (confirmedOnly && event.confidence !== 'confirmed') return false;
-    if (new Date(event.occurredAt).getTime() < cutoff) return false;
+    if (cutoff != null && new Date(event.occurredAt).getTime() < cutoff) return false;
     return true;
   };
 }

@@ -200,6 +200,8 @@ function openArticle(story) {
   document.getElementById('ap-cat').textContent = cfg.label;
   document.getElementById('ap-cat').style.cssText = `color:${story.color};background:${story.color}18`;
   const brkEl = document.getElementById('ap-brk');
+  brkEl.textContent = 'BREAKING';
+  brkEl.style.color = '';
   brkEl.style.display = story.brk ? 'inline-flex' : 'none';
   document.getElementById('ap-title').textContent = story.title;
   document.getElementById('ap-src').textContent = story.src;
@@ -223,12 +225,13 @@ function openArticle(story) {
   }
   document.getElementById('ap-coords').textContent = coordStr;
 
+  document.getElementById('art-panel').classList.remove('art-panel--event');
   document.getElementById('art-panel').classList.add('on');
   document.getElementById('art-bd').classList.add('on');
 }
 
 function closeArticle() {
-  document.getElementById('art-panel').classList.remove('on');
+  document.getElementById('art-panel').classList.remove('on', 'art-panel--event');
   document.getElementById('art-bd').classList.remove('on');
   setTimeout(() => { if (G) G.controls().autoRotate = true; }, 700);
 }

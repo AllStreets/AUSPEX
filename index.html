@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&family=Manrope:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/meridian.css">
+<link rel="stylesheet" href="css/auspex.css">
 </head>
 <body>
 
@@ -44,6 +44,7 @@
     <button class="lc-btn" id="lc-cascade"  onclick="toggleCascade()"    title="Cascade predictor">CASCADE</button>
     <button class="lc-btn" id="lc-threats"  onclick="toggleThreats()"    title="Orbital threat rings">THREATS</button>
     <button class="lc-btn" id="lc-cities"   onclick="toggleCities()"     title="City intelligence layer">CITIES</button>
+    <button class="lc-btn on" id="lc-events" onclick="toggleSnapshotEvents()" title="Disaster events layer">EVENTS</button>
     <button class="lc-btn" id="lc-countries" onclick="toggleCountries()" title="Country status layer">COUNTRIES</button>
     <button class="lc-btn" id="lc-sanctions" onclick="toggleSanctions()" title="Sanctions mesh">SANCTIONS</button>
     <button class="lc-btn" id="lc-cables"   onclick="toggleCables()"     title="Subsea cable pulse">CABLES</button>
@@ -460,6 +461,7 @@
 <!-- App scripts — load order matters: config first, main last -->
 <script src="js/keys.js"></script>
 <script src="js/config.js"></script>
+<script src="js/snapshot.js"></script>
 <script src="js/supabase.js"></script>
 <script src="js/data.js"></script>
 <script src="js/news.js"></script>

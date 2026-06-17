@@ -953,6 +953,21 @@ function buildMapKey() {
     { ctrl:'arrows', lbl:'← → arrow keys — rotate globe along equator' },
     { ctrl:'zoom',   lbl:'↑ ↓ arrow keys — zoom in / out' },
   ];
+  // AUSPEX live disaster events (derived from what is on the globe) — prepended above static rows
+  const liveRows = [];
+  if (typeof SNAPSHOT_EVENTS !== 'undefined' && SNAPSHOT_EVENTS.length) {
+    liveRows.push({ s: 'DISASTER EVENTS (LIVE)' });
+    [...new Set(SNAPSHOT_EVENTS.map(e => e.type))].sort().forEach(type => {
+      liveRows.push({ dot: '#FF6D00', lbl: type.charAt(0).toUpperCase() + type.slice(1) });
+    });
+    if (SNAPSHOT_EVENTS.some(e => e.confidence === 'unconfirmed')) liveRows.push({ dot: '#FF9F0A', lbl: 'Dashed ring — unconfirmed / preliminary' });
+    liveRows.push({ dot: '#FF2D55', lbl: 'Solid ring — confirmed event' });
+  }
+  if (typeof CITY_DATA !== 'undefined' && CITY_DATA.length && citiesVisible) {
+    liveRows.push({ s: 'CITY LAYER (LIVE)' });
+    [...new Set(CITY_DATA.map(c => c.icon_type))].forEach(t => liveRows.push({ dot: '#6674CC', lbl: t.charAt(0).toUpperCase() + t.slice(1) }));
+  }
+  rows.unshift(...liveRows);
   const shapeClip = { diamond:'polygon(50% 0%,100% 50%,50% 100%,0% 50%)', triangle:'polygon(50% 0%,100% 100%,0% 100%)', square:'none', hex:'polygon(25% 0%,75% 0%,100% 50%,75% 100%,25% 100%,0% 50%)', star:'polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)' };
   document.getElementById('mk-list').innerHTML = rows.map(r => {
     if (r.s)        return `<div class="mk-section">${r.s}</div>`;
