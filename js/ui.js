@@ -223,12 +223,13 @@ function openArticle(story) {
   }
   document.getElementById('ap-coords').textContent = coordStr;
 
+  document.getElementById('art-panel').classList.remove('art-panel--event');
   document.getElementById('art-panel').classList.add('on');
   document.getElementById('art-bd').classList.add('on');
 }
 
 function closeArticle() {
-  document.getElementById('art-panel').classList.remove('on');
+  document.getElementById('art-panel').classList.remove('on', 'art-panel--event');
   document.getElementById('art-bd').classList.remove('on');
   setTimeout(() => { if (G) G.controls().autoRotate = true; }, 700);
 }

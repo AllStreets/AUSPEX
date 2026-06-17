@@ -691,7 +691,50 @@ function openSingleEq(eq) {
   const la = eq.lat >= 0 ? eq.lat.toFixed(3)+'°N' : Math.abs(eq.lat).toFixed(3)+'°S';
   const ln = eq.lng >= 0 ? eq.lng.toFixed(3)+'°E' : Math.abs(eq.lng).toFixed(3)+'°W';
   document.getElementById('ap-coords').textContent = `${la}, ${ln}`;
+  document.getElementById('art-panel').classList.remove('art-panel--event');
   document.getElementById('art-panel').classList.add('on');
+  document.getElementById('art-bd').classList.add('on');
+}
+
+// ═══════════════════════════════════════════
+// AUSPEX EVENT CARD — honest: confidence chip + brief + sources
+// ═══════════════════════════════════════════
+function openAuspexEventCard(event) {
+  const panel = document.getElementById('art-panel');
+  if (!panel) return;
+  const sev = event.severity ?? 0;
+  const sevColor = event.polarity === 'breakthrough'
+    ? (sev > 0.7 ? '#5AC8FA' : '#007AFF')
+    : (sev > 0.7 ? '#FF2D55' : sev > 0.4 ? '#FF9F0A' : '#FFD60A');
+  const confirmed = event.confidence === 'confirmed';
+  const set = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
+  if (G && event.lat != null && event.lng != null && !isNaN(event.lat) && !isNaN(event.lng)) {
+    G.controls().autoRotate = false;
+    G.pointOfView({ lat: event.lat, lng: event.lng, altitude: 1.55 }, 1400);
+  }
+  panel.classList.add('art-panel--event');
+  set('ap-cat', (event.type || '').toUpperCase());
+  const catEl = document.getElementById('ap-cat');
+  if (catEl) catEl.style.cssText = `color:${sevColor};background:${sevColor}18`;
+  const brk = document.getElementById('ap-brk');
+  if (brk) { brk.textContent = confirmed ? 'CONFIRMED' : 'UNCONFIRMED'; brk.style.color = confirmed ? '#30D158' : '#FF9F0A'; brk.style.display = 'inline-flex'; }
+  set('ap-title', event.title || '');
+  set('ap-src', (event.sources || []).map(s => s.name).join(' · '));
+  set('ap-time', event.occurredAt ? new Date(event.occurredAt).toLocaleString() : '');
+  set('ap-region', `${event.metric?.label ?? ''}: ${event.metric?.value ?? ''} (${event.metric?.band ?? ''})`);
+  set('ap-lead', event.brief || '');
+  set('ap-text', '');
+  const cdot = document.getElementById('ap-cdot'); if (cdot) cdot.style.background = sevColor;
+  const coords = document.getElementById('ap-coords');
+  if (coords && event.lat != null && !isNaN(event.lat)) {
+    const la = event.lat >= 0 ? event.lat.toFixed(3)+'°N' : Math.abs(event.lat).toFixed(3)+'°S';
+    const ln = event.lng >= 0 ? event.lng.toFixed(3)+'°E' : Math.abs(event.lng).toFixed(3)+'°W';
+    coords.textContent = `${la}, ${ln}`;
+  } else if (coords) { coords.textContent = ''; }
+  const link = document.getElementById('ap-link');
+  if (link && event.sources?.[0]) { link.href = event.sources[0].url; link.textContent = 'SOURCES ›'; link.style.display = 'inline-flex'; }
+  else if (link) { link.style.display = 'none'; }
+  panel.classList.add('on');
   document.getElementById('art-bd').classList.add('on');
 }
 
