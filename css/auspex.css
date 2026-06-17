@@ -1019,3 +1019,66 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 /* AUSPEX event card — honest confidence chip + brief */
 .art-panel--event #ap-lead { font-size:13px; line-height:1.6; color:#cfe0f5; }
 .art-panel--event #ap-brk { border:1px solid currentColor; border-radius:999px; padding:2px 8px; font-size:9px; letter-spacing:.14em; }
+
+/* ═══════════════════════════════════════════
+   AURORA WATCH — breathing aura (world-state-driven accent)
+   --aura / --aura-soft are set live by js/aura.js.
+   Consumers transition smoothly (~1.2s) as the world state shifts.
+   ═══════════════════════════════════════════ */
+
+/* Slow breathing — gentle, subtle intensity variation so the
+   instrument feels alive at rest. No jarring motion. */
+@keyframes aura-breathe {
+  0%,100% { opacity:1;   filter:drop-shadow(0 0 4px var(--aura-soft)); }
+  50%     { opacity:.78; filter:drop-shadow(0 0 9px var(--aura-soft)); }
+}
+@keyframes aura-breathe-glow {
+  0%,100% { box-shadow:0 0 6px var(--aura-soft); }
+  50%     { box-shadow:0 0 13px var(--aura-soft); }
+}
+
+/* Header wordmark → signature cyan→violet gradient + aura underglow */
+.logo-text div:first-child {
+  background:var(--sig);
+  -webkit-background-clip:text; background-clip:text;
+  -webkit-text-fill-color:transparent; color:transparent;
+  text-shadow:0 0 10px var(--aura-soft);
+  transition:text-shadow 1.2s ease;
+  animation:aura-breathe 6s ease-in-out infinite;
+}
+
+/* LIVE badge + dot → aura color, breathing */
+.live-badge {
+  background:var(--aura-soft) !important;
+  border-color:color-mix(in srgb,var(--aura) 30%,transparent) !important;
+  transition:background 1.2s ease,border-color 1.2s ease;
+  animation:aura-breathe-glow 6s ease-in-out infinite;
+}
+.live-dot {
+  background:var(--aura) !important;
+  transition:background 1.2s ease;
+}
+.live-txt {
+  color:var(--aura) !important;
+  transition:color 1.2s ease;
+}
+
+/* Globe atmosphere underglow — breathes behind the globe wrapper */
+#globe-wrap::after {
+  content:''; position:absolute; inset:0; z-index:-1; pointer-events:none;
+  background:radial-gradient(ellipse at 50% 50%,var(--aura-soft) 0%,transparent 62%);
+  transition:background 1.2s ease;
+  animation:aura-breathe 6s ease-in-out infinite;
+}
+
+/* Loading bar → signature gradient; wordmark accent → cyan */
+.ld-prog { background:var(--sig); }
+.ld-wordmark em { color:#7fe9ff; }
+
+/* Focus rings + scrollbars → neutral with aura accent */
+*:focus-visible { outline:2px solid var(--aura); outline-offset:1px; }
+#news-feed::-webkit-scrollbar-thumb,
+.ap-body::-webkit-scrollbar-thumb,
+.pk-list::-webkit-scrollbar-thumb {
+  background:color-mix(in srgb,var(--aura) 28%,transparent);
+}
