@@ -302,6 +302,27 @@ function makeMarker(story) {
 }
 
 // ═══════════════════════════════════════════
+// AUSPEX EVENT MARKER — holographic disaster/breakthrough sense
+// ═══════════════════════════════════════════
+function makeAuspexEventMarker(event) {
+  const sev = event.severity ?? 0;
+  const color = event.polarity === 'breakthrough'
+    ? (sev > 0.7 ? '#5AC8FA' : '#007AFF')
+    : (sev > 0.7 ? '#FF2D55' : sev > 0.4 ? '#FF9F0A' : '#FFD60A');
+  const size = 8 + sev * 14;
+  const unconfirmed = event.confidence === 'unconfirmed';
+  const d = document.createElement('div');
+  d.className = `auspex-m auspex-${event.type}${unconfirmed ? ' auspex-unconfirmed' : ''}`;
+  d.style.cssText = `color:${color};position:relative;transform:translate(-50%,-50%)`;
+  d.innerHTML =
+    `<div class="auspex-ring" style="width:${size*2}px;height:${size*2}px;border:1px ${unconfirmed?'dashed':'solid'} ${color}${unconfirmed?'66':'99'};border-radius:50%;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);animation:auspex-pulse 2.4s ease-out infinite"></div>` +
+    `<div class="auspex-core" style="width:${size}px;height:${size}px;background:${color};border-radius:50%;box-shadow:0 0 ${Math.round(sev*12)}px ${color}bb;opacity:${unconfirmed?0.6:1}"></div>` +
+    `<div class="auspex-tip">${event.title}</div>`;
+  d.addEventListener('click', e => { e.stopPropagation(); openAuspexEventCard(event); });
+  return d;
+}
+
+// ═══════════════════════════════════════════
 // COUNTRY MARKER — nuclear/conflict/sanctions/P5 indicators
 // ═══════════════════════════════════════════
 function makeCountryMarker(country) {
@@ -493,6 +514,10 @@ function _updateAllGlobeElementsNow() {
   if (citiesVisible && CITY_DATA.length) {
     CITY_DATA.forEach(c => visual.push({...c, _type:'city'}));
   }
+  // AUSPEX disaster/breakthrough events from snapshot worker
+  if (snapshotVisible && SNAPSHOT_EVENTS.length) {
+    SNAPSHOT_EVENTS.forEach(e => visual.push({ ...e, _type: 'auspex_event' }));
+  }
   // Country markers — build merged list from Supabase + _WORLD_COUNTRIES fallback
   // Merge: Supabase data wins for attribute fields; _WORLD_COUNTRIES provides centroid lat/lng
   const _dbByIso = {};
@@ -548,6 +573,7 @@ function _updateAllGlobeElementsNow() {
       return d;
     }
     if (item._type === 'city') return makeCityMarker(item);
+    if (item._type === 'auspex_event') return makeAuspexEventMarker(item);
     if (item._type === 'country') return makeCountryMarker(item);
     if (item._type === 'region_label') return makeRegionLabel(item);
     if (item._type === 'threat') {
@@ -579,8 +605,16 @@ function _updateAllGlobeElementsNow() {
     : [];
   const _regionColors = { critical:'#FF2D55', high:'#FF9F0A', elevated:'#B7950B' };
   const _brkRings = [..._pulseSet].filter(s => s.brk);
-  G.ringsData([..._brkRings, ...EQ_DATA.filter(e => e.mag >= 6.5), ..._conflictRings])
+  // AUSPEX severe events get a secondary glow ring (markers are primary)
+  const _auspexSevColor = (sev, polarity) => polarity === 'breakthrough'
+    ? (sev > 0.7 ? '#5AC8FA' : '#007AFF')
+    : (sev > 0.7 ? '#FF2D55' : sev > 0.4 ? '#FF9F0A' : '#FFD60A');
+  const _auspexRings = snapshotVisible
+    ? SNAPSHOT_EVENTS.filter(e => (e.severity ?? 0) >= 0.5).map(e => ({ ...e, _auspex: true }))
+    : [];
+  G.ringsData([..._brkRings, ...EQ_DATA.filter(e => e.mag >= 6.5), ..._conflictRings, ..._auspexRings])
     .ringColor(r => {
+      if (r._auspex) return _auspexSevColor(r.severity ?? 0, r.polarity) + '44';
       if (r._region) return (_regionColors[r.threat_level] || '#FF9F0A') + '30';
       // Finance + climate rings are muted — less visually dominant
       if (r.cat === 'finance') return (r.color || '#FFD60A') + '28';
@@ -588,18 +622,20 @@ function _updateAllGlobeElementsNow() {
       return (r.color || '#FF2D55') + '55';
     })
     .ringMaxRadius(r => {
+      if (r._auspex) return 2 + (r.severity ?? 0) * 4;
       if (r._region) return Math.min(r.radius_km / 55, 18);
       if (r.cat === 'finance') return 2.8;
       if (r.cat === 'climate') return 2.8;
       return r.mag ? r.mag * 0.7 : 4.5;
     })
     .ringPropagationSpeed(r => {
+      if (r._auspex) return 0.8;
       if (r._region) return 0.35;
       if (r.cat === 'finance') return 0.7;
       if (r.cat === 'climate') return 0.7;
       return r.mag ? r.mag * 0.25 : 1.4;
     })
-    .ringRepeatPeriod(r => r._region ? 4000 : (r.cat === 'finance' || r.cat === 'climate') ? 1600 : 900)
+    .ringRepeatPeriod(r => r._auspex ? 1400 : r._region ? 4000 : (r.cat === 'finance' || r.cat === 'climate') ? 1600 : 900)
     .ringAltitude(0.006);
 }
 
