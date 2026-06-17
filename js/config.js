@@ -157,3 +157,8 @@ let _lnpContextStory = null;
 let _webcamVisible = false;
 let _webcamPanelEnabled = false;
 let _currentWebcams = [];
+
+// AUSPEX snapshot layer
+let SNAPSHOT_EVENTS = [];
+let snapshotVisible = true;
+let _snapshotFetchedAt = 0;

@@ -51,6 +51,8 @@ setTimeout(() => { if (typeof refreshAllPaths === 'function') refreshAllPaths();
 // Fetch live news + supporting data after globe is ready
 setTimeout(() => fetchNews(), 800);
 setTimeout(() => fetchEarthquakes(), 2000);
+setTimeout(() => fetchSnapshot(), 3000);
+setInterval(() => fetchSnapshot(), 3 * 60 * 1000);
 // Bootstrap from Supabase server — seeds local cache with accumulated history
 setTimeout(() => bootstrapFromSupabase(), 5000);
 
