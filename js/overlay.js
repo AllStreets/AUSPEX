@@ -750,10 +750,10 @@ function toggleCities() {
   document.getElementById('lc-cities').classList.toggle('on', citiesVisible);
   if (citiesVisible && !_citiesFetched) {
     _citiesFetched = true;
-    sbFetchCities(2).then(cities => {
-      if (cities.length) { CITY_DATA = cities; }
-      updateAllGlobeElements();
-    }).catch(e => { console.warn('[MERIDIAN] City fetch failed:', e.message); updateAllGlobeElements(); });
+    fetch('data/cities-1000.json')
+      .then(r => r.json())
+      .then(cities => { if (cities.length) { CITY_DATA = cities; } updateAllGlobeElements(); })
+      .catch(e => { console.warn('[AUSPEX] Cities load failed:', e.message); updateAllGlobeElements(); });
   } else {
     updateAllGlobeElements();
   }
