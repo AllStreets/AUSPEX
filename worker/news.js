@@ -131,3 +131,57 @@ export async function fetchAllNews() {
   }
   return out;
 }
+
+// ═══════════════════════════════════════════
+// AUSPEX · NEWS CACHE
+// Module-level cache of the unified feed so the worker server AND the poller
+// (which derives breakthroughs from the news firehose) can both read the
+// latest articles without a circular dependency or a double fetch.
+// ═══════════════════════════════════════════
+const NEWS_TTL_MS = 12 * 60 * 1000;
+let _newsCache = { generatedAt: null, count: 0, articles: [] };
+let _newsFetchedAt = 0;
+let _newsInflight = null;
+
+// Fetch the unified feed and store it in the module-level cache.
+// Coalesces concurrent callers onto a single in-flight request.
+export async function refreshNews() {
+  if (_newsInflight) return _newsInflight;
+  _newsInflight = (async () => {
+    try {
+      const articles = await fetchAllNews();
+      if (articles.length) {
+        _newsCache = {
+          generatedAt: new Date().toISOString(),
+          count: articles.length,
+          articles,
+        };
+        _newsFetchedAt = Date.now();
+      }
+      const g = articles.filter((a) => a.origin === 'gdelt').length;
+      const n = articles.filter((a) => a.origin === 'newsapi').length;
+      console.log(`[AUSPEX worker] news refreshed: ${articles.length} articles (gdelt ${g}, newsapi ${n})`);
+    } catch (e) {
+      console.warn('[AUSPEX worker] news refresh failed:', e && e.message);
+    } finally {
+      _newsInflight = null;
+    }
+    return _newsCache;
+  })();
+  return _newsInflight;
+}
+
+// The current cached articles array (possibly []). Never throws.
+export function getCachedArticles() {
+  return _newsCache.articles || [];
+}
+
+// The /news.json payload. Refreshes lazily if the cache is cold or expired.
+export async function getNewsPayload() {
+  if (!_newsCache.generatedAt || Date.now() - _newsFetchedAt > NEWS_TTL_MS) {
+    await refreshNews();
+  }
+  return _newsCache;
+}
+
+export const NEWS_REFRESH_INTERVAL_MS = NEWS_TTL_MS;
