@@ -35,6 +35,33 @@ export function normalizeGDACSItem(item) {
     links: [], icon: type,
   };
 }
+// Pure mapping: a Launch Library 2 (The Space Devs) launch → snapshot event.
+// Returns null when the launch lacks a numeric pad lat/lng (unplaceable).
+export function normalizeLaunch(launch) {
+  if (!launch || !launch.id) return null;
+  const lat = Number(launch.pad?.latitude);
+  const lng = Number(launch.pad?.longitude);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  const provider = launch.launch_service_provider?.name || '';
+  const rocket = launch.rocket?.configuration?.name || launch.rocket?.configuration?.full_name || '';
+  const brief =
+    launch.mission?.description ||
+    [provider, rocket].filter(Boolean).join(' · ') ||
+    launch.name || 'Orbital launch';
+  return {
+    id: `space:${launch.id}`,
+    sense: 'space', type: 'launch', polarity: 'breakthrough',
+    title: launch.name || 'Orbital launch',
+    lat, lng,
+    metric: { label: 'launch', value: provider, band: 'milestone' },
+    severity: 0.6, confidence: 'confirmed',
+    occurredAt: launch.net ? new Date(launch.net).toISOString() : new Date().toISOString(),
+    brief,
+    sources: [{ name: 'The Space Devs', url: launch.url || 'https://thespacedevs.com' }],
+    links: [], icon: 'launch',
+  };
+}
+
 export function validateSnapshotEvent(e) {
   return (
     typeof e.id === 'string' && e.id.length > 0 &&
