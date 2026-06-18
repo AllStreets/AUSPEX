@@ -1,10 +1,11 @@
 'use strict';
 
 // ═══════════════════════════════════════════
-// SUPABASE CLIENT — MERIDIAN PERSISTENCE LAYER
+// SUPABASE CLIENT — AUSPEX PERSISTENCE LAYER
+// anon key is publishable (RLS-protected); safe in the client bundle.
 // ═══════════════════════════════════════════
-const SUPA_URL = 'https://dszlmzwfopujyxdrxmhn.supabase.co';
-const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRzemxtendmb3B1anl4ZHJ4bWhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NzU5ODUsImV4cCI6MjA5MjQ1MTk4NX0.jNjvyyCQqXyjQu_Eb8vzkAOycXiW8L0NzyKbzcl_xd4';
+const SUPA_URL = 'https://rdsmaktxefqtfxogoauq.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkc21ha3R4ZWZxdGZ4b2dvYXVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3MzI4MDAsImV4cCI6MjA5NzMwODgwMH0.N5zfuFrVIMdrZ9adXmiUVaD2EhCu0j1Inqf2ru4bJc8';
 
 let _sb = null;
 function getSB() {

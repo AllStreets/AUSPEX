@@ -7,11 +7,11 @@
 // These colors MUST match --all/--geo/--mil/--fin/--cli/--tec exactly.
 // Change one, change the other — they always agree.
 const CATS = {
-  all:     {color:'#34E08A',label:'ALL'},
+  all:     {color:'#B7C2CC',label:'ALL'},
   geo:     {color:'#6E8AFF',label:'GEO'},
   military:{color:'#C084FC',label:'MIL'},
   finance: {color:'#E8B84B',label:'FIN'},
-  climate: {color:'#2DD4BF',label:'CLM'},
+  climate: {color:'#34D17A',label:'CLM'},
   tech:    {color:'#22D3EE',label:'TECH'},
 };
 

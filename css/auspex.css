@@ -23,10 +23,12 @@
 
   /* News categories — DISTINCT, cool, never read as danger.
      Mirror of CATS in js/config.js. */
-  --all:#34E08A;  --geo:#6E8AFF;  --tec:#22D3EE;  --mil:#C084FC;  --fin:#E8B84B;  --cli:#2DD4BF;
+  /* Each category a DISTINCT, meaningful hue: aggregate=silver, geo=blue (world),
+     tech=cyan (digital), military=violet, finance=gold (money), climate=green (nature). */
+  --all:#B7C2CC;  --geo:#6E8AFF;  --tec:#22D3EE;  --mil:#C084FC;  --fin:#E8B84B;  --cli:#34D17A;
 
-  /* Breaking — readable: gold background, dark text */
-  --brk:#FBBF24;
+  /* Breaking — red, urgent; readable red-on-dark (reverted from gold) */
+  --brk:#FF4D5E;
 
   /* Event severity — warm ramp, used on globe events ONLY */
   --sev-low:#FACC15;  --sev-mid:#FB923C;  --sev-high:#FF4D5E;
@@ -136,7 +138,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 .nc-src{font-family:var(--f-mono);font-size:9px;color:var(--t3);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;align-self:center}
 .nc-dot{width:2px;height:2px;border-radius:50%;background:var(--t3);flex-shrink:0;align-self:center}
 .nc-time{font-family:var(--f-mono);font-size:9px;color:var(--t3);min-width:60px;text-align:right;flex-shrink:0;align-self:center}
-.brk{font-family:var(--f-brand);font-size:7px;font-weight:700;letter-spacing:.1em;background:var(--brk);color:#07120b;border:none;padding:1px 5px;border-radius:2px;animation:brk-blink 2.2s ease-in-out infinite;flex-shrink:0}
+.brk{font-family:var(--f-brand);font-size:7px;font-weight:700;letter-spacing:.1em;background:color-mix(in srgb,var(--brk) 14%,transparent);color:var(--brk);border:1px solid color-mix(in srgb,var(--brk) 32%,transparent);padding:1px 5px;border-radius:2px;animation:brk-blink 2.2s ease-in-out infinite;flex-shrink:0}
 @keyframes brk-blink{0%,100%{opacity:1}50%{opacity:.4}}
 .nc-title{font-family:var(--f-head);font-size:13px;font-weight:600;line-height:1.45;color:var(--t1);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .nc-sum{font-size:12px;line-height:1.65;color:var(--t2);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
