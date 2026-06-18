@@ -3,19 +3,22 @@
 // ═══════════════════════════════════════════
 // CATEGORY CONFIG
 // ═══════════════════════════════════════════
+// SINGLE SOURCE OF TRUTH (with css/auspex.css :root category vars).
+// These colors MUST match --all/--geo/--mil/--fin/--cli/--tec exactly.
+// Change one, change the other — they always agree.
 const CATS = {
-  all:     {color:'#7B61FF',label:'ALL'},
-  geo:     {color:'#FF2D55',label:'GEO'},
-  military:{color:'#FF9F0A',label:'MIL'},
-  finance: {color:'#FFD60A',label:'FIN'},
-  climate: {color:'#30D158',label:'CLM'},
-  tech:    {color:'#0A84FF',label:'TECH'},
+  all:     {color:'#B7C2CC',label:'ALL'},
+  geo:     {color:'#6E8AFF',label:'GEO'},
+  military:{color:'#C084FC',label:'MIL'},
+  finance: {color:'#E8B84B',label:'FIN'},
+  climate: {color:'#34D17A',label:'CLM'},
+  tech:    {color:'#22D3EE',label:'TECH'},
 };
 
 // ═══════════════════════════════════════════
 // API KEYS — defined in js/keys.js (gitignored)
 // ═══════════════════════════════════════════
-const NEWS_CACHE_KEY = 'meridian_news_cache_v5';
+const NEWS_CACHE_KEY = 'auspex_news_cache_v1';
 const NEWS_CACHE_TTL = 20 * 60 * 1000; // 20 minutes
 const NEWS_MAX_AGE_MS = 7 * 24 * 3600 * 1000; // 7 days — wider window for dataset accumulation
 
@@ -55,7 +58,6 @@ let sidebarOpen = true;
 let searchOpen = false;
 let lastTod = null;
 let lastHour = null;
-let satModeOn = false;
 
 // News + refresh
 let nextRefreshAt = null;
@@ -77,7 +79,7 @@ let marketCacheTs = 0;
 let _mktHash = '';
 
 // Watchlist
-let watchlist = JSON.parse(localStorage.getItem('meridian_wl') || '[]');
+let watchlist = JSON.parse(localStorage.getItem('auspex_wl') || '[]');
 let watchlistFilter = false;
 
 // Scrubber / timeline
@@ -92,10 +94,6 @@ let analystGraph = null;
 let analystAnimId = null;
 let _netZoom = 1, _netPanX = 0, _netPanY = 0;
 let _netDrag = null;
-
-// Wargame (D1)
-let wargameActive = false;
-let wargameArcs   = [];
 
 // Daily brief + map key
 let _briefContent = '';
@@ -146,8 +144,6 @@ let _vesselCounts   = {};
 let sanctionsVisible = false;
 
 // Feature: Satellite (F1)
-let _satBlobUrl = null;
-
 // Feature: Live Broadcast (F2)
 let _lnpActive = false;
 let _lnpCurrentId = BROADCASTER_DEFAULT;

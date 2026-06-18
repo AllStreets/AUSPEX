@@ -116,7 +116,6 @@ setInterval(() => { if (marketVisible) fetchMarketData(); }, 5 * 60 * 1000);
             cascade:  'toggleCascade',
             livenews: 'toggleLiveNews',
             webcams:  'toggleWebcamPanel',
-            wargame:  'openWargame',
           };
           const tfn = toolMap[payload.tool];
           if (tfn && typeof window[tfn] === 'function') window[tfn]();

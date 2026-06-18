@@ -53,7 +53,6 @@
     <button class="lc-btn" id="lc-eq"       onclick="toggleEQ()"         title="Earthquake overlay">QUAKES</button>
     <button class="lc-btn" id="lc-livenews" onclick="toggleLiveNews()"   title="Live broadcast news panel">BROADCAST</button>
     <button class="lc-btn" id="lc-webcams"  onclick="toggleWebcamPanel()" title="Windy live webcams near story">WEBCAMS</button>
-    <button class="lc-btn lc-wargame" id="lc-wargame" onclick="openWargame()" title="Temporal wargame scenario engine">WARGAME</button>
   </div>
   <div class="hdr-sep"></div>
   <div class="hdr-stat"><span class="hs-v" id="story-count">20</span><span class="hs-l">Stories</span></div>
@@ -361,33 +360,6 @@
   </div>
 </div>
 
-<!-- D1 WARGAME OVERLAY -->
-<div id="wargame-overlay">
-  <div class="wg-bar">
-    <span class="wg-wordmark">◆ AUSPEX WARGAME</span>
-    <span class="wg-status" id="wg-status">CLICK ANY GLOBE MARKER TO GENERATE 72-HOUR SCENARIO</span>
-    <div class="wg-bar-acts">
-      <button class="wg-act" onclick="resetWargameArcs()">RESET ARCS</button>
-      <button class="wg-close-btn" onclick="closeWargame()">EXIT WARGAME</button>
-    </div>
-  </div>
-  <div class="wg-body">
-    <div class="wg-left">
-      <div class="wg-left-hdr">
-        <div class="wg-lbl">SCENARIO SUBJECT</div>
-        <div id="wg-title" style="color:var(--t3);font-style:italic;font-size:11px">No story selected</div>
-        <div id="wg-region"></div>
-      </div>
-      <div id="wg-scenarios">
-        <div class="wg-loading">CLICK A STORY MARKER ON THE GLOBE<br>TO GENERATE PROBABILITY-WEIGHTED<br>72-HOUR SCENARIO PROJECTIONS</div>
-      </div>
-    </div>
-    <div class="wg-right">
-      <div class="wg-hint">GLOBE INTERACTIVE · CLICK MARKERS TO GENERATE SCENARIOS</div>
-    </div>
-  </div>
-</div>
-
 <!-- A2 NARRATIVE DIVERGENCE PANEL -->
 <div id="div-panel">
   <div class="div-hdr drag-handle">◆ NARRATIVE DIVERGENCE RADAR<button class="div-close" onclick="toggleDivergence()">×</button></div>
@@ -462,6 +434,7 @@
 <script src="js/keys.js"></script>
 <script src="js/config.js"></script>
 <script src="js/snapshot.js"></script>
+<script src="js/aura.js"></script>
 <script src="js/supabase.js"></script>
 <script src="js/data.js"></script>
 <script src="js/news.js"></script>
@@ -472,15 +445,6 @@
 <script src="js/features.js"></script>
 <script src="js/main.js"></script>
 
-<!-- ════════════════════════════════════════
-     NASA SATELLITE MODE BADGE
-     ═══════════════════════════════════════ -->
-<div id="sat-badge">
-  <span class="sat-pulse"></span>
-  <span id="sat-date-lbl">MODIS TERRA</span>
-  <span style="opacity:.4;margin:0 2px">·</span>
-  <span style="opacity:.6">LIVE EARTH</span>
-</div>
 
 <!-- ════════════════════════════════════════
      LIVE BROADCAST PANEL

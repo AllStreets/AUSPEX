@@ -6,6 +6,7 @@ async function fetchSnapshot() {
     const data = await r.json();
     _snapshotFetchedAt = Date.now();
     SNAPSHOT_EVENTS = Array.isArray(data.events) ? data.events : [];
+    if (typeof updateAura === 'function') updateAura();
     updateAllGlobeElements();
     console.log(`[AUSPEX] snapshot loaded: ${SNAPSHOT_EVENTS.length} events`);
   } catch (e) {
