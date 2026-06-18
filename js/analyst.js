@@ -101,7 +101,7 @@ function pinStory(storyId) {
   analystAssets.push(storyId);
   document.querySelectorAll(`[data-pin-id="${storyId}"]`).forEach(btn => {
     btn.classList.add('saved');
-    btn.style.color = '#00D4FF';
+    btn.style.color = '#4ADE80';
   });
   renderAnalystBoard();
   if (document.getElementById('analyst-overlay').classList.contains('on')) runAnalystGraph();
@@ -128,8 +128,8 @@ function _updateCityPinBtn(city, isPinned) {
     const btn = document.getElementById('cip-pin-btn');
     if (btn) {
       btn.textContent = isPinned ? 'PINNED' : 'PIN';
-      btn.style.color = isPinned ? '#00D4FF' : '';
-      btn.style.borderColor = isPinned ? '#00D4FF66' : '';
+      btn.style.color = isPinned ? '#4ADE80' : '';
+      btn.style.borderColor = isPinned ? '#4ADE8066' : '';
     }
   }
 }
@@ -396,7 +396,7 @@ function runAnalystGraph() {
       const isCross = pinned[e.i]?.cat !== pinned[e.j]?.cat;
       if (isCross) hasCross = true;
       ctx.beginPath(); ctx.moveTo(nodes[e.i].x, nodes[e.i].y); ctx.lineTo(nodes[e.j].x, nodes[e.j].y);
-      ctx.strokeStyle = isCross ? `rgba(255,159,10,${pulse+0.1})` : `rgba(0,212,255,${pulse})`;
+      ctx.strokeStyle = isCross ? `rgba(255,159,10,${pulse+0.1})` : `rgba(74,222,128,${pulse})`;
       ctx.lineWidth = 0.5 + e.strength*0.35; ctx.stroke();
       const mx = (nodes[e.i].x+nodes[e.j].x)/2, my = (nodes[e.i].y+nodes[e.j].y)/2;
       ctx.font = '7px "IBM Plex Mono"';
@@ -500,7 +500,7 @@ function exportBrief() {
   body{background:#030409;color:#c8d0f0;font-family:'IBM Plex Mono',monospace;margin:0;padding:0}
   .banner{background:#C1121F;padding:10px 24px;font-size:9px;font-weight:700;letter-spacing:.3em;color:#fff;text-align:center}
   .hdr{padding:24px 32px 16px;border-bottom:1px solid #1a1f35}
-  .wordmark{font-size:11px;letter-spacing:.32em;color:#00D4FF;margin-bottom:6px}
+  .wordmark{font-size:11px;letter-spacing:.32em;color:#4ADE80;margin-bottom:6px}
   .title{font-size:22px;font-weight:800;letter-spacing:.1em;color:#f0f2ff;font-family:Georgia,serif;margin-bottom:4px}
   .meta{font-size:9px;color:#3C4470;letter-spacing:.12em}
   .section{padding:20px 32px}
@@ -937,7 +937,7 @@ function buildMapKey() {
     { plane:'#A78BFA', lbl:'Cargo freighter' },
     { plane:'#30D158', lbl:'Military / surveillance' },
     { s:'ANALYST TOOLS' },
-    { dash:'rgba(0,212,255,.7)',  lbl:'Entity network edge — same-domain connection' },
+    { dash:'rgba(74,222,128,.7)',  lbl:'Entity network edge — same-domain connection' },
     { dash:'rgba(255,159,10,.7)', lbl:'Entity network edge — cross-domain signal correlation' },
     { dot:'#30D158', lbl:'Trajectory ▲ — escalating regional activity (card badge)' },
     { dot:'#FF9F0A', lbl:'Trajectory — — active / stable regional activity (card badge)' },
@@ -946,7 +946,7 @@ function buildMapKey() {
     { dash:'rgba(255,45,85,.6)',  lbl:'Dead Reckoning: escalating country (red glow on name)' },
     { dash:'rgba(255,159,10,.5)', lbl:'Dead Reckoning: active country (amber glow on name)' },
     { dash:'rgba(48,209,88,.4)',  lbl:'Dead Reckoning: stable country (green glow on name)' },
-    { dot:'#00D4FF', lbl:'Arc click → ARC TRACE — pins both stories to analyst board' },
+    { dot:'#4ADE80', lbl:'Arc click → ARC TRACE — pins both stories to analyst board' },
     { s:'GLOBE CONTROLS' },
     { ctrl:'reset',  lbl:'Reset view — returns globe to default Eurasian perspective' },
     { ctrl:'spin',   lbl:'Spin toggle — illuminated when auto-rotation is active' },

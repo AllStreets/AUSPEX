@@ -18,7 +18,7 @@ function _cardHtml(s) {
         <button class="nc-star ${watchlist.includes(s.id)?'saved':''}" data-wl-id="${s.id}" onclick="toggleWatchlist(${s.id})" title="Save to watchlist">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="${watchlist.includes(s.id)?'currentColor':'none'}" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
         </button>
-        <button class="nc-star ${analystAssets.includes(s.id)?'saved':''} nc-pin-btn" data-pin-id="${s.id}" onclick="pinStory(${s.id})" title="Pin to Analyst Mode" style="color:${analystAssets.includes(s.id)?'#00D4FF':''}">
+        <button class="nc-star ${analystAssets.includes(s.id)?'saved':''} nc-pin-btn" data-pin-id="${s.id}" onclick="pinStory(${s.id})" title="Pin to Analyst Mode" style="color:${analystAssets.includes(s.id)?'#4ADE80':''}">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
         </button>
       </div>
@@ -179,7 +179,7 @@ function pinStoryFromArticle() {
   const btn = document.getElementById('ap-pin-btn');
   const pinned = analystAssets.includes(_apStoryId);
   if (lbl) lbl.textContent = pinned ? 'PINNED ✓' : 'PIN TO ANALYST';
-  if (btn) { btn.style.background = pinned?'rgba(0,212,255,.12)':'rgba(0,212,255,.05)'; btn.style.borderColor = pinned?'rgba(0,212,255,.45)':'rgba(0,212,255,.2)'; btn.style.color = pinned?'#00D4FF':'rgba(0,212,255,.7)'; }
+  if (btn) { btn.style.background = pinned?'rgba(74,222,128,.12)':'rgba(74,222,128,.05)'; btn.style.borderColor = pinned?'rgba(74,222,128,.45)':'rgba(74,222,128,.2)'; btn.style.color = pinned?'#4ADE80':'rgba(74,222,128,.7)'; }
 }
 function openArticle(story) {
   if (!story) return;
@@ -189,7 +189,7 @@ function openArticle(story) {
   const lbl = document.getElementById('ap-pin-lbl');
   const btn = document.getElementById('ap-pin-btn');
   if (lbl) lbl.textContent = pinned ? 'PINNED ✓' : 'PIN TO ANALYST';
-  if (btn) { btn.style.background = pinned?'rgba(0,212,255,.12)':'rgba(0,212,255,.05)'; btn.style.borderColor = pinned?'rgba(0,212,255,.45)':'rgba(0,212,255,.2)'; btn.style.color = pinned?'#00D4FF':'rgba(0,212,255,.7)'; }
+  if (btn) { btn.style.background = pinned?'rgba(74,222,128,.12)':'rgba(74,222,128,.05)'; btn.style.borderColor = pinned?'rgba(74,222,128,.45)':'rgba(74,222,128,.2)'; btn.style.color = pinned?'#4ADE80':'rgba(74,222,128,.7)'; }
   if (G && story.lat != null && story.lng != null && !isNaN(story.lat) && !isNaN(story.lng)) {
     G.controls().autoRotate = false;
     G.pointOfView({lat: story.lat, lng: story.lng, altitude: 1.55}, 1400);

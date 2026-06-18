@@ -439,7 +439,7 @@ function openCityPanel(city) {
     const key = `city:${city.name}:${(city.lat||0).toFixed(1)}`;
     const isPinned = typeof _analystGeoMap !== 'undefined' && !!_analystGeoMap[key];
     pinBtn.textContent = isPinned ? 'PINNED' : 'PIN';
-    pinBtn.style.color = isPinned ? '#00D4FF' : '';
+    pinBtn.style.color = isPinned ? '#4ADE80' : '';
   }
 
   // Header
