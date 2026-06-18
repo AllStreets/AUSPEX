@@ -1,7 +1,7 @@
 'use strict';
 
 // ═══════════════════════════════════════════
-// ANALYST MODE — D1 WARGAME, D2 RED TEAM, D3 CONSENSUS
+// ANALYST MODE — D2 RED TEAM, D3 CONSENSUS
 //                DAILY BRIEF, MAP KEY, ARC MANAGEMENT
 // ═══════════════════════════════════════════
 
@@ -809,43 +809,6 @@ ${bodyHtml}
   a.download = `red-team-brief-${Date.now()}.html`;
   a.click();
 }
-function openWargame() {
-  wargameActive = true;
-  document.getElementById('wargame-overlay').classList.add('on');
-  // Allow globe markers to trigger wargame — show picker if multiple stories at location
-  if (G) {
-    G.onPointClick(item => {
-      if (!item || (item._type && item._type !== 'story')) return;
-      const nearby = NEWS.filter(s => Math.abs(s.lat - item.lat) < 0.5 && Math.abs(s.lng - item.lng) < 0.5);
-      if (nearby.length <= 1) generateWargameScenarios(nearby[0] || item);
-      else openWargamePicker(nearby);
-    });
-  }
-}
-
-function openWargamePicker(stories) {
-  G.controls().autoRotate = false;
-  G.pointOfView({ lat: stories[0].lat, lng: stories[0].lng, altitude: 1.55 }, 900);
-  document.getElementById('pk-loc').textContent = (stories[0].region || 'LOCATION').toUpperCase();
-  document.getElementById('pk-count').textContent = `${stories.length} STORIES · SELECT WARGAME TARGET`;
-  document.getElementById('pk-list').innerHTML = stories.map(s => `
-    <div class="pk-item" data-id="${s.id}">
-      <div class="pk-accent" style="background:${s.color}"></div>
-      <div class="pk-info">
-        <div class="pk-cat" style="color:${s.color}">${CATS[s.cat]?.label||s.cat.toUpperCase()}${s.brk?` · <span style="color:var(--brk)">BREAKING</span>`:''}</div>
-        <div class="pk-title">${s.title}</div>
-        <div class="pk-src">${s.src} · ${s.time}</div>
-        <div style="margin-top:5px;font-family:var(--f-mono);font-size:8px;letter-spacing:.14em;color:#FF9F0A">⚔ RUN WARGAME</div>
-      </div>
-      <span class="pk-arrow">›</span>
-    </div>`).join('');
-  document.getElementById('pk-list').querySelectorAll('.pk-item').forEach(el => {
-    const s = NEWS.find(n => n.id === +el.dataset.id);
-    el.addEventListener('click', () => { closePicker(); generateWargameScenarios(s); });
-  });
-  document.getElementById('art-bd').classList.add('on');
-  document.getElementById('picker').classList.add('on');
-}
 async function openDailyBrief() {
   const now = new Date();
   document.getElementById('bm-date').textContent = now.toUTCString().toUpperCase().replace('GMT','UTC');
@@ -994,90 +957,17 @@ function buildMapKey() {
   }).join('');
 }
 
-function openWargameFromAnalyst() {
-  closeAnalystMode();
-  openWargame();
-}
-function closeWargame() {
-  wargameActive = false;
-  wargameArcs = [];
-  document.getElementById('wargame-overlay').classList.remove('on');
-  // Restore normal globe click handler
-  if (G) {
-    G.onPointClick(item => {
-      if (item._type === 'earthquake') showEqInfo(item);
-      else handleLocationClick(item);
-    }).onPointHover(item => { document.body.style.cursor = item ? 'pointer' : ''; });
-  }
-  refreshArcs();
-}
-
-function resetWargameArcs() {
-  wargameArcs = [];
-  refreshArcs();
-  document.getElementById('wg-scenarios').innerHTML = '<div class="wg-loading">ARCS CLEARED · CLICK A GLOBE MARKER TO GENERATE NEW SCENARIOS</div>';
-  document.getElementById('wg-title').textContent = 'No story selected';
-  document.getElementById('wg-region').textContent = '';
-  document.getElementById('wg-status').textContent = 'CLICK ANY GLOBE MARKER TO GENERATE 72-HOUR SCENARIO';
-}
-
-async function generateWargameScenarios(story) {
-  document.getElementById('wg-title').textContent = story.title.slice(0,75) + (story.title.length>75?'…':'');
-  document.getElementById('wg-region').textContent = story.region || '';
-  document.getElementById('wg-status').textContent = 'GENERATING SCENARIO MATRIX…';
-  document.getElementById('wg-scenarios').innerHTML = '<div class="wg-loading rt-loading-anim">RUNNING SCENARIO MODELS…<br>PROBABILITY MATRIX LOADING…</div>';
-
-  try {
-    const text = await callOpenAI(
-      'You are a strategic scenario planner at an intelligence agency. Generate exactly 3 plausible 72-hour scenarios. Respond ONLY in valid JSON.',
-      `Story: ${story.title}\nSummary: ${story.summary||''}\nRegion: ${story.region||'Unknown'}\n\nRespond with ONLY this JSON (no markdown):\n{"scenarios":[{"title":"...","probability":35,"path":"escalation","hours":48,"description":"2 sentences describing what happens.","dstLat":0.0,"dstLng":0.0,"indicators":["Watch indicator 1","Watch indicator 2"]},{"title":"...","probability":40,"path":"de-escalation","hours":72,"description":"...","dstLat":0.0,"dstLng":0.0,"indicators":["...","..."]},{"title":"...","probability":25,"path":"lateral","hours":24,"description":"...","dstLat":0.0,"dstLng":0.0,"indicators":["...","..."]}]}`,
-      650
-    );
-
-    const json = JSON.parse(text.match(/\{[\s\S]*\}/)?.[0] || '{}');
-    const scenarios = json.scenarios || [];
-    if (!scenarios.length) throw new Error('No scenarios returned');
-
-    const pathColors = { escalation:'#FF2D55', 'de-escalation':'#30D158', lateral:'#FF9F0A' };
-    document.getElementById('wg-scenarios').innerHTML = scenarios.map((s,i) => {
-      const col = pathColors[s.path] || '#0A84FF';
-      return `<div class="wg-scenario" style="--sc:${col};animation-delay:${i*0.12}s">
-        <div class="wg-prob">${s.probability}%</div>
-        <div class="wg-path">${(s.path||'SCENARIO').toUpperCase()}</div>
-        <div class="wg-s-title">${s.title||''}</div>
-        <div class="wg-s-desc">${s.description||''}</div>
-        <span class="wg-t-lbl">+${s.hours||48}h PROJECTION</span>
-        <div class="wg-indicators">${(s.indicators||[]).map(ind=>`<span class="wg-ind">${ind}</span>`).join('')}</div>
-      </div>`;
-    }).join('');
-
-    document.getElementById('wg-status').textContent = `3 SCENARIOS GENERATED · ARCS RENDERED ON GLOBE`;
-
-    // Render arcs on globe
-    wargameArcs = scenarios.map(s => {
-      const col = pathColors[s.path] || '#0A84FF';
-      const dLat = s.dstLat && s.dstLat !== 0 ? s.dstLat : story.lat + (Math.random()-.5)*25;
-      const dLng = s.dstLng && s.dstLng !== 0 ? s.dstLng : story.lng + (Math.random()-.5)*35;
-      return { slat:story.lat, slng:story.lng, elat:dLat, elng:dLng,
-        c1:col+'cc', c2:col+'18', _wargame:true, _prob:s.probability };
-    });
-    refreshArcs();
-  } catch(e) {
-    document.getElementById('wg-scenarios').innerHTML = `<div class="wg-loading" style="color:rgba(255,45,85,.5)">SCENARIO GENERATION FAILED<br>${e.message}</div>`;
-    document.getElementById('wg-status').textContent = 'ERROR — CHECK API KEY';
-  }
-}
 function refreshArcs() {
   if (!G) return;
   const base = computeMeaningfulArcs(NEWS);
-  const all  = [...base, ...divergeArcs, ...cascadeArcsArr, ...wargameArcs];
+  const all  = [...base, ...divergeArcs, ...cascadeArcsArr];
   G.arcsData(all)
     .arcStartLat('slat').arcStartLng('slng').arcEndLat('elat').arcEndLng('elng')
     .arcColor(d => [d.c1, d.c2])
-    .arcDashLength(d => d._wargame ? 0.6 : d._diverge ? 1.0 : d._cascade ? 0.7 : 0.4)
-    .arcDashGap(d => d._wargame ? 0.12 : 0.18)
-    .arcDashAnimateTime(d => d._wargame ? 1800 : d._diverge ? 5000 : d._cascade ? 4500 : 2400)
-    .arcStroke(d => d._diverge ? 0.9 : d._wargame ? (d._prob/30) : d._cascade ? 0.5 : 0.3)
+    .arcDashLength(d => d._diverge ? 1.0 : d._cascade ? 0.7 : 0.4)
+    .arcDashGap(d => 0.18)
+    .arcDashAnimateTime(d => d._diverge ? 5000 : d._cascade ? 4500 : 2400)
+    .arcStroke(d => d._diverge ? 0.9 : d._cascade ? 0.5 : 0.3)
     .arcAltitudeAutoScale(d => d._diverge ? 0.5 : d._cascade ? 0.4 : 0.3)
     .onArcClick(arc => { if (arc._s1id != null || arc._s2id != null) traceArc(arc); });
 }

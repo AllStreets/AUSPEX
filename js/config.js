@@ -96,10 +96,6 @@ let analystAnimId = null;
 let _netZoom = 1, _netPanX = 0, _netPanY = 0;
 let _netDrag = null;
 
-// Wargame (D1)
-let wargameActive = false;
-let wargameArcs   = [];
-
 // Daily brief + map key
 let _briefContent = '';
 let _mapKeyOpen = false;

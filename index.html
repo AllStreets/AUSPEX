@@ -53,7 +53,6 @@
     <button class="lc-btn" id="lc-eq"       onclick="toggleEQ()"         title="Earthquake overlay">QUAKES</button>
     <button class="lc-btn" id="lc-livenews" onclick="toggleLiveNews()"   title="Live broadcast news panel">BROADCAST</button>
     <button class="lc-btn" id="lc-webcams"  onclick="toggleWebcamPanel()" title="Windy live webcams near story">WEBCAMS</button>
-    <button class="lc-btn lc-wargame" id="lc-wargame" onclick="openWargame()" title="Temporal wargame scenario engine">WARGAME</button>
   </div>
   <div class="hdr-sep"></div>
   <div class="hdr-stat"><span class="hs-v" id="story-count">20</span><span class="hs-l">Stories</span></div>
@@ -357,33 +356,6 @@
   <div class="rt-body">
     <div id="rt-content">
       <div class="rt-loading rt-loading-anim">PIN ASSETS TO ANALYST BOARD · THEN CLICK GENERATE BRIEF</div>
-    </div>
-  </div>
-</div>
-
-<!-- D1 WARGAME OVERLAY -->
-<div id="wargame-overlay">
-  <div class="wg-bar">
-    <span class="wg-wordmark">◆ AUSPEX WARGAME</span>
-    <span class="wg-status" id="wg-status">CLICK ANY GLOBE MARKER TO GENERATE 72-HOUR SCENARIO</span>
-    <div class="wg-bar-acts">
-      <button class="wg-act" onclick="resetWargameArcs()">RESET ARCS</button>
-      <button class="wg-close-btn" onclick="closeWargame()">EXIT WARGAME</button>
-    </div>
-  </div>
-  <div class="wg-body">
-    <div class="wg-left">
-      <div class="wg-left-hdr">
-        <div class="wg-lbl">SCENARIO SUBJECT</div>
-        <div id="wg-title" style="color:var(--t3);font-style:italic;font-size:11px">No story selected</div>
-        <div id="wg-region"></div>
-      </div>
-      <div id="wg-scenarios">
-        <div class="wg-loading">CLICK A STORY MARKER ON THE GLOBE<br>TO GENERATE PROBABILITY-WEIGHTED<br>72-HOUR SCENARIO PROJECTIONS</div>
-      </div>
-    </div>
-    <div class="wg-right">
-      <div class="wg-hint">GLOBE INTERACTIVE · CLICK MARKERS TO GENERATE SCENARIOS</div>
     </div>
   </div>
 </div>

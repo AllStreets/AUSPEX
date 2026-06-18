@@ -791,7 +791,7 @@ function computeMeaningfulArcs(stories) {
 
 function applyMeaningfulArcs(stories) {
   if (!G) return;
-  // Delegate to refreshArcs so overlay arcs (cables, divergence, cascade, wargame) are preserved
+  // Delegate to refreshArcs so overlay arcs (cables, divergence, cascade) are preserved
   if (typeof refreshArcs === 'function') { refreshArcs(); return; }
   // Fallback if refreshArcs not yet defined (early boot)
   const arcs = computeMeaningfulArcs(stories);
