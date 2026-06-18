@@ -18,3 +18,7 @@ js/keys.js
 
 # playwright scratch
 .playwright-mcp/
+
+# verification screenshots
+auspex-*.png
+page-*.png
