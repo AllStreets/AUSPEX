@@ -184,6 +184,7 @@ function pinStoryFromArticle() {
 function openArticle(story) {
   if (!story) return;
   _apStoryId = story.id ?? null;
+  if (typeof _restorePinButton === 'function') _restorePinButton();
   // Update pin button state
   const pinned = _apStoryId != null && analystAssets.includes(_apStoryId);
   const lbl = document.getElementById('ap-pin-lbl');

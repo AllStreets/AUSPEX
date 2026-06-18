@@ -364,8 +364,10 @@ function makeRegionLabel(region) {
   d.className = `rgn-label rgn-${region.threat_level || 'elevated'}`;
   const colMap = { critical:'#FF2D55', high:'#FF9F0A', elevated:'#B7950B' };
   const col = colMap[region.threat_level] || '#B7950B';
-  d.style.cssText = `transform:translate(-50%,-50%);pointer-events:none;color:${col}`;
+  d.style.cssText = `transform:translate(-50%,-50%);pointer-events:auto;cursor:pointer;color:${col}`;
+  d.title = `${region.name} — ${(region.threat_level||'elevated').toUpperCase()} threat`;
   d.innerHTML = `<div class="rgn-lbl-txt">${region.name.toUpperCase()}</div>`;
+  d.addEventListener('click', e => { e.stopPropagation(); openRegionPanel(region); });
   return d;
 }
 
@@ -558,18 +560,20 @@ function _updateAllGlobeElementsNow() {
         <div class="bcast-name">${item.name}</div>
         <div class="bcast-city">${item.city}</div>
       </div><div class="bcast-stem"></div><div class="bcast-tip"></div>`;
+      d.style.cursor = 'pointer';
       d.onclick = (e) => {
         e.stopPropagation();
-        if (!_lnpActive) openLiveNews(null);
-        switchBroadcaster(item.id);
-        updateAllGlobeElements(); // refresh active state on all markers
+        openBroadcasterPanel(item);
       };
       return d;
     }
     if (item._type === 'blackout') {
       const d = document.createElement('div');
       d.className = 'bl-void';
+      d.style.cursor = 'pointer';
+      d.style.pointerEvents = 'auto';
       d.innerHTML = `<div class="bl-ring"></div><div class="bl-core"></div><div class="bl-tip">BLACKOUT: ${item.region||'UNKNOWN'}</div>`;
+      d.addEventListener('click', e => { e.stopPropagation(); openSilencePanel(item); });
       return d;
     }
     if (item._type === 'city') return makeCityMarker(item);
@@ -580,7 +584,10 @@ function _updateAllGlobeElementsNow() {
       const d = document.createElement('div');
       d.style.cssText = 'position:relative;transform:translate(-50%,-50%);pointer-events:none';
       const rings = [28,48,68].map((r,i) => `<div style="position:absolute;top:50%;left:50%;width:${r}px;height:${r}px;border-radius:50%;border:1px solid ${item.color||'#FF9F0A'}${['44','28','14'][i]};transform:translate(-50%,-50%);animation:ring-out ${2+i*0.8}s ease-out infinite;animation-delay:${i*0.4}s"></div>`).join('');
-      d.innerHTML = rings;
+      // Invisible central hit target so the ranked threat is clickable
+      const hit = `<div class="threat-hit" title="${(item.title||'').replace(/"/g,'&quot;')}" style="position:absolute;top:50%;left:50%;width:30px;height:30px;border-radius:50%;transform:translate(-50%,-50%);pointer-events:auto;cursor:pointer"></div>`;
+      d.innerHTML = rings + hit;
+      d.querySelector('.threat-hit').addEventListener('click', e => { e.stopPropagation(); openThreatPanel(item); });
       return d;
     }
     return makeMarker(item);
@@ -739,6 +746,197 @@ function openAuspexEventCard(event) {
   else if (link) { link.style.display = 'none'; }
   panel.classList.add('on');
   document.getElementById('art-bd').classList.add('on');
+}
+
+// ═══════════════════════════════════════════
+// GENERIC INFO PANEL — reuses #art-panel for non-article markers
+// (region labels, threat rings, silence anomalies). Honest, not decorative.
+// opts: { cat, catColor, brk, brkColor, title, src, time, region, lead,
+//         text, color, lat, lng, link:{href,label}, button:{label,onClick} }
+// ═══════════════════════════════════════════
+function openInfoPanel(opts) {
+  const panel = document.getElementById('art-panel');
+  if (!panel) return;
+  _apStoryId = null; // not a pinnable story
+  const set = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+  if (G && opts.lat != null && opts.lng != null && !isNaN(opts.lat) && !isNaN(opts.lng)) {
+    G.controls().autoRotate = false;
+    G.pointOfView({ lat: opts.lat, lng: opts.lng, altitude: 1.7 }, 1400);
+  }
+  const color = opts.color || '#30D158';
+  const catEl = document.getElementById('ap-cat');
+  if (catEl) { catEl.textContent = opts.cat || ''; catEl.style.cssText = `color:${opts.catColor||color};background:${(opts.catColor||color)}18`; }
+  const brk = document.getElementById('ap-brk');
+  if (brk) {
+    if (opts.brk) { brk.textContent = opts.brk; brk.style.color = opts.brkColor || color; brk.style.display = 'inline-flex'; }
+    else { brk.style.display = 'none'; }
+  }
+  set('ap-title', opts.title || '');
+  set('ap-src', opts.src || 'AUSPEX');
+  set('ap-time', opts.time || '');
+  set('ap-region', opts.region || '');
+  set('ap-lead', opts.lead || '');
+  set('ap-text', opts.text || '');
+  const cdot = document.getElementById('ap-cdot'); if (cdot) cdot.style.background = color;
+  const coords = document.getElementById('ap-coords');
+  if (coords) {
+    if (opts.lat != null && !isNaN(opts.lat)) {
+      const la = opts.lat >= 0 ? opts.lat.toFixed(3)+'°N' : Math.abs(opts.lat).toFixed(3)+'°S';
+      const ln = opts.lng >= 0 ? opts.lng.toFixed(3)+'°E' : Math.abs(opts.lng).toFixed(3)+'°W';
+      coords.textContent = `${la}, ${ln}`;
+    } else { coords.textContent = opts.region || ''; }
+  }
+  // External link — keep the leading SVG icon, set the trailing label text node
+  const link = document.getElementById('ap-link');
+  if (link) {
+    if (opts.link && opts.link.href) {
+      link.href = opts.link.href;
+      // Remove any existing trailing text nodes, then append the new label
+      Array.from(link.childNodes).forEach(n => { if (n.nodeType === 3) link.removeChild(n); });
+      link.appendChild(document.createTextNode(' ' + (opts.link.label || 'OPEN')));
+      link.style.display = 'inline-flex';
+    } else { link.style.display = 'none'; }
+  }
+  // Repurpose the pin button as an optional action button, else hide it
+  const pinBtn = document.getElementById('ap-pin-btn');
+  if (pinBtn) {
+    pinBtn._infoHandler && pinBtn.removeEventListener('click', pinBtn._infoHandler);
+    pinBtn._infoHandler = null;
+    if (opts.button && typeof opts.button.onClick === 'function') {
+      const lblEl = document.getElementById('ap-pin-lbl');
+      if (lblEl) lblEl.textContent = opts.button.label || 'OPEN';
+      pinBtn.onclick = null; // override the inline pinStoryFromArticle handler
+      pinBtn._infoHandler = (e) => { e.stopPropagation(); opts.button.onClick(); };
+      pinBtn.addEventListener('click', pinBtn._infoHandler);
+      pinBtn.style.display = 'inline-flex';
+    } else {
+      pinBtn.style.display = 'none';
+    }
+  }
+  panel.classList.add('art-panel--event');
+  panel.classList.add('on');
+  document.getElementById('art-bd').classList.add('on');
+}
+
+// Restore the pin button + read-link to their default article behaviour when
+// an article (not an info panel) is opened after an info panel was shown.
+function _restorePinButton() {
+  const pinBtn = document.getElementById('ap-pin-btn');
+  if (pinBtn) {
+    if (pinBtn._infoHandler) { pinBtn.removeEventListener('click', pinBtn._infoHandler); pinBtn._infoHandler = null; }
+    pinBtn.onclick = () => { if (typeof pinStoryFromArticle === 'function') pinStoryFromArticle(); };
+    pinBtn.style.display = 'inline-flex';
+    const lblEl = document.getElementById('ap-pin-lbl');
+    if (lblEl) lblEl.textContent = 'PIN TO ANALYST';
+  }
+  const link = document.getElementById('ap-link');
+  if (link) {
+    Array.from(link.childNodes).forEach(n => { if (n.nodeType === 3) link.removeChild(n); });
+    link.appendChild(document.createTextNode(' READ FULL ARTICLE'));
+  }
+}
+
+// ── REGION LABEL → threat-zone briefing ──
+function openRegionPanel(region) {
+  const colMap = { critical:'#FF2D55', high:'#FF9F0A', elevated:'#B7950B' };
+  const col = colMap[region.threat_level] || '#B7950B';
+  const lvl = (region.threat_level || 'elevated').toUpperCase();
+  const typeStr = region.type ? region.type.toUpperCase() : 'CONFLICT ZONE';
+  openInfoPanel({
+    cat: 'REGION',
+    catColor: col,
+    brk: lvl + ' THREAT',
+    brkColor: col,
+    title: region.name,
+    src: 'AUSPEX GEO-INTEL',
+    time: '',
+    region: typeStr,
+    lead: region.description || `Designated ${lvl.toLowerCase()}-threat region under continuous AUSPEX monitoring.`,
+    text: region.notes || `Threat level: ${lvl}. ${region.radius_km ? 'Monitored radius ~' + Math.round(region.radius_km) + ' km. ' : ''}Region labels appear while the THREATS overlay is active and reflect aggregated instability across news, military and geopolitical signals.`,
+    color: col,
+    lat: region.lat, lng: region.lng,
+  });
+}
+
+// ── THREAT RING → ranked threat briefing ──
+function openThreatPanel(threat) {
+  const col = threat.color || '#FF9F0A';
+  const cfg = (typeof CATS !== 'undefined' && CATS[threat.cat]) || { label: (threat.cat||'THREAT').toUpperCase() };
+  // Stories behind this threat: same category, nearby, recent — for honest context
+  const pool = (typeof NEWS !== 'undefined' ? NEWS : []);
+  const related = pool.filter(s =>
+    s !== threat && s.cat === threat.cat &&
+    typeof s.lat === 'number' && typeof threat.lat === 'number' &&
+    Math.abs(s.lat - threat.lat) < 12 && Math.abs((s.lng||0) - (threat.lng||0)) < 18
+  ).slice(0, 5);
+  const storyLines = [threat.title, ...related.map(s => s.title)].map(t => '• ' + t).join('\n');
+  openInfoPanel({
+    cat: cfg.label || 'THREAT',
+    catColor: col,
+    brk: threat.brk ? 'BREAKING THREAT' : 'ELEVATED',
+    brkColor: col,
+    title: threat.title,
+    src: threat.src || 'AUSPEX THREAT MODEL',
+    time: threat.time || '',
+    region: threat.region || '',
+    lead: threat.summary || 'Ranked threat surfaced by AUSPEX from breaking, military and geopolitical signals.',
+    text: `Stories behind this threat ring:\n${storyLines}`,
+    color: col,
+    lat: threat.lat, lng: threat.lng,
+    link: threat.url ? { href: threat.url, label: 'READ SOURCE' } : null,
+  });
+}
+
+// ── SILENCE ANOMALY → information-blackout briefing ──
+function openSilencePanel(anomaly) {
+  const col = anomaly.severity === 'HIGH' ? '#FF2D55' : '#FF9F0A';
+  openInfoPanel({
+    cat: 'SILENCE',
+    catColor: col,
+    brk: anomaly.severity + ' BLACKOUT',
+    brkColor: col,
+    title: 'INFORMATION BLACKOUT',
+    src: 'AUSPEX SILENCE MONITOR',
+    time: '',
+    region: (anomaly.region || 'UNKNOWN').toUpperCase(),
+    lead: anomaly.reason || 'Coverage for this region has dropped sharply or gone dark.',
+    text: 'AUSPEX flags a region as silent when its news coverage falls far below its 7-day baseline, or when a known conflict zone reports nothing at all. Sudden silence can itself be a signal — disruption, censorship, or loss of access on the ground.',
+    color: col,
+    lat: anomaly.lat, lng: anomaly.lng,
+  });
+}
+
+// ── BROADCASTER → coverage briefing + open live stream ──
+function openBroadcasterPanel(b) {
+  const col = b.color || '#30D158';
+  const cats = (b.cats || []).map(c => {
+    const cfg = (typeof CATS !== 'undefined' && CATS[c]) || (typeof CATS !== 'undefined' && CATS[c==='mil'?'military':c]);
+    return cfg ? cfg.label : c.toUpperCase();
+  }).join(' · ');
+  const regions = (b.regions || []).slice(0, 10).map(r => r.replace(/\b\w/g, m => m.toUpperCase())).join(', ');
+  openInfoPanel({
+    cat: 'BROADCAST',
+    catColor: col,
+    brk: 'LIVE',
+    brkColor: col,
+    title: b.name,
+    src: b.city ? b.city.toUpperCase() : 'BROADCASTER',
+    time: '',
+    region: b.cover || '',
+    lead: b.desc || `Live broadcaster covering ${b.cover || 'global'} affairs.`,
+    text: `Coverage area: ${b.desc || b.cover || '—'}.\nFocus regions: ${regions || '—'}.\nCategories: ${cats || '—'}.`,
+    color: col,
+    lat: b.lat, lng: b.lng,
+    button: {
+      label: 'OPEN LIVE STREAM',
+      onClick: () => {
+        if (!_lnpActive && typeof openLiveNews === 'function') openLiveNews(null);
+        if (typeof switchBroadcaster === 'function') switchBroadcaster(b.id);
+        if (typeof updateAllGlobeElements === 'function') updateAllGlobeElements();
+        closeArticle();
+      },
+    },
+  });
 }
 
 // ═══════════════════════════════════════════
