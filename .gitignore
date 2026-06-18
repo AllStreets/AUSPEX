@@ -5,6 +5,8 @@ node_modules/
 js/keys.js
 .env
 .env.*
+worker/.env
+!worker/.env.example
 
 # brainstorm companion (local only)
 .superpowers/
