@@ -361,7 +361,7 @@ function toggleEQ() {
 // HEAT MAP
 // ═══════════════════════════════════════════
 
-// (HEAT removed — see js/removed_features.js)
+// (HEAT feature removed)
 
 // updateAllGlobeElements and showEqInfo live in globe.js
 // (duplicates removed)
@@ -632,10 +632,10 @@ function initScrubber() {
       document.getElementById('scrb-time-lbl').textContent =
         d.toLocaleDateString([], {month:'short',day:'numeric'}) + ' ' +
         d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
-      // Apply time-of-day globe texture based on scrub hour (skip if satellite mode active)
+      // Apply time-of-day globe texture based on scrub hour
       const h = d.getHours();
       const scrubTod = h < 6 || h >= 20 ? 'night' : h < 8 ? 'dawn' : h < 18 ? 'day' : 'dusk';
-      if (G && !satModeOn) {
+      if (G) {
         if (scrubTod === 'night') {
           G.globeImageUrl('//unpkg.com/three-globe/example/img/earth-night.jpg');
           G.atmosphereColor('#030a28');
@@ -688,7 +688,7 @@ function scrubToLive() {
   document.getElementById('scrb-range').value = 100;
   document.getElementById('scrb-badge').classList.remove('past');
   document.getElementById('scrb-badge').innerHTML = '<span class="scrb-dot"></span>LIVE';
-  if (lastTod && !satModeOn) { G && G.globeImageUrl(getTexture(lastTod)); G && G.atmosphereColor(getAtmos(lastTod)); G && G.atmosphereAltitude(0.17); }
+  if (lastTod) { G && G.globeImageUrl(getTexture(lastTod)); G && G.atmosphereColor(getAtmos(lastTod)); G && G.atmosphereAltitude(0.17); }
   const filtered = getActiveFeedStories();
   renderFeed(filtered);
   updateAllGlobeElements();

@@ -58,7 +58,6 @@ let sidebarOpen = true;
 let searchOpen = false;
 let lastTod = null;
 let lastHour = null;
-let satModeOn = false;
 
 // News + refresh
 let nextRefreshAt = null;
@@ -145,8 +144,6 @@ let _vesselCounts   = {};
 let sanctionsVisible = false;
 
 // Feature: Satellite (F1)
-let _satBlobUrl = null;
-
 // Feature: Live Broadcast (F2)
 let _lnpActive = false;
 let _lnpCurrentId = BROADCASTER_DEFAULT;

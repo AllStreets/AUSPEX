@@ -461,7 +461,7 @@ function checkDayNight(h) {
   if (tod === lastTod) return;
   lastTod = tod;
   applyTod(tod);
-  if (!G || satModeOn) return; // satellite mode overrides day/night texture
+  if (!G) return;
   const wrap = document.getElementById('globe-wrap');
   wrap.classList.add('fading');
   setTimeout(() => {

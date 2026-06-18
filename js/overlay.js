@@ -765,7 +765,7 @@ function toggleCountries() {
   updateAllGlobeElements();
 }
 
-// (B2 ATMOSPHERIC FOG removed — see js/removed_features.js)
+// (B2 ATMOSPHERIC FOG feature removed)
 
 // ═══════════════════════════════════════════
 // C2 — SHIPPING CHOKEPOINT MONITOR

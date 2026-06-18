@@ -3,7 +3,7 @@
 // ═══════════════════════════════════════════
 // FEATURES — F2 LIVE BROADCAST, F3 WEBCAM
 //             DRAGGABLE PANELS
-// (F1 SATELLITE removed — see js/removed_features.js)
+// (F1 SATELLITE feature removed)
 // ═══════════════════════════════════════════
 function _selectBroadcaster(story) {
   if (!story) return BROADCASTER_DEFAULT;
