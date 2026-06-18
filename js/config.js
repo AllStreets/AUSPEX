@@ -3,13 +3,16 @@
 // ═══════════════════════════════════════════
 // CATEGORY CONFIG
 // ═══════════════════════════════════════════
+// SINGLE SOURCE OF TRUTH (with css/auspex.css :root category vars).
+// These colors MUST match --all/--geo/--mil/--fin/--cli/--tec exactly.
+// Change one, change the other — they always agree.
 const CATS = {
-  all:     {color:'#7B61FF',label:'ALL'},
-  geo:     {color:'#FF2D55',label:'GEO'},
-  military:{color:'#FF9F0A',label:'MIL'},
-  finance: {color:'#FFD60A',label:'FIN'},
-  climate: {color:'#30D158',label:'CLM'},
-  tech:    {color:'#0A84FF',label:'TECH'},
+  all:     {color:'#34E08A',label:'ALL'},
+  geo:     {color:'#6E8AFF',label:'GEO'},
+  military:{color:'#C084FC',label:'MIL'},
+  finance: {color:'#E8B84B',label:'FIN'},
+  climate: {color:'#2DD4BF',label:'CLM'},
+  tech:    {color:'#22D3EE',label:'TECH'},
 };
 
 // ═══════════════════════════════════════════
