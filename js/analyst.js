@@ -35,7 +35,7 @@ async function runHistSearch(query) {
   // Also search localStorage accumulative cache
   let cacheMatches = [];
   try {
-    const raw = localStorage.getItem(typeof NEWS_CACHE_KEY !== 'undefined' ? NEWS_CACHE_KEY : 'meridian_news_v3');
+    const raw = localStorage.getItem(typeof NEWS_CACHE_KEY !== 'undefined' ? NEWS_CACHE_KEY : 'auspex_news_v1');
     if (raw) {
       const parsed = JSON.parse(raw);
       const cacheMap = parsed.map || {};
@@ -1385,7 +1385,7 @@ function _buildTimeline(assetId) {
   // Gather related stories from NEWS + localStorage cache
   let pool = [...NEWS];
   try {
-    const raw = localStorage.getItem(typeof NEWS_CACHE_KEY !== 'undefined' ? NEWS_CACHE_KEY : 'meridian_news_v3');
+    const raw = localStorage.getItem(typeof NEWS_CACHE_KEY !== 'undefined' ? NEWS_CACHE_KEY : 'auspex_news_v1');
     if (raw) {
       const cacheMap = JSON.parse(raw).map || {};
       Object.values(cacheMap).forEach(s => { if (!pool.some(p => p.title === s.title)) pool.push(s); });
@@ -1431,7 +1431,7 @@ function _buildTimeline(assetId) {
 // ═══════════════════════════════════════════
 // SAVED BOARDS
 // ═══════════════════════════════════════════
-const _SB_KEY = 'MERIDIAN_SAVED_BOARDS';
+const _SB_KEY = 'AUSPEX_SAVED_BOARDS';
 
 function _loadSavedBoards() {
   try { return JSON.parse(localStorage.getItem(_SB_KEY) || '[]'); } catch { return []; }

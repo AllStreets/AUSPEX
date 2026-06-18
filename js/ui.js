@@ -573,7 +573,7 @@ function toggleMarket() {
 function toggleWatchlist(storyId) {
   const idx = watchlist.indexOf(storyId);
   if (idx === -1) watchlist.push(storyId); else watchlist.splice(idx, 1);
-  localStorage.setItem('meridian_wl', JSON.stringify(watchlist));
+  localStorage.setItem('auspex_wl', JSON.stringify(watchlist));
   const saved = watchlist.includes(storyId);
   document.querySelectorAll(`[data-wl-id="${storyId}"]`).forEach(btn => {
     btn.classList.toggle('saved', saved);

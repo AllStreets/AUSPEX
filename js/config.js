@@ -18,7 +18,7 @@ const CATS = {
 // ═══════════════════════════════════════════
 // API KEYS — defined in js/keys.js (gitignored)
 // ═══════════════════════════════════════════
-const NEWS_CACHE_KEY = 'meridian_news_cache_v5';
+const NEWS_CACHE_KEY = 'auspex_news_cache_v1';
 const NEWS_CACHE_TTL = 20 * 60 * 1000; // 20 minutes
 const NEWS_MAX_AGE_MS = 7 * 24 * 3600 * 1000; // 7 days — wider window for dataset accumulation
 
@@ -79,7 +79,7 @@ let marketCacheTs = 0;
 let _mktHash = '';
 
 // Watchlist
-let watchlist = JSON.parse(localStorage.getItem('meridian_wl') || '[]');
+let watchlist = JSON.parse(localStorage.getItem('auspex_wl') || '[]');
 let watchlistFilter = false;
 
 // Scrubber / timeline

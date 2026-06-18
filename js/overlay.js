@@ -579,7 +579,7 @@ function runCascadeAnalysis() {
 // ═══════════════════════════════════════════
 // A3 — SILENCE ANOMALY DETECTION
 // ═══════════════════════════════════════════
-const SILENCE_KEY  = 'meridian_silence_v1';
+const SILENCE_KEY  = 'auspex_silence_v1';
 
 const KNOWN_ACTIVE_REGIONS = [
   { region:'North Korea', lat:40.3, lng:127.5 },
