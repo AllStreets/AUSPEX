@@ -3,16 +3,16 @@
 // AUSPEX — Breathing Aura Engine
 // The signature accent (--aura) shifts and breathes with the
 // state of the world, computed from SNAPSHOT_EVENTS.
-//   calm   → violet  (#8a7fff)  world is quiet
-//   active → cyan    (#5ac8fa)  meaningful recent activity
-//   alert  → red     (#ff4d6d)  a real high-severity peril is live
+//   calm   → green   (#1FB85C)  world is quiet — the instrument is alive
+//   active → green   (#4ADE80)  meaningful recent activity
+//   alert  → red     (#FF4D5E)  a real high-severity peril is live
 // Red is reserved for genuine peril — never decoration.
 // ═══════════════════════════════════════════════════════════
 
 const AURA_COLORS = {
-  calm:   '#8a7fff',
-  active: '#5ac8fa',
-  alert:  '#ff4d6d'
+  calm:   '#1FB85C',
+  active: '#4ADE80',
+  alert:  '#FF4D5E'
 };
 
 const AURA_WINDOW_MS = 24 * 60 * 60 * 1000; // last 24h
