@@ -30,38 +30,11 @@ function _saveAccumCache(map) {
   try { localStorage.setItem(NEWS_CACHE_KEY, JSON.stringify({ ts: Date.now(), map })); } catch(e) {}
 }
 
-// Tracks which wave we're on — country endpoints run every other fetch
-let _fetchWave = 0;
-
-// Primary endpoints: run every refresh
-const _PRIMARY_ENDPOINTS = [
-  `https://newsapi.org/v2/top-headlines?language=en&pageSize=100&apiKey=${NEWS_API_KEY}`,
-  `https://newsapi.org/v2/top-headlines?category=business&language=en&pageSize=100&apiKey=${NEWS_API_KEY}`,
-  `https://newsapi.org/v2/top-headlines?category=technology&language=en&pageSize=100&apiKey=${NEWS_API_KEY}`,
-  `https://newsapi.org/v2/top-headlines?category=science&language=en&pageSize=100&apiKey=${NEWS_API_KEY}`,
-  `https://newsapi.org/v2/top-headlines?category=general&language=en&pageSize=100&apiKey=${NEWS_API_KEY}`,
-  // everything endpoint — geopolitical keyword sweeps (requires developer+ plan; silently skipped if 426'd)
-  `https://newsapi.org/v2/everything?q=war+military+conflict+troops+nuclear+missile&language=en&sortBy=publishedAt&pageSize=100&apiKey=${NEWS_API_KEY}`,
-  `https://newsapi.org/v2/everything?q=sanctions+diplomacy+geopolitics+election+coup+treaty&language=en&sortBy=publishedAt&pageSize=100&apiKey=${NEWS_API_KEY}`,
-  `https://newsapi.org/v2/everything?q=Ukraine+Taiwan+NATO+Iran+Hamas+Hezbollah+China+Russia+Israel&language=en&sortBy=publishedAt&pageSize=100&apiKey=${NEWS_API_KEY}`,
-];
-
-// Country-specific endpoints: alternate every other refresh to conserve API quota
-const _COUNTRY_ENDPOINTS = [
-  `https://newsapi.org/v2/top-headlines?country=gb&pageSize=100&apiKey=${NEWS_API_KEY}`,
-  `https://newsapi.org/v2/top-headlines?country=de&pageSize=100&apiKey=${NEWS_API_KEY}`,
-  `https://newsapi.org/v2/top-headlines?country=fr&pageSize=100&apiKey=${NEWS_API_KEY}`,
-  `https://newsapi.org/v2/top-headlines?country=ru&pageSize=100&apiKey=${NEWS_API_KEY}`,
-  `https://newsapi.org/v2/top-headlines?country=cn&pageSize=100&apiKey=${NEWS_API_KEY}`,
-  `https://newsapi.org/v2/top-headlines?country=in&pageSize=100&apiKey=${NEWS_API_KEY}`,
-  `https://newsapi.org/v2/top-headlines?country=il&pageSize=100&apiKey=${NEWS_API_KEY}`,
-  `https://newsapi.org/v2/top-headlines?country=jp&pageSize=100&apiKey=${NEWS_API_KEY}`,
-  `https://newsapi.org/v2/top-headlines?country=au&pageSize=100&apiKey=${NEWS_API_KEY}`,
-  `https://newsapi.org/v2/top-headlines?country=za&pageSize=100&apiKey=${NEWS_API_KEY}`,
-];
+// Worker news proxy — unified, CORS-clean feed (GDELT + NewsAPI server-side).
+// The browser no longer calls NewsAPI/GDELT directly (no CORS, no 429s).
+const NEWS_PROXY_URL = 'http://localhost:8801/news.json';
 
 async function fetchNews() {
-  _fetchWave++;
   // Check cache — serve immediately then refresh in background if stale
   try {
     const { ts, map } = _loadAccumCache();
@@ -81,35 +54,27 @@ async function fetchNews() {
   if (ind) { ind.classList.add('refreshing'); lbl.textContent = 'FETCHING'; }
 
   try {
-    // Full sweep on odd waves (initial + every other refresh); primary only on even waves
-    const endpoints = (_fetchWave % 2 === 1)
-      ? [..._PRIMARY_ENDPOINTS, ..._COUNTRY_ENDPOINTS]
-      : _PRIMARY_ENDPOINTS;
-
-    const results = await Promise.allSettled(endpoints.map(url =>
-      fetch(url).then(r => r.json())
-    ));
-
-    const seen = new Set();
-    const raw = [];
-    for (const r of results) {
-      if (r.status === 'fulfilled' && r.value.articles) {
-        for (const a of r.value.articles) {
-          if (!a.title || a.title === '[Removed]') continue;
-          const key = a.title.slice(0,60);
-          if (seen.has(key)) continue;
-          seen.add(key);
-          raw.push(a);
-        }
-      }
+    // Pull the unified feed from the worker (5s timeout).
+    const ctrl = new AbortController();
+    const to = setTimeout(() => ctrl.abort(), 5000);
+    let data;
+    try {
+      const resp = await fetch(NEWS_PROXY_URL, { signal: ctrl.signal });
+      if (!resp.ok) throw new Error(`proxy HTTP ${resp.status}`);
+      data = await resp.json();
+    } finally {
+      clearTimeout(to);
     }
 
-    if (raw.length < 5) throw new Error('Insufficient API results');
+    const raw = Array.isArray(data && data.articles) ? data.articles : [];
+    if (raw.length < 5) throw new Error('Insufficient proxy results');
 
     let id = 100;
     const stories = [];
     for (const a of raw) {
-      const searchText = `${a.title} ${a.description||''} ${a.source?.name||''} ${a.content||''}`;
+      // Normalized worker shape: source is a string; no `content` field.
+      const srcName = typeof a.source === 'string' ? a.source : (a.source?.name || '');
+      const searchText = `${a.title} ${a.description||''} ${srcName}`;
 
       // Age filter — drop articles older than 48 hours
       const pubTime = a.publishedAt ? new Date(a.publishedAt).getTime() : Date.now();
@@ -120,7 +85,12 @@ async function fetchNews() {
       const PRIORITY_RE = /\b(war|warfare|military|troops|missile|drone strike|airstrike|nuclear|nato|sanction|election|coup|protest|invasion|ceasefire|parliament|president|prime minister|secretary of state|foreign minister|geopolit|diplomacy|terrorism|insurgency|conflict|crisis|threat|intelligence|espionage|submarine|aircraft carrier|destroyer|battalion|casualt|offensive|siege|blockade|escalat|deescalat|treaty|bilateral|summit|security council|un resolution|iaea|pentagon|kremlin|white house|state department)\b/i;
       if (JUNK_RE.test(searchText) && !PRIORITY_RE.test(searchText)) continue;
 
-      const coords = extractCoords(searchText);
+      let coords = extractCoords(searchText);
+      // GDELT geolocation fallback: if the title/description didn't place the
+      // story, use its sourcecountry mapped through COUNTRY_COORDS.
+      if (!coords && a.sourcecountry) {
+        coords = COUNTRY_COORDS[a.sourcecountry.toLowerCase()] || null;
+      }
       if (!coords) continue; // skip unlocatable stories
 
       const cat = detectCat(searchText);
@@ -136,20 +106,20 @@ async function fetchNews() {
         lat: coords[0] + (Math.random() - 0.5) * 0.6,
         lng: coords[1] + (Math.random() - 0.5) * 0.6,
         cat,
-        src: (a.source?.name || 'Wire').slice(0, 22),
+        src: (srcName || 'Wire').slice(0, 22),
         time: timeStr,
         brk: minsAgo < 25,
-        region: a.source?.name || 'Global',
+        region: srcName || 'Global',
         title: a.title.replace(/ - [^-]+$/, '').slice(0, 120),
         summary: a.description || a.title,
-        body: a.content ? a.content.replace(/\[\+\d+ chars\]/, '').trim() : (a.description || ''),
+        body: a.description || '',
         url: a.url || null,
         urlToImage: a.urlToImage || null,
         _pub: pub.getTime(),
       });
     }
 
-    console.info(`[AUSPEX] Fetch wave ${_fetchWave}: ${raw.length} raw → ${stories.length} passed (junk/age/coords filters)`);
+    console.info(`[AUSPEX] News proxy: ${raw.length} raw → ${stories.length} passed (junk/age/coords filters)`);
     if (stories.length < 5) throw new Error('Too few locatable stories');
 
     // Merge new stories into accumulative cache — stories persist until cap is hit
@@ -172,8 +142,8 @@ async function fetchNews() {
     applyLiveNews(merged);
     scheduleRefresh(NEWS_CACHE_TTL);
   } catch(err) {
-    console.error('[AUSPEX] NewsAPI fetch failed:', err.message || err);
-    console.info('[AUSPEX] If you see CORS errors, run: python3 -m http.server 8765 and open http://localhost:8765');
+    console.error('[AUSPEX] News proxy fetch failed:', err.message || err);
+    console.info('[AUSPEX] Falling back to cached/seed stories. Is the worker running on :8801? (node worker/index.js)');
     const lbl2 = document.getElementById('refresh-lbl');
     if (lbl2) lbl2.textContent = 'SEEDED';
     const ind2 = document.getElementById('refresh-ind');
