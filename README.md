@@ -58,7 +58,7 @@ AUSPEX be free, fast on a weak connection, and sustainable at planetary scale.
 
 ```bash
 npm install          # frontend dev tooling + tests
-npm test             # 33 passing — the tested pure core (severity / normalize / filter / snapshot)
+npm test             # 54 passing — the tested pure core (severity / normalize / filter / snapshot / connect / cities)
 
 # terminal 1 — the snapshot worker (senses the world, writes snapshot.json)
 cd worker && npm install && cd ..
@@ -89,6 +89,44 @@ and the breakthroughs — financial, space, medical, physics), cross-domain conn
 the accessibility/performance/deploy work that earns the public launch.
 
 Vision: [`docs/VISION.md`](docs/VISION.md) · Architecture: [`docs/specs/`](docs/specs) · Build plan: [`docs/plans/`](docs/plans)
+
+## Deploy
+
+Two pieces, deployed independently. The frontend is static; the worker is a small container.
+
+```
+  frontend (static)              worker (container)             Supabase
+  ┌──────────────────┐  reads    ┌──────────────────┐  reads    ┌──────────────┐
+  │ Vercel / any CDN │ ───────►  │ Railway/Render/Fly│ ───────►  │ hosted (RLS) │
+  │ index.html+js+css│ snapshot  │ :8801 · USGS+news │  stories  │ already live │
+  └──────────────────┘  +news    └──────────────────┘           └──────────────┘
+```
+
+**1. Worker** — deploy `worker/Dockerfile` to a container host. Build context
+must be the **repo root** (the worker imports from `../src`). Expose port 8801.
+Set env vars (full list in [`worker/README.md`](worker/README.md)):
+
+- `ALLOWED_ORIGIN` — your frontend's URL, e.g. `https://auspex.example.com` (enables CORS).
+- `NEWS_API_KEY` — optional; NewsAPI key for richer news (GDELT works without it).
+- `AUSPEX_LLM_KEY` — optional; reasoning degrades gracefully if unset.
+
+Note the worker's public URL, e.g. `https://auspex-worker.up.railway.app`.
+
+**2. Frontend** — deploy the repo root to a static host. `vercel.json` is a
+build-free static config; on Vercel just import the repo (no build command).
+Tell the frontend where the worker lives by setting **`WORKER_BASE`** (declared
+in [`js/config.js`](js/config.js)). On `localhost` it auto-resolves to
+`http://localhost:8801`; in production set it one of two ways:
+
+- add `<script>window.AUSPEX_WORKER_BASE='https://auspex-worker.up.railway.app'</script>`
+  to `index.html` **before** `js/config.js`, **or**
+- edit the production fallback string in `js/config.js`.
+
+(Leaving it `''` means same-origin — only correct behind a reverse proxy that
+forwards `/snapshot.json` and `/news.json` to the worker.)
+
+**3. Supabase** — already hosted. Schema lives in [`sql/schema.sql`](sql/schema.sql);
+the anon key in `js/supabase.js` is publishable (RLS-protected). No deploy step.
 
 ---
 

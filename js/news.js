@@ -32,7 +32,8 @@ function _saveAccumCache(map) {
 
 // Worker news proxy — unified, CORS-clean feed (GDELT + NewsAPI server-side).
 // The browser no longer calls NewsAPI/GDELT directly (no CORS, no 429s).
-const NEWS_PROXY_URL = 'http://localhost:8801/news.json';
+// WORKER_BASE is resolved in js/config.js (localhost:8801 in dev).
+const NEWS_PROXY_URL = `${WORKER_BASE}/news.json`;
 
 async function fetchNews() {
   // Check cache — serve immediately then refresh in background if stale

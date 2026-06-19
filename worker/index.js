@@ -16,8 +16,21 @@ const app = express();
 // The unified feed (GDELT + NewsAPI) lives in worker/news.js so the poller
 // can read it to derive breakthroughs. We just drive refresh + serve here.
 
+// CORS — allow the local dev frontend plus a configurable production origin.
+// ALLOWED_ORIGIN (e.g. https://auspex.example.com) is echoed back when the
+// request's Origin matches; localhost:8800 always works for local dev.
+const DEV_ORIGIN = 'http://localhost:8800';
+const ALLOWED_ORIGINS = new Set([DEV_ORIGIN]);
+if (process.env.ALLOWED_ORIGIN) ALLOWED_ORIGINS.add(process.env.ALLOWED_ORIGIN);
+
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', 'http://localhost:8800');
+  const origin = req.headers.origin;
+  // Echo the request origin when allowed; otherwise fall back to the dev origin.
+  res.header('Access-Control-Allow-Origin', ALLOWED_ORIGINS.has(origin) ? origin : DEV_ORIGIN);
+  res.header('Vary', 'Origin');
+  res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
   next();
 });
 
