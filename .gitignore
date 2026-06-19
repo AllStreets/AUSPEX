@@ -1,8 +1,9 @@
 # dependencies
 node_modules/
 
-# secrets — never commit (use js/keys.example.js as the template)
-js/keys.js
+# secrets — never commit. js/keys.js is now a SAFE, secret-free committed file
+# that reads window.AUSPEX_KEYS; the REAL keys live in js/keys.local.js (below).
+js/keys.local.js
 .env
 .env.*
 worker/.env

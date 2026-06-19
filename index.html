@@ -516,6 +516,9 @@
 <script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
 
 <!-- App scripts — load order matters: config first, main last -->
+<!-- keys.local.js (gitignored, real keys) loads first in local dev; it sets
+     window.AUSPEX_KEYS. In production it's absent, so keys.js falls back to ''. -->
+<script src="js/keys.local.js" onerror="void 0"></script>
 <script src="js/keys.js"></script>
 <script src="js/config.js"></script>
 <script src="js/icons.js"></script>

@@ -162,7 +162,7 @@ The news layer is the anti-social-media core, and it is deliberate:
 
 ## Quickstart
 
-> **Prerequisites:** Node 18+ (24 recommended). Disaster sensing needs **zero** API keys. For the AI tools and the keyed feeds, copy `js/keys.example.js` → `js/keys.js` and `worker/.env.example` → `worker/.env`.
+> **Prerequisites:** Node 18+ (24 recommended). Disaster sensing needs **zero** API keys. For the AI tools and the keyed feeds, copy `js/keys.local.example.js` → `js/keys.local.js` (gitignored; sets `window.AUSPEX_KEYS`) and `worker/.env.example` → `worker/.env`. The committed `js/keys.js` is secret-free and falls back to empty keys when `js/keys.local.js` is absent (e.g. on Vercel).
 
 ```bash
 git clone https://github.com/AllStreets/AUSPEX.git
