@@ -139,14 +139,47 @@ function pinStoryToRelief(story) {
   _reliefAfterPinChange();
 }
 
-// After any RELIEF pin change: re-resolve focus and, if the overlay is open,
-// refresh the context strip + the active tool. Never touches Analyst.
+// After any RELIEF pin change (pin OR un-pin): re-resolve focus and, if the
+// overlay is open, fully rebuild the board for the new focus — context strip,
+// globe layer, and active tool. Mirrors Analyst's renderAnalystBoard/runAnalystGraph
+// on every toggle. Never touches Analyst.
+//
+// Critically, the active tool re-renders via reliefSelectTool(SAME tool), which
+// short-circuits its own reliefClearGlobe() (it only clears on a tool SWITCH).
+// So we MUST clear the old focus's relief globe layer (displacement arcs, famine /
+// access / health markers) HERE — otherwise an un-pinned focus would leave its
+// markers/arcs stranded on the globe even though it's gone from reliefAssets,
+// exactly the symptom where "the pinned location is not removed from the board".
 function _reliefAfterPinChange() {
   if (typeof reliefRefreshFocus === 'function') reliefRefreshFocus();
+  _reliefSyncPinButtons();
   const ov = document.getElementById('relief-overlay');
   if (ov && ov.classList.contains('on') && _reliefActiveTool && typeof reliefSelectTool === 'function') {
+    if (typeof reliefClearGlobe === 'function') reliefClearGlobe();
     reliefSelectTool(_reliefActiveTool);
   }
+}
+
+// Reconcile EVERY Pin-to-RELIEF button on the page with the current pool, so a
+// toggle from any one entry point (panel, city panel, feed card, context-strip ×)
+// updates all the others showing the same item — mirroring how Analyst sweeps
+// [data-pin-id] buttons on every pin/un-pin. Each refresher is no-op when its
+// panel isn't open / target isn't set.
+function _reliefSyncPinButtons() {
+  // Feed-card buttons (one per visible story) — reflect membership in the pool.
+  document.querySelectorAll('[data-relief-id]').forEach(btn => {
+    const id = btn.getAttribute('data-relief-id');
+    // reliefAssets holds numeric NEWS ids; compare loosely (attr is a string).
+    const pinned = reliefAssets.some(k => String(k) === String(id));
+    btn.classList.toggle('saved', pinned);
+    btn.style.color = pinned ? '#34D399' : '';
+  });
+  // Shared #art-panel RELIEF button (geo/story panels).
+  if (typeof _setReliefPanelButton === 'function' && window._apReliefTarget) {
+    _setReliefPanelButton(window._apReliefTarget);
+  }
+  // City panel RELIEF button.
+  if (typeof _cipRefreshReliefBtn === 'function') _cipRefreshReliefBtn();
 }
 
 // Is a given object currently pinned to RELIEF?
