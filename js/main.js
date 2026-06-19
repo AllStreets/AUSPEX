@@ -50,7 +50,6 @@ setTimeout(() => { if (typeof refreshAllPaths === 'function') refreshAllPaths();
 
 // Fetch live news + supporting data after globe is ready
 setTimeout(() => fetchNews(), 800);
-setTimeout(() => fetchEarthquakes(), 2000);
 setTimeout(() => fetchSnapshot(), 3000);
 setInterval(() => fetchSnapshot(), 3 * 60 * 1000);
 // Bootstrap from Supabase server — seeds local cache with accumulated history
@@ -108,7 +107,7 @@ setInterval(() => { if (marketVisible) fetchMarketData(); }, 5 * 60 * 1000);
             cities: 'toggleCities', countries: 'toggleCountries',
             cables: 'toggleCables', flights: 'toggleFlights',
             threats: 'toggleThreats', sanctions: 'toggleSanctions',
-            shipping: 'toggleShipping', eq: 'toggleEQ',
+            shipping: 'toggleShipping',
           };
           const fn = fnMap[payload.overlay];
           if (fn && typeof window[fn] === 'function') window[fn]();

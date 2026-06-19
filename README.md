@@ -159,7 +159,7 @@ The news layer is the anti-social-media core, and it is deliberate:
 
 - **Server-side and broad.** GDELT (a free, global, no-key firehose) plus NewsAPI, fetched in the worker, deduped, cached — perils *and* progress, never rate-limited.
 - **Filtered for signal.** A junk filter drops advertisements, PR fluff, and pop-culture/celebrity noise, while a priority allowlist guarantees real geopolitics, economy, disaster, science, and health are never wrongly dropped.
-- **Multi-source by design.** **Divergence** compares how Western, Chinese, and Russian outlets cover the same story; **Silence** detects information blackouts; nine global **broadcasters** span every region. You see the spread, not one outlet's frame.
+- **Multi-source by design.** **Divergence** compares how Western, Chinese, and Russian outlets cover the same story; **Silence** detects information blackouts; eight global **broadcasters** span every region. You see the spread, not one outlet's frame.
 
 ---
 

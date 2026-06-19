@@ -328,18 +328,6 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 /* ── SENTIMENT ON CAT RAIL ──────────── */
 .cat-sent{font-family:var(--f-mono);font-size:9px;flex-shrink:0;opacity:.85}
 
-/* ── EARTHQUAKE MARKERS ─────────────── */
-.eq-m{transform:translate(-50%,-50%);cursor:pointer;position:relative;pointer-events:auto}
-.eq-m *{pointer-events:none}
-.eq-core{width:10px;height:10px;transform:rotate(45deg);position:relative;z-index:2;transition:transform .15s}
-.eq-m:hover .eq-core{transform:rotate(45deg) scale(1.6)}
-.eq-wave{position:absolute;top:50%;left:50%;border-radius:50%;border:1.5px solid currentColor;transform:translate(-50%,-50%) scale(.3);animation:eq-expand 2.8s ease-out infinite;opacity:0;pointer-events:none}
-.eq-w2{animation-delay:.9s}.eq-w3{animation-delay:1.8s}
-@keyframes eq-expand{0%{transform:translate(-50%,-50%) scale(.3);opacity:.85}100%{transform:translate(-50%,-50%) scale(4.5);opacity:0}}
-.eq-tip{position:absolute;left:14px;top:50%;transform:translateY(-50%);background:rgba(3,4,9,.95);border:1px solid rgba(255,255,255,.1);border-radius:3px;padding:5px 10px;font-family:var(--f-ui);font-size:10px;color:var(--t1);white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .13s;backdrop-filter:blur(10px)}
-.eq-m:hover .eq-tip{opacity:1}
-.eq-mag{font-family:var(--f-mono);font-size:8px;font-weight:500;letter-spacing:.08em}
-
 /* ── HEAT MAP BLOBS ─────────────────── */
 .hm-blob{border-radius:50%;pointer-events:none;transform:translate(-50%,-50%)}
 
@@ -1146,7 +1134,6 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
      rather than freeze a half-expanded ghost ring. The static glyph stays. */
   .auspex-pulse,
   .gm-ring,
-  .eq-wave,
   .cat-ring-finance,
   .cat-ring-climate,
   .bl-ring,
