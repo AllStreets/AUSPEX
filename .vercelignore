@@ -1,0 +1,18 @@
+# Never upload secrets to the deploy
+js/keys.local.js
+worker/.env
+.env
+.env.*
+
+# Local-only / cruft
+.git
+.github
+.superpowers
+node_modules
+worker/node_modules
+snapshot.json
+auspex-*.png
+page-*.png
+.playwright-mcp
+.vscode
+docs

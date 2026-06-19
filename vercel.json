@@ -5,6 +5,10 @@
   "framework": null,
   "cleanUrls": true,
   "trailingSlash": false,
+  "rewrites": [
+    { "source": "/snapshot.json", "destination": "/api/snapshot" },
+    { "source": "/news.json", "destination": "/api/news" }
+  ],
   "headers": [
     {
       "source": "/(.*)",
