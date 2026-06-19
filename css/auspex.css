@@ -1079,3 +1079,69 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 .pk-list::-webkit-scrollbar-thumb {
   background:color-mix(in srgb,var(--aura) 28%,transparent);
 }
+
+/* ═══════════════════════════════════════════
+   ACCESSIBILITY — prefers-reduced-motion
+   When the OS requests reduced motion, all decorative looping animations
+   are stilled: the breathing aura, marker / ring pulses, the news ticker
+   scroll, breaking/alert blinks, eq waves, and panel entrances. The app
+   stays fully usable and legible — state is shown by color/static glow,
+   not by movement. One-shot transitions are shortened, not removed, so
+   focus and hover still read instantly without motion.
+   ═══════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Fully stop the looping decorative animations and pin them to a
+     visible resting frame (so a "live" badge still looks present). */
+  .logo-text div:first-child,
+  .live-badge,
+  .live-txt,
+  .live-dot,
+  .brk,
+  .cat-btn.on .cat-pip,
+  .scrb-dot,
+  .sl-high .sl-icon,
+  .cm-conflict,
+  .am-flash-alert,
+  .sat-pulse,
+  .lnp-signal,
+  .bcast-sig,
+  #refresh-ind.refreshing .ri-dot,
+  .cip-loading,
+  .bm-loading,
+  .wcp-loading,
+  .pb-loading-anim,
+  .rt-loading-anim {
+    animation: none !important;
+    opacity: 1 !important;
+  }
+
+  /* Ticker: stop the horizontal auto-scroll; the headlines remain
+     readable and the track is scrollable by hand. */
+  .tkr-inner {
+    animation: none !important;
+    transform: none !important;
+  }
+
+  /* Marker / ring / wave pulses — hide the expanding decoration entirely
+     rather than freeze a half-expanded ghost ring. The static glyph stays. */
+  .auspex-pulse,
+  .gm-ring,
+  .eq-wave,
+  .cat-ring-finance,
+  .cat-ring-climate,
+  .bl-ring,
+  .mk-ring-r,
+  .tr-hotspot {
+    animation: none !important;
+    opacity: 0 !important;
+  }
+}
