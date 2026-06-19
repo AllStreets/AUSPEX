@@ -23,6 +23,22 @@ function openRelief() {
 
 function closeRelief() {
   document.getElementById('relief-overlay').classList.remove('on');
+  reliefClearGlobe();
+}
+
+// ── Globe layer clearing ────────────────────────────────────
+// RELIEF globe layers (displacement arcs, famine markers, access markers)
+// are gated to their tool. Clear them on tool switch / overlay close so the
+// globe never accumulates stale relief geometry. Re-uses the existing
+// refresh pipelines — does not touch other layers.
+function reliefClearGlobe() {
+  let changed = false;
+  if (typeof reliefArcs !== 'undefined' && reliefArcs.length) { reliefArcs = []; changed = true; }
+  if (typeof reliefFamineMarkers !== 'undefined' && reliefFamineMarkers.length) { reliefFamineMarkers = []; changed = true; }
+  if (typeof reliefAccessMarkers !== 'undefined' && reliefAccessMarkers.length) { reliefAccessMarkers = []; changed = true; }
+  if (!changed) return;
+  if (typeof refreshArcs === 'function') refreshArcs();
+  if (typeof updateAllGlobeElements === 'function') updateAllGlobeElements();
 }
 
 // ── Focus resolution ────────────────────────────────────────
@@ -86,16 +102,22 @@ function reliefRefreshFocus() {
 }
 
 // ── Tool selection ──────────────────────────────────────────
-const _RELIEF_BUILT = { sitrep: 1, council: 1, matrix: 1 };
+const _RELIEF_BUILT = { sitrep: 1, council: 1, matrix: 1, displacement: 1, famine: 1, access: 1 };
 
 function reliefSelectTool(tool) {
-  if (!_RELIEF_BUILT[tool]) return; // 4-8 are coming
+  if (!_RELIEF_BUILT[tool]) return; // 7-8 are coming
+  // Switching tools clears any RELIEF globe layer owned by the previous tool,
+  // so arcs/markers never accumulate across tools.
+  if (_reliefActiveTool !== tool) reliefClearGlobe();
   _reliefActiveTool = tool;
   document.querySelectorAll('.rl-tool').forEach(b => b.classList.toggle('on', b.dataset.tool === tool));
   reliefRefreshFocus();
-  if (tool === 'sitrep')  return reliefSituationReport();
-  if (tool === 'council') return reliefResponseCouncil();
-  if (tool === 'matrix')  return reliefNeedsMatrix();
+  if (tool === 'sitrep')       return reliefSituationReport();
+  if (tool === 'council')      return reliefResponseCouncil();
+  if (tool === 'matrix')       return reliefNeedsMatrix();
+  if (tool === 'displacement') return reliefDisplacement();
+  if (tool === 'famine')       return reliefFamine();
+  if (tool === 'access')       return reliefAccess();
 }
 
 function _rlWork() { return document.getElementById('rl-work-scroll'); }
@@ -613,14 +635,447 @@ function reliefMatrixCell(sectorId, colKey) {
     ${empty}${newsSig}${eventSig}`;
 }
 
+// ═══════════════════════════════════════════
+// TOOL 04 — DISPLACEMENT TRACKER (data + globe arcs + AI)
+// ═══════════════════════════════════════════
+// Identifies active displacement situations from:
+//   (a) REGION_DATA conflict zones (threat critical/high), and
+//   (b) high-severity disaster perils in SNAPSHOT_EVENTS (severity >= 0.6,
+//       peril polarity, disaster sense — NOT space launches).
+// For each origin we estimate likely destination countries via a small
+// hardcoded adjacency map for major conflict origins, falling back to the
+// nearest COUNTRY_DATA capitals as a neighbour proxy. Displacement arcs are
+// drawn origin -> destinations in a distinct amber-dashed RELIEF style and an
+// AI one-paragraph narrative grounds each situation in the live context.
+
+// Adjacency for major displacement-origin countries (push neighbours / common
+// reception countries). Honest heuristic, labelled as estimate in the UI.
+const _RL_ADJACENCY = {
+  'Syria':        ['Turkey', 'Lebanon', 'Jordan', 'Iraq'],
+  'Ukraine':      ['Poland', 'Russia', 'Germany', 'Romania'],
+  'Afghanistan':  ['Pakistan', 'Iran'],
+  'Yemen':        ['Saudi Arabia', 'Oman', 'Djibouti'],
+  'Sudan':        ['Egypt', 'Chad', 'South Sudan', 'Ethiopia'],
+  'South Sudan':  ['Uganda', 'Sudan', 'Ethiopia', 'Kenya'],
+  'Somalia':      ['Ethiopia', 'Kenya', 'Yemen'],
+  'Myanmar':      ['Bangladesh', 'Thailand', 'India'],
+  'Iraq':         ['Turkey', 'Iran', 'Jordan', 'Syria'],
+  'Nigeria':      ['Niger', 'Chad', 'Cameroon'],
+  'Israel':       ['Egypt', 'Jordan'],
+  'Iran':         ['Turkey', 'Iraq', 'Pakistan'],
+  'Pakistan':     ['Iran', 'Afghanistan'],
+  'Russia':       ['Kazakhstan', 'Georgia'],
+};
+
+// Map a REGION_DATA conflict zone / event to a representative origin country.
+function _rlOriginCountry(name, lat, lng) {
+  const COUNTRIES_ = (typeof COUNTRY_DATA !== 'undefined') ? COUNTRY_DATA : [];
+  const lower = (name || '').toLowerCase();
+  // Direct name match against known origins
+  const direct = Object.keys(_RL_ADJACENCY).find(c => lower.includes(c.toLowerCase()));
+  if (direct) return COUNTRIES_.find(c => c.name === direct) || { name: direct, lat, lng };
+  // Nearest country capital as proxy
+  if (typeof lat === 'number' && COUNTRIES_.length) {
+    let best = null, bestD = Infinity;
+    for (const c of COUNTRIES_) {
+      if (typeof c.lat !== 'number') continue;
+      const d = _haversineKm(lat, lng, c.lat, c.lng);
+      if (d < bestD) { bestD = d; best = c; }
+    }
+    if (best && bestD < 1400) return best;
+  }
+  return { name: name || 'Origin', lat, lng };
+}
+
+// Destinations for an origin: adjacency list (resolved to COUNTRY_DATA coords
+// where available) or, failing that, the nearest distinct capitals.
+function _rlDestinations(origin) {
+  const COUNTRIES_ = (typeof COUNTRY_DATA !== 'undefined') ? COUNTRY_DATA : [];
+  const byName = {};
+  COUNTRIES_.forEach(c => { byName[c.name] = c; });
+  const adj = _RL_ADJACENCY[origin.name];
+  let dests = [];
+  if (adj) {
+    dests = adj.map(n => byName[n] || { name: n, lat: null, lng: null }).filter(d => typeof d.lat === 'number');
+  }
+  if (dests.length < 2 && typeof origin.lat === 'number') {
+    // Nearest-capital fallback
+    const near = COUNTRIES_
+      .filter(c => typeof c.lat === 'number' && c.name !== origin.name)
+      .map(c => ({ c, d: _haversineKm(origin.lat, origin.lng, c.lat, c.lng) }))
+      .sort((a, b) => a.d - b.d)
+      .slice(0, 4)
+      .map(x => x.c);
+    near.forEach(c => { if (!dests.find(d => d.name === c.name)) dests.push(c); });
+  }
+  return dests.slice(0, 4);
+}
+
+// Build the situation list (no AI yet — pure data).
+function _rlBuildDisplacements() {
+  const REGIONS_ = (typeof REGION_DATA !== 'undefined') ? REGION_DATA : [];
+  const EVENTS_ = (typeof SNAPSHOT_EVENTS !== 'undefined') ? SNAPSHOT_EVENTS : [];
+  const COUNTRIES_ = (typeof COUNTRY_DATA !== 'undefined') ? COUNTRY_DATA : [];
+  const out = [];
+  const seen = new Set();
+
+  // (a) Active conflict countries (REGION_DATA gives zones; COUNTRY_DATA gives
+  //     conflict_active origins which are the real displacement sources).
+  COUNTRIES_.filter(c => c.conflict_active && typeof c.lat === 'number').forEach(c => {
+    if (seen.has(c.name)) return;
+    seen.add(c.name);
+    const origin = c;
+    const dests = _rlDestinations(origin);
+    out.push({ origin, dests, cause: 'ARMED CONFLICT', kind: 'conflict', driver: c.name });
+  });
+
+  // (b) Critical/high conflict regions not already covered by a country
+  REGIONS_.filter(r => (r.threat_level === 'critical' || r.threat_level === 'high') && typeof r.lat === 'number')
+    .forEach(r => {
+      const origin = _rlOriginCountry(r.name, r.lat, r.lng);
+      if (seen.has(origin.name)) return;
+      seen.add(origin.name);
+      const dests = _rlDestinations({ ...origin, lat: origin.lat ?? r.lat, lng: origin.lng ?? r.lng });
+      if (!dests.length) return;
+      out.push({ origin: { ...origin, lat: origin.lat ?? r.lat, lng: origin.lng ?? r.lng }, dests, cause: 'CONFLICT ZONE', kind: 'region', driver: r.name });
+    });
+
+  // (c) High-severity disaster perils (severity >= 0.6, disaster sense, peril)
+  EVENTS_.filter(e => e.sense === 'disaster' && e.polarity === 'peril' && (e.severity ?? 0) >= 0.6 && typeof e.lat === 'number')
+    .sort((a, b) => (b.severity ?? 0) - (a.severity ?? 0))
+    .slice(0, 6)
+    .forEach(e => {
+      const origin = _rlOriginCountry(e.title, e.lat, e.lng);
+      const key = `${e.type}:${origin.name}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      const dests = _rlDestinations({ ...origin, lat: origin.lat ?? e.lat, lng: origin.lng ?? e.lng });
+      if (!dests.length) return;
+      out.push({
+        origin: { ...origin, name: origin.name || e.title, lat: origin.lat ?? e.lat, lng: origin.lng ?? e.lng },
+        dests, cause: (e.type || 'disaster').toUpperCase(), kind: 'disaster', driver: e.title, event: e,
+      });
+    });
+
+  return out.slice(0, 10); // cap for an uncluttered globe
+}
+
+const _RL_DISP_ARC = { c1: '#FB923Ccc', c2: '#FACC1533' };
+
+function _rlRenderDisplacementArcs(situations) {
+  const arcs = [];
+  let cap = 24; // cap total arcs
+  for (const sit of situations) {
+    if (cap <= 0) break;
+    const o = sit.origin;
+    if (typeof o.lat !== 'number') continue;
+    for (const d of sit.dests) {
+      if (cap <= 0) break;
+      if (typeof d.lat !== 'number') continue;
+      arcs.push({ slat: o.lat, slng: o.lng, elat: d.lat, elng: d.lng, c1: _RL_DISP_ARC.c1, c2: _RL_DISP_ARC.c2, _relief: true });
+      cap--;
+    }
+  }
+  reliefArcs = arcs;
+  if (typeof refreshArcs === 'function') refreshArcs();
+  return arcs.length;
+}
+
+async function reliefDisplacement() {
+  reliefRefreshFocus();
+  const work = _rlWork();
+  const now = new Date().toLocaleString();
+  const situations = _rlBuildDisplacements();
+  const arcCount = _rlRenderDisplacementArcs(situations);
+
+  _rlStatus(`TOOL 04 · DISPLACEMENT TRACKER · ${situations.length} SITUATIONS · ${arcCount} ARCS ON GLOBE`);
+
+  if (!situations.length) {
+    work.innerHTML = `
+      <div class="rl-tool-hdr"><span class="rl-tool-title">Displacement Tracker</span><span class="rl-tool-sub">04 · POPULATION MOVEMENT</span></div>
+      <div class="rl-mx-empty">No active displacement situations resolved from current conflict zones or high-severity disaster events. The globe arc layer is clear.</div>`;
+    return;
+  }
+
+  work.innerHTML = `
+    <div class="rl-tool-hdr"><span class="rl-tool-title">Displacement Tracker</span><span class="rl-tool-sub">04 · POPULATION MOVEMENT</span></div>
+    <div class="rl-actbar">
+      <span class="rl-tool-sub" style="align-self:center">${situations.length} situations · ${arcCount} displacement arcs drawn on the globe (amber) · destinations are an estimate from an adjacency heuristic · ${now}</span>
+    </div>
+    <div class="rl-disp" id="rl-disp-list">
+      ${situations.map((s, i) => `
+        <div class="rl-disp-row" id="rl-disp-${i}">
+          <div class="rl-disp-hd">
+            <span class="rl-disp-origin">${s.origin.name}</span>
+            <span class="rl-disp-cause">${s.cause}</span>
+          </div>
+          <div class="rl-disp-dest">LIKELY DESTINATIONS (ESTIMATE): ${s.dests.map(d => `<b>${d.name}</b>`).join(', ')}</div>
+          <div class="rl-disp-narr rl-loading-anim" id="rl-disp-narr-${i}">Generating grounded narrative…</div>
+        </div>`).join('')}
+    </div>`;
+
+  // AI narratives — one short paragraph per situation, grounded. Graceful if no AI.
+  const aiOff = (typeof OPENAI_KEY === 'undefined') || !OPENAI_KEY || OPENAI_KEY.includes('YOUR_OPENAI');
+  for (let i = 0; i < situations.length; i++) {
+    const s = situations[i];
+    const el = document.getElementById(`rl-disp-narr-${i}`);
+    if (!el) continue;
+    if (aiOff) { el.classList.remove('rl-loading-anim'); el.innerHTML = '<span style="color:#FF8A93">AI unavailable — data and globe arcs still rendered.</span>'; continue; }
+    const f = { name: s.origin.name, region: s.origin.name, lat: s.origin.lat, lng: s.origin.lng, kind: s.kind, raw: s.event || null };
+    const ctx = reliefBuildContext(f);
+    const ctxText = _reliefContextText(f, ctx);
+    try {
+      const txt = await callOpenAI(
+        'You are a humanitarian displacement analyst (think UNHCR desk). You are honest and grounded: use only the supplied context, never invent precise figures, and label any population/displacement number as an ESTIMATE. Write ONE tight paragraph (3-4 sentences) of plain text — no headers.',
+        `Write a one-paragraph displacement narrative for this origin.\n\nORIGIN: ${s.origin.name}\nCAUSE: ${s.cause} (driver: ${s.driver})\nESTIMATED LIKELY DESTINATIONS (adjacency heuristic): ${s.dests.map(d => d.name).join(', ')}\n\nGROUNDING CONTEXT:\n${ctxText}\n\nCover: what is driving the movement, the plausible direction/destinations (as estimates), and the principal protection concern. If context is thin, say so.`,
+        260
+      );
+      el.classList.remove('rl-loading-anim');
+      el.textContent = (txt && txt.trim()) ? txt.trim() : 'No narrative returned.';
+    } catch (e) {
+      el.classList.remove('rl-loading-anim');
+      el.innerHTML = `<span style="color:#FF8A93">AI unavailable for this situation (${e.message}). Data and arcs still stand.</span>`;
+    }
+  }
+  _rlStatus(`TOOL 04 · DISPLACEMENT TRACKER READY · ${situations.length} SITUATIONS · ${arcCount} ARCS · ${now}`);
+}
+
+// ═══════════════════════════════════════════
+// TOOL 05 — FAMINE & FOOD-SECURITY WATCH (data + globe markers + AI)
+// ═══════════════════════════════════════════
+// Classifies food-security risk on an IPC-style 1-5 scale for at-risk areas,
+// driven ONLY by real signals:
+//   - drought-type disaster events (SNAPSHOT_EVENTS type 'drought'),
+//   - active conflict regions/countries (REGION_DATA / COUNTRY_DATA), and
+//   - food-insecurity keyword signals in NEWS.
+// No random scoring. Renders a ranked list + distinct globe markers.
+const _RL_FOOD_KW = ['famine', 'hunger', 'starv', 'drought', 'crop failure', 'crop fail', 'food crisis', 'food insecurity', 'malnutrition', 'malnourish', 'harvest fail', 'food shortage'];
+
+function _rlClassifyFamine() {
+  const REGIONS_ = (typeof REGION_DATA !== 'undefined') ? REGION_DATA : [];
+  const COUNTRIES_ = (typeof COUNTRY_DATA !== 'undefined') ? COUNTRY_DATA : [];
+  const EVENTS_ = (typeof SNAPSHOT_EVENTS !== 'undefined') ? SNAPSHOT_EVENTS : [];
+  const NEWS_ = (typeof NEWS !== 'undefined') ? NEWS : [];
+
+  // Candidate areas: conflict countries + critical/high regions + drought-event areas.
+  const areas = [];
+  const pushArea = (name, lat, lng, base) => {
+    if (typeof lat !== 'number') return;
+    let a = areas.find(x => x.name === name);
+    if (!a) { a = { name, lat, lng, score: 0, drivers: new Set() }; areas.push(a); }
+    a.score += base;
+  };
+
+  COUNTRIES_.filter(c => c.conflict_active && typeof c.lat === 'number').forEach(c => {
+    pushArea(c.name, c.lat, c.lng, 1.4);
+    areas.find(a => a.name === c.name)?.drivers.add('Active conflict');
+  });
+  REGIONS_.filter(r => (r.threat_level === 'critical' || r.threat_level === 'high') && typeof r.lat === 'number').forEach(r => {
+    pushArea(r.name, r.lat, r.lng, 0.9);
+    areas.find(a => a.name === r.name)?.drivers.add('Regional instability');
+  });
+
+  // Drought events — strong food-security driver. Attribute to nearest area or add new.
+  EVENTS_.filter(e => e.type === 'drought' && typeof e.lat === 'number').forEach(e => {
+    let near = null, nd = Infinity;
+    for (const a of areas) { const d = _haversineKm(e.lat, e.lng, a.lat, a.lng); if (d < nd) { nd = d; near = a; } }
+    if (near && nd < 900) { near.score += 1.6 + (e.severity ?? 0); near.drivers.add('Drought'); }
+    else { const nm = e.brief && e.brief.length < 40 ? e.brief : (e.title || 'Drought zone'); pushArea(nm, e.lat, e.lng, 1.6 + (e.severity ?? 0)); areas.find(a => a.name === nm)?.drivers.add('Drought'); }
+  });
+
+  // News food-insecurity signals — keyword match attributed to area by region/name.
+  areas.forEach(a => {
+    const toks = a.name.toLowerCase().split(/[\s,\/]+/).filter(w => w.length > 3);
+    const hits = NEWS_.filter(s => {
+      const t = `${s.title || ''} ${s.summary || ''} ${s.region || ''}`.toLowerCase();
+      return _RL_FOOD_KW.some(k => t.includes(k)) && toks.some(tk => t.includes(tk));
+    });
+    a.newsHits = hits;
+    if (hits.length) { a.score += Math.min(hits.length, 5) * 0.5; a.drivers.add('Food-insecurity news signals'); }
+  });
+
+  // Map composite score -> IPC phase 1-5. Thresholds tuned to the real signal range.
+  areas.forEach(a => {
+    const s = a.score;
+    a.phase = s >= 4.0 ? 5 : s >= 2.8 ? 4 : s >= 1.8 ? 3 : s >= 0.9 ? 2 : 1;
+    a.drivers = [...a.drivers];
+  });
+
+  return areas
+    .filter(a => a.phase >= 2)            // only surface stressed-and-above
+    .sort((a, b) => b.score - a.score || b.phase - a.phase)
+    .slice(0, 10);
+}
+
+const _RL_IPC_LBL = { 1: 'MINIMAL', 2: 'STRESSED', 3: 'CRISIS', 4: 'EMERGENCY', 5: 'FAMINE' };
+const _RL_IPC_COL = { 1: '#34D399', 2: '#FACC15', 3: '#FB923C', 4: '#FF4D5E', 5: '#7F1D1D' };
+
+async function reliefFamine() {
+  reliefRefreshFocus();
+  const work = _rlWork();
+  const now = new Date().toLocaleString();
+  const areas = _rlClassifyFamine();
+
+  // Globe markers — gated to this tool.
+  reliefFamineMarkers = areas.map(a => ({ lat: a.lat, lng: a.lng, name: a.name, phase: a.phase, _relief_famine: true }));
+  if (typeof updateAllGlobeElements === 'function') updateAllGlobeElements();
+
+  _rlStatus(`TOOL 05 · FAMINE WATCH · ${areas.length} AT-RISK AREAS · ${reliefFamineMarkers.length} MARKERS`);
+
+  if (!areas.length) {
+    work.innerHTML = `
+      <div class="rl-tool-hdr"><span class="rl-tool-title">Famine &amp; Food-Security Watch</span><span class="rl-tool-sub">05 · IPC-STYLE RISK</span></div>
+      <div class="rl-mx-empty">No areas currently classify at IPC Phase 2 (Stressed) or above from live drought events, conflict zones, and food-insecurity news signals.</div>`;
+    return;
+  }
+
+  const legend = [2, 3, 4, 5].map(p => `<span class="rl-legend-item"><span class="rl-legend-swatch" style="background:${_RL_IPC_COL[p]}"></span>PHASE ${p} ${_RL_IPC_LBL[p]}</span>`).join('');
+
+  work.innerHTML = `
+    <div class="rl-tool-hdr"><span class="rl-tool-title">Famine &amp; Food-Security Watch</span><span class="rl-tool-sub">05 · IPC-STYLE RISK · LIVE SIGNALS</span></div>
+    <div class="rl-actbar"><span class="rl-tool-sub" style="align-self:center">${areas.length} at-risk areas from drought events + conflict zones + food-insecurity news · markers on globe · phases are an indicative classification, not official IPC · ${now}</span></div>
+    <div class="rl-legend">${legend}</div>
+    <div class="rl-fam" id="rl-fam-list">
+      ${areas.map((a, i) => `
+        <div class="rl-fam-row">
+          <div class="rl-fam-phase" style="background:${_RL_IPC_COL[a.phase]};${a.phase === 5 ? 'color:#ffd9d9' : ''}">
+            <span class="rl-fam-phase-n">${a.phase}</span><span class="rl-fam-phase-l">${_RL_IPC_LBL[a.phase]}</span>
+          </div>
+          <div>
+            <div class="rl-fam-area">${a.name}</div>
+            <div class="rl-fam-drivers">${a.drivers.map(d => `<span class="rl-fam-driver">${d}</span>`).join('')}</div>
+            <div class="rl-fam-expl rl-loading-anim" id="rl-fam-expl-${i}">Explaining drivers…</div>
+          </div>
+        </div>`).join('')}
+    </div>`;
+
+  // AI driver-explanation for the TOP areas only (cost + clutter control).
+  const aiOff = (typeof OPENAI_KEY === 'undefined') || !OPENAI_KEY || OPENAI_KEY.includes('YOUR_OPENAI');
+  const topN = Math.min(areas.length, 4);
+  for (let i = 0; i < areas.length; i++) {
+    const el = document.getElementById(`rl-fam-expl-${i}`);
+    if (!el) continue;
+    if (i >= topN) { el.classList.remove('rl-loading-anim'); el.textContent = `Drivers: ${areas[i].drivers.join(', ')}.`; continue; }
+    if (aiOff) { el.classList.remove('rl-loading-anim'); el.innerHTML = `<span style="color:#FF8A93">AI unavailable</span> — drivers: ${areas[i].drivers.join(', ')}.`; continue; }
+    const a = areas[i];
+    const f = { name: a.name, region: a.name, lat: a.lat, lng: a.lng, kind: 'famine', raw: null };
+    const ctx = reliefBuildContext(f);
+    const ctxText = _reliefContextText(f, ctx);
+    try {
+      const txt = await callOpenAI(
+        'You are a food-security analyst (think FEWS NET / IPC). Honest and grounded — use only supplied context, label any figure as an estimate, and do not overstate. Write 2 short sentences of plain text explaining the food-security drivers. No headers.',
+        `Explain the food-security risk drivers for ${a.name}.\nINDICATIVE PHASE: ${a.phase} (${_RL_IPC_LBL[a.phase]}).\nDETECTED DRIVERS: ${a.drivers.join(', ')}.\n\nGROUNDING CONTEXT:\n${ctxText}\n\nBe concise and grounded; if context is thin, say the classification rests mainly on the detected drivers.`,
+        180
+      );
+      el.classList.remove('rl-loading-anim');
+      el.textContent = (txt && txt.trim()) ? txt.trim() : `Drivers: ${a.drivers.join(', ')}.`;
+    } catch (e) {
+      el.classList.remove('rl-loading-anim');
+      el.innerHTML = `<span style="color:#FF8A93">AI unavailable</span> — drivers: ${a.drivers.join(', ')}.`;
+    }
+  }
+  _rlStatus(`TOOL 05 · FAMINE WATCH READY · ${areas.length} AREAS · ${reliefFamineMarkers.length} MARKERS · ${now}`);
+}
+
+// ═══════════════════════════════════════════
+// TOOL 06 — ACCESS & BLACKOUT (repurpose SILENCE; data + globe)
+// ═══════════════════════════════════════════
+// Reframes information-blackout / silence detection as HUMANITARIAN ACCESS.
+// Combines _silenceAnomalies (computed via detectSilenceAnomalies) with active
+// conflict regions to classify zones: Open / Constrained / Sealed.
+function _rlClassifyAccess() {
+  const REGIONS_ = (typeof REGION_DATA !== 'undefined') ? REGION_DATA : [];
+  const COUNTRIES_ = (typeof COUNTRY_DATA !== 'undefined') ? COUNTRY_DATA : [];
+  // Ensure silence anomalies are computed (call its compute path if available).
+  let anomalies = (typeof _silenceAnomalies !== 'undefined' && _silenceAnomalies.length) ? _silenceAnomalies : [];
+  if (!anomalies.length && typeof detectSilenceAnomalies === 'function') {
+    try { if (typeof updateSilenceBaseline === 'function') updateSilenceBaseline(); anomalies = detectSilenceAnomalies() || []; } catch (e) {}
+  }
+
+  const zones = [];
+  const seen = new Set();
+
+  // Silence/blackout zones -> Sealed (HIGH) or Constrained (ELEVATED).
+  anomalies.forEach(a => {
+    if (typeof a.lat !== 'number') return;
+    const status = a.severity === 'HIGH' ? 'sealed' : 'constrained';
+    const name = a.region || 'Unknown zone';
+    if (seen.has(name)) return; seen.add(name);
+    zones.push({ name, lat: a.lat, lng: a.lng, status, why: `Information blackout — ${a.reason || 'no coverage detected'}. Aid access cannot be confirmed.` });
+  });
+
+  // Active conflict regions -> Sealed if critical, Constrained if high.
+  REGIONS_.filter(r => (r.threat_level === 'critical' || r.threat_level === 'high') && typeof r.lat === 'number').forEach(r => {
+    if (seen.has(r.name)) return; seen.add(r.name);
+    const status = r.threat_level === 'critical' ? 'sealed' : 'constrained';
+    zones.push({ name: r.name, lat: r.lat, lng: r.lng, status, why: `${r.threat_level === 'critical' ? 'Critical' : 'High'} conflict zone${r.description ? ' — ' + r.description : ''}. Movement is contested; access is ${status === 'sealed' ? 'frequently denied' : 'constrained'}.` });
+  });
+
+  // Active conflict countries not already covered -> Constrained (operating but limited).
+  COUNTRIES_.filter(c => c.conflict_active && typeof c.lat === 'number').forEach(c => {
+    if (seen.has(c.name)) return; seen.add(c.name);
+    zones.push({ name: c.name, lat: c.lat, lng: c.lng, status: 'constrained', why: 'Active armed conflict — humanitarian access negotiated and intermittent across front lines.' });
+  });
+
+  // Order: sealed first, then constrained.
+  const rank = { sealed: 0, constrained: 1, open: 2 };
+  return zones.sort((a, b) => rank[a.status] - rank[b.status]).slice(0, 14);
+}
+
+function reliefAccess() {
+  reliefRefreshFocus();
+  const work = _rlWork();
+  const now = new Date().toLocaleString();
+  const zones = _rlClassifyAccess();
+
+  // Globe markers — gated to this tool.
+  reliefAccessMarkers = zones.map(z => ({ lat: z.lat, lng: z.lng, name: z.name, status: z.status, _relief_access: true }));
+  if (typeof updateAllGlobeElements === 'function') updateAllGlobeElements();
+
+  _rlStatus(`TOOL 06 · ACCESS & BLACKOUT · ${zones.length} ZONES · ${reliefAccessMarkers.length} MARKERS`);
+
+  if (!zones.length) {
+    work.innerHTML = `
+      <div class="rl-tool-hdr"><span class="rl-tool-title">Access &amp; Blackout</span><span class="rl-tool-sub">06 · HUMANITARIAN ACCESS</span></div>
+      <div class="rl-mx-empty">No constrained or sealed access zones detected from silence anomalies or active conflict regions. Where there is no signal of obstruction, access is presumed open — but absence of evidence is not evidence of access.</div>`;
+    return;
+  }
+
+  const counts = zones.reduce((m, z) => (m[z.status] = (m[z.status] || 0) + 1, m), {});
+  const legend = `
+    <span class="rl-legend-item"><span class="rl-legend-swatch" style="background:#34D399"></span>OPEN</span>
+    <span class="rl-legend-item"><span class="rl-legend-swatch" style="background:#FB923C"></span>CONSTRAINED (${counts.constrained || 0})</span>
+    <span class="rl-legend-item"><span class="rl-legend-swatch" style="background:#FF4D5E"></span>SEALED (${counts.sealed || 0})</span>`;
+
+  work.innerHTML = `
+    <div class="rl-tool-hdr"><span class="rl-tool-title">Access &amp; Blackout</span><span class="rl-tool-sub">06 · HUMANITARIAN ACCESS · BLACKOUT + CONFLICT</span></div>
+    <div class="rl-actbar"><span class="rl-tool-sub" style="align-self:center">${zones.length} zones classified from information-blackout anomalies + active conflict regions · markers on globe · honest framing: sealed/constrained reflects obstruction signals, not a guarantee · ${now}</span></div>
+    <div class="rl-legend">${legend}</div>
+    <div class="rl-acc" id="rl-acc-list">
+      ${zones.map(z => `
+        <div class="rl-acc-row">
+          <div class="rl-acc-badge rl-acc-${z.status}">${z.status.toUpperCase()}</div>
+          <div>
+            <div class="rl-acc-zone">${z.name}</div>
+            <div class="rl-acc-why">${z.why}</div>
+          </div>
+        </div>`).join('')}
+    </div>`;
+  _rlStatus(`TOOL 06 · ACCESS & BLACKOUT READY · ${zones.length} ZONES · ${reliefAccessMarkers.length} MARKERS · ${now}`);
+}
+
 // Expose globals (browser-global pattern, matching analyst.js).
 if (typeof window !== 'undefined') {
   window.openRelief = openRelief;
   window.closeRelief = closeRelief;
+  window.reliefClearGlobe = reliefClearGlobe;
   window.reliefSelectTool = reliefSelectTool;
   window.reliefSituationReport = reliefSituationReport;
   window.reliefExportSitrep = reliefExportSitrep;
   window.reliefResponseCouncil = reliefResponseCouncil;
   window.reliefNeedsMatrix = reliefNeedsMatrix;
   window.reliefMatrixCell = reliefMatrixCell;
+  window.reliefDisplacement = reliefDisplacement;
+  window.reliefFamine = reliefFamine;
+  window.reliefAccess = reliefAccess;
 }

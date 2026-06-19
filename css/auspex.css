@@ -1261,3 +1261,53 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 .rl-sig-title{font-family:var(--f-ui);font-size:11px;line-height:1.5;color:#a8c4b6;margin:3px 0}
 .rl-sig-meta{font-family:var(--f-mono);font-size:7.5px;color:#4f7a66;letter-spacing:.06em}
 .rl-mx-empty{font-family:var(--f-mono);font-size:8.5px;letter-spacing:.1em;color:#4f7a66;line-height:1.8;padding:8px 0}
+
+/* ── RELIEF Tool 4 · Displacement Tracker ── */
+.rl-disp{display:flex;flex-direction:column;gap:11px;max-width:880px}
+.rl-disp-row{background:#070c0a;border:1px solid #0e2018;border-left:3px solid #FB923C;border-radius:5px;padding:14px 17px}
+.rl-disp-hd{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:4px}
+.rl-disp-origin{font-family:var(--f-head,var(--f-ui));font-size:14px;font-weight:700;color:#ffd9b0;letter-spacing:.01em}
+.rl-disp-cause{font-family:var(--f-mono);font-size:7.5px;letter-spacing:.14em;color:#FB923C;border:1px solid rgba(251,146,60,.32);padding:2px 6px;border-radius:2px}
+.rl-disp-dest{font-family:var(--f-mono);font-size:8.5px;letter-spacing:.04em;color:#7e9a8d;margin:2px 0 7px}
+.rl-disp-dest b{color:#bfe9d6;font-weight:600}
+.rl-disp-arrow{color:#FB923C;margin:0 6px}
+.rl-disp-narr{font-family:var(--f-ui);font-size:12px;line-height:1.7;color:#a8c4b6}
+.rl-disp-narr.rl-loading-anim{color:#4f7a66;font-family:var(--f-mono);font-size:9px;letter-spacing:.1em}
+
+/* ── RELIEF Tool 5 · Famine Watch ── */
+.rl-fam{display:flex;flex-direction:column;gap:10px;max-width:880px}
+.rl-fam-row{display:grid;grid-template-columns:54px 1fr;gap:14px;background:#070c0a;border:1px solid #0e2018;border-radius:5px;padding:13px 16px;align-items:start}
+.rl-fam-phase{display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:4px;padding:7px 0;min-height:54px;color:#0a0f0c}
+.rl-fam-phase-n{font-family:var(--f-mono);font-size:20px;font-weight:800;line-height:1}
+.rl-fam-phase-l{font-family:var(--f-mono);font-size:6px;letter-spacing:.1em;font-weight:700;margin-top:2px}
+.rl-fam-area{font-family:var(--f-head,var(--f-ui));font-size:14px;font-weight:700;color:#dffaee;margin-bottom:3px}
+.rl-fam-drivers{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}
+.rl-fam-driver{font-family:var(--f-mono);font-size:7px;letter-spacing:.1em;color:#FACC15;border:1px solid rgba(250,204,21,.28);padding:2px 6px;border-radius:2px}
+.rl-fam-expl{font-family:var(--f-ui);font-size:11.5px;line-height:1.65;color:#9bbaac}
+.rl-fam-expl.rl-loading-anim{font-family:var(--f-mono);font-size:8.5px;letter-spacing:.1em;color:#4f7a66}
+
+/* ── RELIEF Tool 6 · Access & Blackout ── */
+.rl-acc{display:flex;flex-direction:column;gap:9px;max-width:880px}
+.rl-acc-row{display:grid;grid-template-columns:110px 1fr;gap:14px;background:#070c0a;border:1px solid #0e2018;border-radius:5px;padding:12px 16px;align-items:center}
+.rl-acc-badge{font-family:var(--f-mono);font-size:8px;letter-spacing:.14em;font-weight:700;text-align:center;padding:6px 4px;border-radius:3px;border:1px solid}
+.rl-acc-open{color:#34D399;border-color:rgba(52,211,153,.4);background:rgba(52,211,153,.06)}
+.rl-acc-constrained{color:#FB923C;border-color:rgba(251,146,60,.4);background:rgba(251,146,60,.06)}
+.rl-acc-sealed{color:#FF4D5E;border-color:rgba(255,77,94,.4);background:rgba(255,77,94,.07)}
+.rl-acc-zone{font-family:var(--f-head,var(--f-ui));font-size:13px;font-weight:700;color:#dffaee;margin-bottom:2px}
+.rl-acc-why{font-family:var(--f-ui);font-size:11px;line-height:1.6;color:#9bbaac}
+.rl-legend{display:flex;gap:14px;flex-wrap:wrap;margin:12px 0 18px}
+.rl-legend-item{display:flex;align-items:center;gap:6px;font-family:var(--f-mono);font-size:8px;letter-spacing:.08em;color:#7e9a8d}
+.rl-legend-swatch{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+
+/* ── RELIEF globe markers ── */
+.rl-famine-marker .rlf-glow{position:absolute;top:50%;left:50%;width:30px;height:30px;border-radius:50%;background:radial-gradient(circle,var(--rfc) 0%,transparent 70%);opacity:.4;transform:translate(-50%,-50%);animation:rl-pulse 2.2s ease-in-out infinite}
+.rl-famine-marker .rlf-hex{position:relative;width:18px;height:18px;display:flex;align-items:center;justify-content:center;background:var(--rfc);clip-path:polygon(25% 0,75% 0,100% 50%,75% 100%,25% 100%,0 50%);box-shadow:0 0 10px var(--rfc)}
+.rl-famine-marker .rlf-num{font-family:var(--f-mono);font-size:10px;font-weight:800;color:#0a0f0c}
+.rl-famine-marker .rlf-tip,.rl-access-marker .rla-tip{position:absolute;top:120%;left:50%;transform:translateX(-50%);white-space:nowrap;font-family:var(--f-mono);font-size:7.5px;letter-spacing:.08em;color:#dffaee;background:rgba(5,8,9,.92);border:1px solid rgba(255,255,255,.12);padding:3px 6px;border-radius:3px;opacity:0;pointer-events:none;transition:opacity .15s}
+.rl-famine-marker:hover .rlf-tip,.rl-access-marker:hover .rla-tip{opacity:1}
+.rl-access-marker .rla-ring{position:absolute;top:50%;left:50%;width:22px;height:22px;border-radius:50%;border:1.5px solid var(--rac);transform:translate(-50%,-50%);box-shadow:0 0 9px var(--rac)}
+.rl-access-marker .rla-dot{position:absolute;top:50%;left:50%;width:7px;height:7px;border-radius:50%;background:var(--rac);transform:translate(-50%,-50%)}
+.rl-access-marker .rla-open{position:absolute;top:50%;left:50%;width:6px;height:6px;border-radius:50%;background:var(--rac);transform:translate(-50%,-50%);opacity:.6}
+.rl-access-marker .rla-bar{position:absolute;top:50%;left:50%;width:18px;height:2px;background:var(--rac);transform:translate(-50%,-50%) rotate(45deg)}
+.rl-access-marker .rla-bar2{transform:translate(-50%,-50%) rotate(-45deg)}
+.rl-access-sealed .rla-ring{animation:rl-pulse 1.6s ease-in-out infinite}
