@@ -154,6 +154,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 .ap-hdr{padding:22px 24px 16px;border-bottom:1px solid var(--b1);position:relative}
 .ap-meta{display:flex;align-items:center;gap:8px;margin-bottom:10px}
 .ap-cat{font-family:var(--f-brand);font-size:8px;font-weight:700;letter-spacing:.12em;padding:2px 7px;border-radius:2px}
+.ap-cat-glyph svg{width:100%;height:100%;display:block}
 .ap-title{font-family:var(--f-head);font-size:20px;font-weight:600;line-height:1.3;color:var(--t1);margin-bottom:9px;padding-right:38px}
 .ap-byline{display:flex;gap:14px;font-family:var(--f-mono);font-size:9.5px;color:var(--t3)}
 .ap-close{position:absolute;top:18px;right:18px;width:30px;height:30px;border:1px solid var(--b1);background:none;color:var(--t2);cursor:pointer;border-radius:2px;font-size:18px;display:flex;align-items:center;justify-content:center;transition:all .15s;font-family:monospace;line-height:1}
@@ -737,6 +738,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 @keyframes mk-ring-out{0%{transform:translate(-50%,-50%) scale(.3);opacity:.85}100%{transform:translate(-50%,-50%) scale(1);opacity:0}}
 .mk-ico-lbl{width:18px;font-size:10px;text-align:center;flex-shrink:0;line-height:1}
 .mk-city-ico{width:14px;height:14px;flex-shrink:0}
+.mk-event-ico{width:15px;height:15px;flex-shrink:0;display:flex;align-items:center;justify-content:center}.mk-event-ico svg{width:15px;height:15px;display:block}
 .mk-plane-ico{width:16px;height:16px;flex-shrink:0;display:flex;align-items:center;justify-content:center}.mk-plane-ico svg{width:16px;height:16px}
 .mk-ctrl-ico{width:16px;height:16px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
 .mk-lbl{font-family:var(--f-ui);font-size:10px;color:var(--t2);flex:1;line-height:1.3}
@@ -1001,6 +1003,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
    AUSPEX EVENT MARKERS — holographic disaster/breakthrough sense
    ═══════════════════════════════════════════ */
 .auspex-m { cursor:pointer; }
+.auspex-glyph svg { width:100%; height:100%; display:block; }
 .auspex-tip { position:absolute; top:120%; left:50%; transform:translateX(-50%);
   font:500 9px/1 var(--f-mono,monospace); color:#cfe0f5; white-space:nowrap;
   opacity:0; transition:opacity .15s; pointer-events:none; letter-spacing:.05em; }
