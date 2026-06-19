@@ -16,6 +16,24 @@ const CATS = {
 };
 
 // ═══════════════════════════════════════════
+// WORKER BASE URL
+// The single place the frontend learns where the snapshot/news worker lives.
+// Local dev → http://localhost:8801 (the worker on :8801).
+// Production → set the worker's public origin in one of two ways:
+//   1. define  window.AUSPEX_WORKER_BASE = 'https://worker.example.com'
+//      in a small inline <script> before js/config.js loads, or
+//   2. edit the production fallback string below.
+// An empty string means "same origin" — only correct if a reverse proxy
+// forwards /snapshot.json and /news.json to the worker.
+// ═══════════════════════════════════════════
+const WORKER_BASE =
+  (typeof window !== 'undefined' && window.AUSPEX_WORKER_BASE)
+    ? window.AUSPEX_WORKER_BASE
+    : (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+      ? 'http://localhost:8801'
+      : ''; // production: same-origin proxy, or set window.AUSPEX_WORKER_BASE
+
+// ═══════════════════════════════════════════
 // API KEYS — defined in js/keys.js (gitignored)
 // ═══════════════════════════════════════════
 const NEWS_CACHE_KEY = 'auspex_news_cache_v1';

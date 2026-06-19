@@ -1,7 +1,7 @@
 'use strict';
 async function fetchSnapshot() {
   try {
-    const r = await fetch('http://localhost:8801/snapshot.json', { signal: AbortSignal.timeout(5000) });
+    const r = await fetch(`${WORKER_BASE}/snapshot.json`, { signal: AbortSignal.timeout(5000) });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const data = await r.json();
     _snapshotFetchedAt = Date.now();

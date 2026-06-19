@@ -73,10 +73,16 @@ setInterval(() => { if (marketVisible) fetchMarketData(); }, 5 * 60 * 1000);
 
 // ═══════════════════════════════════════════
 // AGENTZEUS COMMAND BUS
-// Polls AgentZeus meridian-bridge for voice commands
+// Polls the AgentZeus auspex-bridge for voice commands.
+// OFF by default — opt in with localStorage.setItem('auspex_bridge','1').
+// Without this, the bridge does not poll, so an offline AgentZeus on :3000
+// never spams the console with failed-fetch errors.
 // ═══════════════════════════════════════════
 (function startCommandBus() {
-  const BRIDGE_URL = 'http://localhost:3000/api/meridian-bridge';
+  const BRIDGE_ENABLED = (localStorage.getItem('auspex_bridge') === '1');
+  if (!BRIDGE_ENABLED) return;
+
+  const BRIDGE_URL = 'http://localhost:3000/api/auspex-bridge';
   let _lastTs = 0;
 
   async function pollBridge() {
