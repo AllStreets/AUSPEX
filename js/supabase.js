@@ -23,6 +23,11 @@ function getSB() {
 // Maps UUID string → story object (compatible with NEWS story shape)
 const _histMap = {};
 
+// Archive failures are logged ONCE (not per-call) to avoid console spam when
+// the table/RLS is misconfigured or the network is down. sbArchiveStories
+// never throws — archiving is best-effort persistence.
+let _archiveWarned = false;
+
 // ───────────────────────────────────────────
 // STEP 2 — Archive live stories to Supabase
 // Called automatically after each news fetch
@@ -49,14 +54,28 @@ async function sbArchiveStories(stories) {
         pub_date:     s._pub ? new Date(s._pub).toISOString() : new Date().toISOString(),
       })).filter(r => r.title_key.length > 5 && r.lat != null && r.lng != null);
 
+    if (!rows.length) return;
+
+    // ON CONFLICT DO NOTHING (ignoreDuplicates) — only needs the anon INSERT
+    // policy. A merge upsert would take the DO UPDATE path, which requires an
+    // anon UPDATE RLS policy that does not exist and returns 42501/4xx.
     const { error } = await sb.from('stories').upsert(rows, {
       onConflict: 'title_key',
-      ignoreDuplicates: false,
+      ignoreDuplicates: true,
     });
-    if (error) console.warn('[AUSPEX] Archive error:', error.message);
-    else console.log(`[AUSPEX] Archived ${rows.length} stories to Supabase`);
+    if (error) {
+      if (!_archiveWarned) {
+        _archiveWarned = true;
+        console.warn('[AUSPEX] Story archive disabled (logged once):', error.message);
+      }
+      return;
+    }
+    console.log(`[AUSPEX] Archived ${rows.length} stories to Supabase`);
   } catch(e) {
-    console.warn('[AUSPEX] Supabase unavailable:', e.message);
+    if (!_archiveWarned) {
+      _archiveWarned = true;
+      console.warn('[AUSPEX] Story archive unavailable (logged once):', e.message);
+    }
   }
 }
 
