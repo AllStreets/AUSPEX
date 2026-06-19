@@ -141,21 +141,34 @@ async function sbFetchRelatedHistory(pinnedStories, limit = 10) {
 // Bootstrap: load last N days of stories from server into local cache
 // Called once on startup — grows the local pool as the DB accumulates
 // ───────────────────────────────────────────
-async function sbFetchRecentStories(limit = 600, days = 30) {
+async function sbFetchRecentStories(limit = 4000, days = 7) {
   const sb = getSB();
   if (!sb) return [];
   try {
     const since = new Date(Date.now() - days * 86400000).toISOString();
-    const { data, error } = await sb
-      .from('stories')
-      .select('*')
-      .gte('pub_date', since)
-      .not('lat', 'is', null)
-      .not('lng', 'is', null)
-      .order('pub_date', { ascending: false })
-      .limit(limit);
-    if (error) throw error;
-    return (data || []).map(normalizeHistStory);
+    // PostgREST clamps a single response to its server-side max-rows (1000 on
+    // this project), so .limit(4000) alone silently returns only the newest
+    // ~1000 rows — collapsing a 7-day window down to ~1 day of dense archive.
+    // Page through with .range() (newest-first) until we hit `limit` or run dry,
+    // so the dataset actually spans the full week.
+    const PAGE = 1000;
+    const rows = [];
+    for (let offset = 0; offset < limit; offset += PAGE) {
+      const to = Math.min(offset + PAGE, limit) - 1;
+      const { data, error } = await sb
+        .from('stories')
+        .select('*')
+        .gte('pub_date', since)
+        .not('lat', 'is', null)
+        .not('lng', 'is', null)
+        .order('pub_date', { ascending: false })
+        .range(offset, to);
+      if (error) throw error;
+      if (!data || !data.length) break;     // no more rows
+      rows.push(...data);
+      if (data.length < (to - offset + 1)) break; // last (partial) page
+    }
+    return rows.map(normalizeHistStory);
   } catch(e) {
     console.warn('[AUSPEX] sbFetchRecentStories error:', e.message);
     return [];

@@ -198,13 +198,22 @@ function applyLiveNews(stories) {
 // ═══════════════════════════════════════════
 async function bootstrapFromSupabase() {
   try {
-    const stories = await sbFetchRecentStories(600, 30);
+    // Pull the last 7 DAYS of archived stories, newest-first, with a high cap so
+    // the dataset spans a full week (was capped at 600/30d). The server holds far
+    // more than 600; lifting the cap restores the ~thousands-of-stories pool.
+    const stories = await sbFetchRecentStories(4000, 7);
     if (!stories.length) return;
 
     const { map: existing } = _loadAccumCache();
     let added = 0;
     stories.forEach(s => {
       if (!s.lat || !s.lng) return; // skip stories with no coordinates
+      // Apply the SAME junk filter the live fetch uses, so bootstrapped archive
+      // stories never reintroduce ad/PR/pop-culture noise. PRIORITY_RE overrides
+      // junk so legitimate geopolitical/crisis news is always kept.
+      const searchText = `${s.title || ''} ${s.summary || ''} ${s.src || ''}`;
+      const PRIORITY_RE = /\b(war|warfare|military|troops?|missile|drone strike|airstrike|nuclear|nato|sanction|election|coup|protest|invasion|ceasefire|parliament|president|prime minister|secretary of state|foreign minister|geopolit|diplomacy|terrorism|insurgency|conflict|crisis|threat|intelligence|espionage|submarine|aircraft carrier|destroyer|battalion|casualt|offensive|siege|blockade|escalat|deescalat|treaty|bilateral|summit|security council|un resolution|iaea|pentagon|kremlin|white house|state department|tariff|inflation|interest rate|recession|gdp|central bank|federal reserve|\bfed\b|supreme court|earthquake|hurricane|wildfire|flood|drought|famine|outbreak|pandemic|epidemic|vaccine|tsunami|eruption|refinery|pipeline|oil price|gas price|rocket launch|space launch|satellite|spacex|nasa|cyberattack|data breach|genocide|refugee|humanitarian|aid convoy|hostage|climate)\b/i;
+      if (JUNK_RE.test(searchText) && !PRIORITY_RE.test(searchText)) return;
       const key = s.title.slice(0, 60);
       if (!existing[key]) {
         s._key = key;
@@ -214,13 +223,15 @@ async function bootstrapFromSupabase() {
     });
 
     if (added > 0) {
-      // Keep within localStorage limit
+      // Keep within localStorage limit — trim oldest beyond the cap, newest-first.
       const entries = Object.entries(existing);
-      if (entries.length > 4000) {
+      if (entries.length > 8000) {
         entries.sort((a, b) => (b[1]._pub || 0) - (a[1]._pub || 0));
-        entries.slice(4000).forEach(([k]) => delete existing[k]);
+        entries.slice(8000).forEach(([k]) => delete existing[k]);
       }
       _saveAccumCache(existing);
+      // _mapToSortedStories already sorts newest-first, so the freshest stories
+      // are present and prominent with the tail running back ~7 days.
       const merged = _mapToSortedStories(existing);
       applyLiveNews(merged);
       console.log(`[AUSPEX] Bootstrap: +${added} stories from server (pool now ${merged.length})`);
