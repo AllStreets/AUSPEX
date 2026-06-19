@@ -11,7 +11,9 @@
 // --- GDELT: keyless, broad-but-serious global query -----------------
 const GDELT_QUERY = encodeURIComponent(
   'sourcelang:english (conflict OR diplomacy OR economy OR election OR ' +
-  'disaster OR military OR climate OR sanctions OR protest OR summit)'
+  'disaster OR military OR climate OR sanctions OR protest OR summit OR ' +
+  'cure OR vaccine OR fusion OR quantum OR discovery OR breakthrough OR ' +
+  '"record high" OR milestone OR launch OR "first ever" OR Nobel)'
 );
 const GDELT_URL =
   'https://api.gdeltproject.org/api/v2/doc/doc?query=' + GDELT_QUERY +
