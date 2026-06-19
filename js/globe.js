@@ -419,6 +419,52 @@ function makeRegionLabel(region) {
 }
 
 // ═══════════════════════════════════════════
+// RELIEF MARKERS — food-security (Tool 5) + access/blackout (Tool 6)
+// Rendered as globe.gl htmlElements, gated to the active RELIEF tool.
+// Distinct from the analyst/event markers so the relief layer reads cleanly.
+// ═══════════════════════════════════════════
+// IPC-style phase ramp: 1 Minimal → 5 Famine
+const _RELIEF_IPC_COL = { 1:'#34D399', 2:'#FACC15', 3:'#FB923C', 4:'#FF4D5E', 5:'#7F1D1D' };
+const _RELIEF_IPC_LBL = { 1:'MINIMAL', 2:'STRESSED', 3:'CRISIS', 4:'EMERGENCY', 5:'FAMINE' };
+
+function makeReliefFamineMarker(item) {
+  const phase = Math.max(1, Math.min(5, item.phase || 1));
+  const col = _RELIEF_IPC_COL[phase] || '#FACC15';
+  const d = document.createElement('div');
+  d.className = 'rl-famine-marker';
+  d.style.cssText = `position:relative;transform:translate(-50%,-50%);pointer-events:auto;cursor:pointer;--rfc:${col}`;
+  d.title = `${item.name || 'Area'} — IPC PHASE ${phase} (${_RELIEF_IPC_LBL[phase]})`;
+  d.innerHTML =
+    `<div class="rlf-glow"></div>` +
+    `<div class="rlf-hex"><span class="rlf-num">${phase}</span></div>` +
+    `<div class="rlf-tip">${(item.name || 'AREA').toUpperCase()} · PHASE ${phase} ${_RELIEF_IPC_LBL[phase]}</div>`;
+  d.addEventListener('click', e => {
+    e.stopPropagation();
+    if (typeof reliefSelectTool === 'function') { if (typeof openRelief === 'function') openRelief(); reliefSelectTool('famine'); }
+  });
+  return d;
+}
+
+const _RELIEF_ACCESS_COL = { open:'#34D399', constrained:'#FB923C', sealed:'#FF4D5E' };
+function makeReliefAccessMarker(item) {
+  const status = (item.status || 'constrained').toLowerCase();
+  const col = _RELIEF_ACCESS_COL[status] || '#FB923C';
+  const d = document.createElement('div');
+  d.className = `rl-access-marker rl-access-${status}`;
+  d.style.cssText = `position:relative;transform:translate(-50%,-50%);pointer-events:auto;cursor:pointer;--rac:${col}`;
+  d.title = `${item.name || item.region || 'Zone'} — ACCESS ${status.toUpperCase()}`;
+  const inner = status === 'sealed'
+    ? '<div class="rla-bar"></div><div class="rla-bar rla-bar2"></div>'
+    : status === 'constrained' ? '<div class="rla-dot"></div>' : '<div class="rla-open"></div>';
+  d.innerHTML = `<div class="rla-ring"></div>${inner}<div class="rla-tip">${(item.name||item.region||'ZONE').toUpperCase()} · ${status.toUpperCase()}</div>`;
+  d.addEventListener('click', e => {
+    e.stopPropagation();
+    if (typeof reliefSelectTool === 'function') { if (typeof openRelief === 'function') openRelief(); reliefSelectTool('access'); }
+  });
+  return d;
+}
+
+// ═══════════════════════════════════════════
 // GLOBE INIT
 // ═══════════════════════════════════════════
 function initGlobe() {
@@ -593,6 +639,16 @@ function _updateAllGlobeElementsNow() {
   }
   // Broadcaster city markers — shown when BROADCAST panel is active
   try { if (_lnpActive) { BROADCASTERS.forEach(b => visual.push({...b, lat: b.lat, lng: b.lng, _type:'broadcaster'})); } } catch(e) {}
+  // RELIEF food-security markers (Tool 5) — gated to the Famine Watch tool.
+  try {
+    if (typeof reliefFamineMarkers !== 'undefined' && reliefFamineMarkers.length)
+      reliefFamineMarkers.forEach(m => visual.push({ ...m, _type: 'relief_famine' }));
+  } catch (e) {}
+  // RELIEF humanitarian-access markers (Tool 6) — gated to the Access & Blackout tool.
+  try {
+    if (typeof reliefAccessMarkers !== 'undefined' && reliefAccessMarkers.length)
+      reliefAccessMarkers.forEach(m => visual.push({ ...m, _type: 'relief_access' }));
+  } catch (e) {}
 
   G.htmlElementsData(visual).htmlElement(item => {
     if (item._type === 'earthquake') return makeEqMarker(item);
@@ -623,6 +679,8 @@ function _updateAllGlobeElementsNow() {
       d.addEventListener('click', e => { e.stopPropagation(); openSilencePanel(item); });
       return d;
     }
+    if (item._type === 'relief_famine') return makeReliefFamineMarker(item);
+    if (item._type === 'relief_access') return makeReliefAccessMarker(item);
     if (item._type === 'city') return makeCityMarker(item);
     if (item._type === 'auspex_event') return makeAuspexEventMarker(item);
     if (item._type === 'country') return makeCountryMarker(item);

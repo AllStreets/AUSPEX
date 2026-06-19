@@ -176,3 +176,10 @@ let _currentWebcams = [];
 let SNAPSHOT_EVENTS = [];
 let snapshotVisible = true;
 let _snapshotFetchedAt = 0;
+
+// RELIEF board globe layers (populated/cleared by relief.js, merged into the
+// existing arc/marker pipelines in analyst.js refreshArcs + globe.js render).
+// Gated to the active RELIEF tool; cleared on tool switch / overlay close.
+let reliefArcs = [];            // displacement arcs (Tool 4) — { slat,slng,elat,elng,c1,c2,_relief }
+let reliefFamineMarkers = [];   // food-security zones (Tool 5) — { lat,lng,_relief_famine,... }
+let reliefAccessMarkers = [];   // access/blackout zones (Tool 6) — { lat,lng,_relief_access,... }

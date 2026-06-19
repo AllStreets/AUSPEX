@@ -977,16 +977,20 @@ function refreshArcs() {
   const base = computeMeaningfulArcs(NEWS);
   // Honest connection arcs between AUSPEX events (nearby in space & time).
   const links = (typeof computeAuspexLinkArcs === 'function') ? computeAuspexLinkArcs() : [];
-  const all  = [...base, ...divergeArcs, ...cascadeArcsArr, ...links];
+  // RELIEF humanitarian displacement arcs (amber, dashed) — gated to the
+  // Displacement Tracker tool, populated/cleared by relief.js. Merged here so
+  // the relief layer rides the existing arc pipeline without forking it.
+  const relief = (typeof reliefArcs !== 'undefined' && Array.isArray(reliefArcs)) ? reliefArcs : [];
+  const all  = [...base, ...divergeArcs, ...cascadeArcsArr, ...links, ...relief];
   G.arcsData(all)
     .arcStartLat('slat').arcStartLng('slng').arcEndLat('elat').arcEndLng('elng')
     .arcColor(d => [d.c1, d.c2])
-    .arcDashLength(d => d._link ? 0.25 : d._diverge ? 1.0 : d._cascade ? 0.7 : 0.4)
-    .arcDashGap(d => d._link ? 0.6 : 0.18)
-    .arcDashAnimateTime(d => d._link ? 6000 : d._diverge ? 5000 : d._cascade ? 4500 : 2400)
-    .arcStroke(d => d._link ? 0.12 : d._diverge ? 0.9 : d._cascade ? 0.5 : 0.3)
-    .arcAltitudeAutoScale(d => d._link ? 0.22 : d._diverge ? 0.5 : d._cascade ? 0.4 : 0.3)
-    .onArcClick(arc => { if (!arc._link && (arc._s1id != null || arc._s2id != null)) traceArc(arc); });
+    .arcDashLength(d => d._relief ? 0.5 : d._link ? 0.25 : d._diverge ? 1.0 : d._cascade ? 0.7 : 0.4)
+    .arcDashGap(d => d._relief ? 0.28 : d._link ? 0.6 : 0.18)
+    .arcDashAnimateTime(d => d._relief ? 3000 : d._link ? 6000 : d._diverge ? 5000 : d._cascade ? 4500 : 2400)
+    .arcStroke(d => d._relief ? 0.42 : d._link ? 0.12 : d._diverge ? 0.9 : d._cascade ? 0.5 : 0.3)
+    .arcAltitudeAutoScale(d => d._relief ? 0.42 : d._link ? 0.22 : d._diverge ? 0.5 : d._cascade ? 0.4 : 0.3)
+    .onArcClick(arc => { if (!arc._link && !arc._relief && (arc._s1id != null || arc._s2id != null)) traceArc(arc); });
 }
 
 // ═══════════════════════════════════════════
