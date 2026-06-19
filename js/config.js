@@ -108,6 +108,11 @@ let scrubPlayTimer = null;
 // Analyst mode
 let analystAssets = [];       // story IDs + geo keys
 let _analystGeoMap = {};      // key → geo asset object (cities, countries, bases)
+
+// RELIEF board — its OWN pin pool, fully independent of the Analyst pool above.
+// Pinning to RELIEF sets the RELIEF operational focus without touching Analyst.
+let reliefAssets = [];        // story IDs + geo keys (RELIEF focus pool)
+let _reliefGeoMap = {};       // key → geo asset object (cities, countries, regions, events)
 let analystGraph = null;
 let analystAnimId = null;
 let _netZoom = 1, _netPanX = 0, _netPanY = 0;

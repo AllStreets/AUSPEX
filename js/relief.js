@@ -2,10 +2,11 @@
 
 // ═══════════════════════════════════════════
 // RELIEF — HUMANITARIAN OPERATIONS BOARD
-//   Counterpart to the Analyst Board. Shares the pin pool
-//   (analystAssets / _analystGeoMap), callOpenAI, and the
-//   live data globals (NEWS, REGION_DATA, COUNTRY_DATA,
-//   CITY_DATA, SNAPSHOT_EVENTS). Living Green theme.
+//   Counterpart to the Analyst Board. Keeps its OWN pin pool
+//   (reliefAssets / _reliefGeoMap) — fully independent of the
+//   Analyst pool — and shares callOpenAI and the live data
+//   globals (NEWS, REGION_DATA, COUNTRY_DATA, CITY_DATA,
+//   SNAPSHOT_EVENTS). Living Green theme.
 //
 //   Pass 1 tools: 01 Situation Report (AI),
 //                 02 Response Council (AI, multi-role),
@@ -41,30 +42,127 @@ function reliefClearGlobe() {
   if (typeof updateAllGlobeElements === 'function') updateAllGlobeElements();
 }
 
+// ── RELIEF pin pool ─────────────────────────────────────────
+// RELIEF owns reliefAssets / _reliefGeoMap (declared in config.js),
+// entirely separate from the Analyst pool. Pinning here sets the RELIEF
+// focus and never touches analystAssets / _analystGeoMap (and vice versa).
+
+// Resolve a RELIEF-pinned id (geo key or story id) to a story-like object.
+function _reliefResolveAsset(id) {
+  if (typeof id === 'string' && id.includes(':') && typeof _reliefGeoMap !== 'undefined' && _reliefGeoMap[id]) {
+    return _reliefGeoMap[id];
+  }
+  if (typeof _resolveStory === 'function') {
+    const s = _resolveStory(id);
+    if (s) return s;
+  }
+  if (typeof NEWS !== 'undefined') { const s = NEWS.find(n => n.id === id); if (s) return s; }
+  return null;
+}
+
+// Build the same geo key analyst.js builds, so a given object pins consistently.
+function _reliefGeoKey(geoType, obj) {
+  return `${geoType}:${obj.name || obj.iso2}:${(obj.lat || 0).toFixed(1)}`;
+}
+
+// Pin a geo asset (city / country / region / event-location) to the RELIEF pool.
+// Mirrors pinGeoAsset's key-building and summary shape. Toggles off if already pinned.
+function pinToRelief(geoType, obj) {
+  if (!obj) return;
+  const key = _reliefGeoKey(geoType, obj);
+  if (reliefAssets.includes(key)) {
+    // Toggle off
+    reliefAssets = reliefAssets.filter(k => k !== key);
+    delete _reliefGeoMap[key];
+    _reliefAfterPinChange();
+    return;
+  }
+  const typeColors = { city:'#E8D5A3', capital:'#E8D5A3', financial:'#FFD60A', military:'#FF6D00',
+    naval:'#2979FF', port:'#00BCD4', conflict:'#FF2D55', energy:'#FF9F0A',
+    diplomatic:'#30D158', country:'#B163E0', region:'#34D399', event:'#FB923C', base:'#FF6D00' };
+  const color = typeColors[obj.icon_type] || typeColors[geoType] || '#34D399';
+
+  let summary = '';
+  if (geoType === 'city') {
+    summary = `Strategic location in ${obj.country || 'unknown'}. Coordinates: ${(obj.lat||0).toFixed(2)}, ${(obj.lng||0).toFixed(2)}.`;
+    if (obj.notes) summary += ` ${obj.notes}`;
+  } else if (geoType === 'country') {
+    const flags = [obj.conflict_active ? 'Active conflict' : '', obj.sanctions_subject ? 'Under sanctions' : ''].filter(Boolean);
+    summary = `${flags.join(' · ') || 'Nation-state'}. ${obj.capital ? 'Capital: ' + obj.capital + '. ' : ''}`;
+  } else if (geoType === 'region') {
+    summary = `${(obj.threat_level || 'monitored').toUpperCase()} threat region. ${obj.description || obj.notes || ''}`;
+  } else if (geoType === 'event') {
+    summary = obj.brief || obj.title || 'Sensed event.';
+  }
+
+  _reliefGeoMap[key] = {
+    id: key, _geoType: geoType, _geoObj: obj,
+    title: obj.name || obj.title || 'Pinned location',
+    summary, cat: 'geo', color,
+    src: geoType === 'country' ? (obj.iso2 || 'CTRY') : geoType.toUpperCase(),
+    time: 'CURRENT', region: obj.country || obj.name || obj.region || '',
+    threat_level: obj.threat_level || null,
+    lat: obj.lat, lng: obj.lng,
+  };
+  reliefAssets.push(key);
+  _reliefAfterPinChange();
+}
+
+// Pin a NEWS / archive story to the RELIEF pool (mirrors pinStory). Toggles off.
+function pinStoryToRelief(story) {
+  const id = (story && typeof story === 'object') ? story.id : story;
+  if (id == null) return;
+  if (reliefAssets.includes(id)) {
+    reliefAssets = reliefAssets.filter(k => k !== id);
+    _reliefAfterPinChange();
+    return;
+  }
+  reliefAssets.push(id);
+  _reliefAfterPinChange();
+}
+
+// After any RELIEF pin change: re-resolve focus and, if the overlay is open,
+// refresh the context strip + the active tool. Never touches Analyst.
+function _reliefAfterPinChange() {
+  if (typeof reliefRefreshFocus === 'function') reliefRefreshFocus();
+  const ov = document.getElementById('relief-overlay');
+  if (ov && ov.classList.contains('on') && _reliefActiveTool && typeof reliefSelectTool === 'function') {
+    reliefSelectTool(_reliefActiveTool);
+  }
+}
+
+// Is a given object currently pinned to RELIEF?
+function reliefIsGeoPinned(geoType, obj) {
+  return obj ? reliefAssets.includes(_reliefGeoKey(geoType, obj)) : false;
+}
+function reliefIsStoryPinned(story) {
+  const id = (story && typeof story === 'object') ? story.id : story;
+  return id != null && reliefAssets.includes(id);
+}
+
 // ── Focus resolution ────────────────────────────────────────
-// The current focus = the most recently pinned region / event / city
-// in the shared pin pool. Geo assets resolve through _analystGeoMap
-// (the analyst.js pin pool) exactly as analyst.js does. We also fold
-// in any pinned SNAPSHOT_EVENT or NEWS story that carries coordinates.
+// The current focus = the most recently pinned region / event / city / story
+// in the RELIEF pin pool (reliefAssets / _reliefGeoMap) — independent of the
+// Analyst pool. Falls back to Global when nothing is pinned to RELIEF.
 function reliefResolveFocus() {
-  const assets = (typeof analystAssets !== 'undefined') ? analystAssets : [];
+  const assets = (typeof reliefAssets !== 'undefined') ? reliefAssets : [];
   // Walk most-recent-first.
   for (let i = assets.length - 1; i >= 0; i--) {
     const id = assets[i];
-    // Geo asset (city / country) pinned via pinGeoAsset
-    if (typeof id === 'string' && id.includes(':') && typeof _analystGeoMap !== 'undefined' && _analystGeoMap[id]) {
-      const g = _analystGeoMap[id];
+    // Geo asset pinned via pinToRelief
+    if (typeof id === 'string' && id.includes(':') && typeof _reliefGeoMap !== 'undefined' && _reliefGeoMap[id]) {
+      const g = _reliefGeoMap[id];
       const o = g._geoObj || {};
       return {
         kind: g._geoType || 'geo',
-        name: o.name || g.title || 'Pinned location',
+        name: o.name || o.title || g.title || 'Pinned location',
         lat: o.lat, lng: o.lng,
-        region: o.country || o.name || g.region || '',
+        region: o.country || o.name || o.region || g.region || '',
         raw: o, asset: g,
       };
     }
     // Story (NEWS / archive) — use its region + coords
-    const s = (typeof _resolveStory === 'function') ? _resolveStory(id) : null;
+    const s = _reliefResolveAsset(id);
     if (s) {
       return {
         kind: 'story',
@@ -79,6 +177,27 @@ function reliefResolveFocus() {
   return { kind: 'global', name: 'GLOBAL', lat: null, lng: null, region: '', raw: null, asset: null };
 }
 
+// ── Clear / change focus ────────────────────────────────────
+// Empties the RELIEF pin pool, resets focus to Global, clears any RELIEF globe
+// layers, and refreshes the context strip + the open tool. Analyst untouched.
+function reliefClearFocus() {
+  reliefAssets = [];
+  _reliefGeoMap = {};
+  if (typeof reliefClearGlobe === 'function') reliefClearGlobe();
+  if (typeof reliefRefreshFocus === 'function') reliefRefreshFocus();
+  const ov = document.getElementById('relief-overlay');
+  if (ov && ov.classList.contains('on') && _reliefActiveTool && typeof reliefSelectTool === 'function') {
+    reliefSelectTool(_reliefActiveTool);
+  }
+}
+
+// Remove a single pinned focus by key/id (used by the × on the context strip).
+function reliefRemoveFocus(id) {
+  reliefAssets = reliefAssets.filter(k => String(k) !== String(id));
+  if (typeof _reliefGeoMap !== 'undefined' && _reliefGeoMap[id]) delete _reliefGeoMap[id];
+  _reliefAfterPinChange();
+}
+
 function reliefRefreshFocus() {
   _reliefFocus = reliefResolveFocus();
   const f = _reliefFocus;
@@ -86,7 +205,15 @@ function reliefRefreshFocus() {
   const nameEl = document.getElementById('rl-focus-name');
   if (nameEl) nameEl.textContent = (f.name || 'GLOBAL').toUpperCase();
   const ctxVal = document.getElementById('rl-ctx-val');
-  if (ctxVal) ctxVal.textContent = isGlobal ? 'GLOBAL — no region pinned' : `${f.name}`;
+  if (ctxVal) {
+    if (isGlobal) {
+      ctxVal.textContent = 'GLOBAL — no region pinned';
+    } else {
+      // Show the pinned focus with a small × to remove it.
+      const focusId = (f.asset && f.asset.id != null) ? f.asset.id : (reliefAssets.length ? reliefAssets[reliefAssets.length - 1] : '');
+      ctxVal.innerHTML = `${(f.name || '').replace(/</g, '&lt;')}<button class="rl-ctx-clear" title="Remove this focus" onclick="reliefRemoveFocus('${String(focusId).replace(/'/g, "\\'")}')">&times;</button>`;
+    }
+  }
   const ctxMeta = document.getElementById('rl-ctx-meta');
   if (ctxMeta) {
     if (isGlobal) {
@@ -96,9 +223,13 @@ function reliefRefreshFocus() {
       bits.push(f.kind.toUpperCase());
       if (typeof f.lat === 'number' && typeof f.lng === 'number') bits.push(`${f.lat.toFixed(1)}, ${f.lng.toFixed(1)}`);
       if (f.raw && f.raw.threat_level) bits.push(`THREAT ${String(f.raw.threat_level).toUpperCase()}`);
+      if (reliefAssets.length > 1) bits.push(`${reliefAssets.length} PINNED`);
       ctxMeta.textContent = bits.join(' · ');
     }
   }
+  // CLEAR FOCUS button — only meaningful when something is pinned.
+  const clearBtn = document.getElementById('rl-clear-focus');
+  if (clearBtn) clearBtn.style.display = reliefAssets.length ? 'inline-flex' : 'none';
 }
 
 // ── Tool selection ──────────────────────────────────────────
@@ -1431,6 +1562,13 @@ if (typeof window !== 'undefined') {
   window.openRelief = openRelief;
   window.closeRelief = closeRelief;
   window.reliefClearGlobe = reliefClearGlobe;
+  window.pinToRelief = pinToRelief;
+  window.pinStoryToRelief = pinStoryToRelief;
+  window.reliefIsGeoPinned = reliefIsGeoPinned;
+  window.reliefIsStoryPinned = reliefIsStoryPinned;
+  window.reliefClearFocus = reliefClearFocus;
+  window.reliefRemoveFocus = reliefRemoveFocus;
+  window.reliefRefreshFocus = reliefRefreshFocus;
   window.reliefSelectTool = reliefSelectTool;
   window.reliefSituationReport = reliefSituationReport;
   window.reliefExportSitrep = reliefExportSitrep;
