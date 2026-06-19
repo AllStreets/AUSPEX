@@ -77,6 +77,10 @@
 
 <!-- COMMAND PANEL -->
 <div id="cmd-panel">
+  <button class="cmd-btn" id="cmd-relief-btn" style="--lc:#34D399" onclick="openRelief()">
+    <svg class="cmd-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 14h2a2 2 0 0 0 0-4h-3l-3 2"/><path d="M16 12l4-2a2 2 0 0 1 2 4l-6 4-3 1H2"/><path d="M2 18v-6"/><path d="M12 6.5a2.5 2.5 0 0 1 5 0c0 1.7-2.5 3.5-2.5 3.5S12 8.2 12 6.5z"/></svg>
+    RELIEF
+  </button>
   <button class="cmd-btn" style="--lc:#1A7FA8" onclick="openAnalystMode()">
     <svg class="cmd-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
     ANALYST
@@ -283,6 +287,68 @@
   </div>
 </div>
 
+<!-- RELIEF OVERLAY -->
+<div id="relief-overlay">
+  <div class="rl-bar">
+    <span class="rl-wordmark">RELIEF — HUMANITARIAN OPERATIONS</span>
+    <span class="rl-status-line" id="rl-status">SYSTEM READY · STANDING BY</span>
+    <div class="rl-bar-acts">
+      <span class="rl-focus-chip" id="rl-focus-chip" title="Current operational focus — most recently pinned region/event/city">FOCUS: <strong id="rl-focus-name">GLOBAL</strong></span>
+      <div class="rl-bar-sep"></div>
+      <button class="rl-close-btn" onclick="closeRelief()">EXIT RELIEF</button>
+    </div>
+  </div>
+  <div class="rl-body">
+    <nav class="rl-menu" id="rl-menu">
+      <div class="rl-menu-hdr">HUMANITARIAN TOOLS</div>
+      <button class="rl-tool" data-tool="sitrep" onclick="reliefSelectTool('sitrep')">
+        <span class="rl-tool-n">01</span><span class="rl-tool-l">Situation Report</span><span class="rl-tool-tag rl-ai">AI</span>
+      </button>
+      <button class="rl-tool" data-tool="council" onclick="reliefSelectTool('council')">
+        <span class="rl-tool-n">02</span><span class="rl-tool-l">Response Council</span><span class="rl-tool-tag rl-ai">AI</span>
+      </button>
+      <button class="rl-tool" data-tool="matrix" onclick="reliefSelectTool('matrix')">
+        <span class="rl-tool-n">03</span><span class="rl-tool-l">Needs &amp; Gaps Matrix</span><span class="rl-tool-tag">LIVE</span>
+      </button>
+      <button class="rl-tool" data-tool="displacement" onclick="reliefSelectTool('displacement')" disabled>
+        <span class="rl-tool-n">04</span><span class="rl-tool-l">Displacement Tracker</span><span class="rl-tool-tag rl-soon">SOON</span>
+      </button>
+      <button class="rl-tool" data-tool="famine" onclick="reliefSelectTool('famine')" disabled>
+        <span class="rl-tool-n">05</span><span class="rl-tool-l">Famine &amp; Food-Security</span><span class="rl-tool-tag rl-soon">SOON</span>
+      </button>
+      <button class="rl-tool" data-tool="access" onclick="reliefSelectTool('access')" disabled>
+        <span class="rl-tool-n">06</span><span class="rl-tool-l">Access &amp; Blackout</span><span class="rl-tool-tag rl-soon">SOON</span>
+      </button>
+      <button class="rl-tool" data-tool="recovery" onclick="reliefSelectTool('recovery')" disabled>
+        <span class="rl-tool-n">07</span><span class="rl-tool-l">Recovery Timeline</span><span class="rl-tool-tag rl-soon">SOON</span>
+      </button>
+      <button class="rl-tool" data-tool="goodnews" onclick="reliefSelectTool('goodnews')" disabled>
+        <span class="rl-tool-n">08</span><span class="rl-tool-l">Good News</span><span class="rl-tool-tag rl-soon">SOON</span>
+      </button>
+      <div class="rl-menu-foot" id="rl-menu-foot">Focus is the most recently pinned region, event, or city. Pin from the globe or Analyst feed.</div>
+    </nav>
+    <main class="rl-work" id="rl-work">
+      <div class="rl-context-strip" id="rl-context-strip">
+        <span class="rl-ctx-lbl">OPERATIONAL FOCUS</span>
+        <span class="rl-ctx-val" id="rl-ctx-val">GLOBAL — no region pinned</span>
+        <span class="rl-ctx-meta" id="rl-ctx-meta"></span>
+      </div>
+      <div class="rl-work-scroll" id="rl-work-scroll">
+        <div class="rl-welcome" id="rl-welcome">
+          <div class="rl-welcome-mark">RELIEF</div>
+          <div class="rl-welcome-sub">HUMANITARIAN OPERATIONS BOARD</div>
+          <p class="rl-welcome-p">Select a tool from the left. Tools act on the current operational focus — the most recently pinned region, event, or city. Pin a region from the globe or the Analyst feed to ground every tool in real context, or run on a Global basis.</p>
+          <div class="rl-welcome-tools">
+            <button class="rl-welcome-btn" onclick="reliefSelectTool('sitrep')">01 · Situation Report</button>
+            <button class="rl-welcome-btn" onclick="reliefSelectTool('council')">02 · Response Council</button>
+            <button class="rl-welcome-btn" onclick="reliefSelectTool('matrix')">03 · Needs &amp; Gaps Matrix</button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
 <!-- ADVERSARY PLAYBOOK -->
 <div id="playbook-modal">
   <div class="pb-bar">
@@ -442,6 +508,7 @@
 <script src="js/globe.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/analyst.js"></script>
+<script src="js/relief.js"></script>
 <script src="js/overlay.js"></script>
 <script src="js/features.js"></script>
 <script src="js/main.js"></script>
