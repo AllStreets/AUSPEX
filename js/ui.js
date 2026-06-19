@@ -348,6 +348,9 @@ function makeEqMarker(eq) {
     <div class="eq-core" style="width:${size}px;height:${size}px;background:${eq.color};box-shadow:0 0 ${eq.mag>=6?12:6}px ${eq.color}bb"></div>
     <div class="eq-tip"><span style="color:${eq.color}" class="eq-mag">M${eq.mag.toFixed(1)}</span>  ${eq.place.length > 32 ? eq.place.slice(0,30)+'…' : eq.place}<br><span style="opacity:.5;font-size:9px">Depth: ${eq.depth}km · ${eq.time}</span></div>
   `;
+  // Library wrapper sets pointer-events:none; opt the marker root back in so the
+  // glyph itself is clickable (the invisible points layer remains as a fallback).
+  d.addEventListener('click', e => { e.stopPropagation(); if (typeof showEqInfo === 'function') showEqInfo(eq); });
   return d;
 }
 
