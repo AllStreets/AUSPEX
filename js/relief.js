@@ -102,10 +102,11 @@ function reliefRefreshFocus() {
 }
 
 // ── Tool selection ──────────────────────────────────────────
-const _RELIEF_BUILT = { sitrep: 1, council: 1, matrix: 1, displacement: 1, famine: 1, access: 1 };
+// All 8 tools are live.
+const _RELIEF_BUILT = { sitrep: 1, council: 1, matrix: 1, displacement: 1, famine: 1, access: 1, recovery: 1, goodnews: 1 };
 
 function reliefSelectTool(tool) {
-  if (!_RELIEF_BUILT[tool]) return; // 7-8 are coming
+  if (!_RELIEF_BUILT[tool]) return;
   // Switching tools clears any RELIEF globe layer owned by the previous tool,
   // so arcs/markers never accumulate across tools.
   if (_reliefActiveTool !== tool) reliefClearGlobe();
@@ -118,6 +119,8 @@ function reliefSelectTool(tool) {
   if (tool === 'displacement') return reliefDisplacement();
   if (tool === 'famine')       return reliefFamine();
   if (tool === 'access')       return reliefAccess();
+  if (tool === 'recovery')     return reliefRecovery();
+  if (tool === 'goodnews')     return reliefGoodNews();
 }
 
 function _rlWork() { return document.getElementById('rl-work-scroll'); }
@@ -1064,6 +1067,365 @@ function reliefAccess() {
   _rlStatus(`TOOL 06 · ACCESS & BLACKOUT READY · ${zones.length} ZONES · ${reliefAccessMarkers.length} MARKERS · ${now}`);
 }
 
+// ═══════════════════════════════════════════
+// TOOL 07 — RECOVERY TIMELINE (AI)
+// ═══════════════════════════════════════════
+// Mirrors the analyst Narrative Timeline, oriented to recovery &
+// reconstruction. For the current focus crisis it builds context with
+// reliefBuildContext() and asks the model for an honest, phased recovery
+// assessment: Relief -> Stabilization -> Recovery -> Reconstruction, what is
+// rebuilt vs outstanding, milestones (timeframes labelled estimates), and
+// risks to recovery — grounded in the live news/region context. Renders as a
+// clean phased timeline; exportable to HTML like the sitrep.
+const _RL_REC_PHASES = [
+  { id: 'relief',         label: 'Relief',         color: '#FF4D5E', sub: 'LIFE-SAVING' },
+  { id: 'stabilization',  label: 'Stabilization',  color: '#FB923C', sub: 'STABILIZING' },
+  { id: 'recovery',       label: 'Recovery',       color: '#FACC15', sub: 'RESTORING' },
+  { id: 'reconstruction', label: 'Reconstruction', color: '#34D399', sub: 'REBUILDING' },
+];
+
+async function reliefRecovery() {
+  reliefRefreshFocus();
+  const f = _reliefFocus;
+  const ctx = reliefBuildContext(f);
+  const work = _rlWork();
+  const now = new Date().toLocaleString();
+  const globalHint = _reliefNoFocusGuard()
+    ? '<div class="rl-mx-empty" style="margin-bottom:10px">No region pinned — assessing recovery on a GLOBAL basis. Pin a crisis region (e.g. a conflict zone or disaster area) for a focused recovery timeline.</div>' : '';
+
+  _rlStatus('TOOL 07 · BUILDING RECOVERY & RECONSTRUCTION TIMELINE…');
+  work.innerHTML = `
+    <div class="rl-tool-hdr"><span class="rl-tool-title">Recovery Timeline</span><span class="rl-tool-sub">07 · RECOVERY & RECONSTRUCTION ASSESSMENT</span></div>
+    ${globalHint}
+    <div class="rl-classify">RECOVERY TIMELINE · ${f.name.toUpperCase()} · ${now}</div>
+    <div class="rl-rec" id="rl-rec-body"><div class="rl-loading rl-loading-anim">PHASING RECOVERY FROM ${ctx.news.length} NEWS ITEMS · ${ctx.events.length} SENSED EVENTS…</div></div>`;
+
+  if (typeof OPENAI_KEY === 'undefined' || !OPENAI_KEY || OPENAI_KEY.includes('YOUR_OPENAI')) {
+    _rlStatus('TOOL 07 · AI UNAVAILABLE');
+    const b = document.getElementById('rl-rec-body');
+    if (b) b.innerHTML = _reliefAIUnavailable('The Recovery Timeline needs the OpenAI model. Configure a key to generate the phased assessment.');
+    return;
+  }
+
+  const ctxText = _reliefContextText(f, ctx);
+  const sources = _reliefSourceList(ctx);
+
+  const sys = `You are a senior recovery & reconstruction analyst on a humanitarian operations cell (think OCHA early-recovery / World Bank reconstruction desk). You are honest and grounded: you ONLY use the supplied context, you NEVER invent precise figures or dates, and you label EVERY timeframe and figure as an ESTIMATE. If the context is thin, say so plainly rather than fabricate. You assess recovery across four phases — Relief, Stabilization, Recovery, Reconstruction. Output STRICT JSON only (no markdown), exactly:
+{"summary":"2-3 sentence honest overview of where this crisis sits on the recovery path","phases":[{"phase":"Relief|Stabilization|Recovery|Reconstruction","status":"underway|partial|outstanding|not-started","rebuilt":"what is being restored / done in this phase (or '-' if none yet)","outstanding":"what remains outstanding in this phase","timeframe":"a rough ESTIMATE timeframe label e.g. 'weeks (estimate)' / 'in progress' / '2-5 years (estimate)' / 'not yet begun'","milestones":["short milestone string (estimate)", "..."]}],"risks":["a concrete risk to recovery grounded in the context","..."],"confidence":"LOW|MODERATE|HIGH"}
+Provide all four phases in order. Keep every field grounded in the context; mark uncertainty.`;
+
+  const user = `Assess recovery & reconstruction for the operational focus below. Ground every statement in this context; do not introduce outside facts. Label all timeframes and figures as estimates.\n\n${ctxText}\n\nAvailable named sources: ${sources.length ? sources.join(', ') : 'live sensor feeds only'}.`;
+
+  let raw;
+  try {
+    raw = await callOpenAI(sys, user, 1400);
+  } catch (e) {
+    _rlStatus('TOOL 07 · AI UNAVAILABLE');
+    const b = document.getElementById('rl-rec-body');
+    if (b) b.innerHTML = _reliefAIUnavailable(`The recovery timeline could not be generated: ${e.message}.`);
+    return;
+  }
+
+  let data;
+  try { data = JSON.parse((raw || '').match(/\{[\s\S]*\}/)?.[0] || '{}'); }
+  catch { data = null; }
+  if (!data || !Array.isArray(data.phases) || !data.phases.length) {
+    _rlStatus('TOOL 07 · NO CONTENT RETURNED');
+    const b = document.getElementById('rl-rec-body');
+    if (b) b.innerHTML = _reliefAIUnavailable('The model returned no usable recovery assessment. Try again.');
+    return;
+  }
+
+  window._reliefRecoveryData = { focus: f, data, now };
+  const body = document.getElementById('rl-rec-body');
+  if (body) body.innerHTML = _reliefRenderRecovery(data);
+
+  // Action bar (export / regenerate)
+  const hdr = work.querySelector('.rl-tool-hdr');
+  if (hdr && !work.querySelector('.rl-actbar')) {
+    const bar = document.createElement('div');
+    bar.className = 'rl-actbar';
+    bar.innerHTML = `<button class="rl-btn" onclick="reliefExportRecovery()">EXPORT HTML</button>
+      <button class="rl-btn rl-btn-ghost" onclick="reliefRecovery()">REGENERATE</button>`;
+    hdr.insertAdjacentElement('afterend', bar);
+  }
+  _rlStatus(`TOOL 07 · RECOVERY TIMELINE READY · CONFIDENCE ${(data.confidence || 'n/a').toUpperCase()} · ${now}`);
+}
+
+function _reliefRecPhaseMeta(name) {
+  const key = String(name || '').toLowerCase();
+  return _RL_REC_PHASES.find(p => key.includes(p.id) || key.includes(p.label.toLowerCase())) || _RL_REC_PHASES[0];
+}
+
+function _reliefRenderRecovery(data) {
+  const statusLbl = { 'underway': 'UNDERWAY', 'partial': 'PARTIAL', 'outstanding': 'OUTSTANDING', 'not-started': 'NOT STARTED' };
+  // Phases follow the canonical order even if the model reorders them.
+  const ordered = _RL_REC_PHASES.map(meta => {
+    const match = (data.phases || []).find(p => _reliefRecPhaseMeta(p.phase).id === meta.id);
+    return { meta, p: match };
+  }).filter(x => x.p);
+  const rows = (ordered.length ? ordered : (data.phases || []).map(p => ({ meta: _reliefRecPhaseMeta(p.phase), p })));
+
+  let html = '';
+  if (data.summary) html += `<div class="rl-rec-summary">${data.summary}</div>`;
+  html += '<div class="rl-rec-line">';
+  rows.forEach(({ meta, p }) => {
+    const st = String(p.status || '').toLowerCase();
+    const mil = (p.milestones || []).filter(Boolean);
+    html += `
+      <div class="rl-rec-node" style="--pc:${meta.color}">
+        <div class="rl-rec-dot"></div>
+        <div class="rl-rec-card">
+          <div class="rl-rec-card-hdr">
+            <span class="rl-rec-phase">${meta.label}</span>
+            <span class="rl-rec-status">${statusLbl[st] || (p.status || '').toUpperCase()}</span>
+          </div>
+          <div class="rl-rec-time">${_reliefMarkEst(p.timeframe || 'timeframe unknown (estimate)')}</div>
+          <div class="rl-rec-grid">
+            <div class="rl-rec-col"><span class="rl-rec-col-lbl">RESTORED / DONE</span><span class="rl-rec-col-txt">${_reliefMarkEst(p.rebuilt || '-')}</span></div>
+            <div class="rl-rec-col"><span class="rl-rec-col-lbl">OUTSTANDING</span><span class="rl-rec-col-txt">${_reliefMarkEst(p.outstanding || '-')}</span></div>
+          </div>
+          ${mil.length ? `<div class="rl-rec-miles">${mil.map(m => `<span class="rl-rec-mile">${_reliefMarkEst(m)}</span>`).join('')}</div>` : ''}
+        </div>
+      </div>`;
+  });
+  html += '</div>';
+
+  const risks = (data.risks || []).filter(Boolean);
+  if (risks.length) {
+    html += `<div class="rl-rec-risks"><div class="rl-sec-hdr">RISKS TO RECOVERY</div>${risks.map(r => `<div class="rl-rec-risk">${_reliefMarkEst(r)}</div>`).join('')}</div>`;
+  }
+  if (data.confidence) {
+    html += `<div class="rl-rec-conf">CONFIDENCE · <b>${String(data.confidence).toUpperCase()}</b> — timeframes and figures are estimates grounded in available context, not official reconstruction data.</div>`;
+  }
+  return html;
+}
+
+function _reliefMarkEst(s) {
+  return String(s == null ? '' : s)
+    .replace(/\(estimate[^)]*\)/gi, m => `<span class="rl-est">${m}</span>`)
+    .replace(/\b(estimated|approximately|roughly|~)\b/gi, m => `<span class="rl-est">${m}</span>`);
+}
+
+function reliefExportRecovery() {
+  const pack = window._reliefRecoveryData;
+  if (!pack) return;
+  const { focus: f, data, now } = pack;
+  const body = _reliefRenderRecovery(data);
+  const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>AUSPEX RELIEF RECOVERY TIMELINE — ${f.name} — ${now}</title>
+<style>*{box-sizing:border-box;margin:0;padding:0}body{background:#05080a;color:#a8c4b6;font-family:'IBM Plex Mono',monospace;font-size:12px;line-height:1.8}
+.banner{background:#0d2b1e;border-top:1px solid #34D399;border-bottom:1px solid #34D399;color:#34D399;font-size:9px;font-weight:700;letter-spacing:.25em;text-align:center;padding:10px}
+.body{max-width:880px;margin:0 auto;padding:36px 30px}
+.wordmark{font-size:11px;letter-spacing:.3em;color:#34D399;text-align:center;margin:18px 0 4px}
+.title{font-size:20px;font-weight:800;letter-spacing:.06em;color:#dffaee;text-align:center;font-family:Georgia,serif}
+.meta{font-size:9px;letter-spacing:.12em;color:#4f7a66;text-align:center;margin:6px 0 26px}
+.rl-rec-summary{font-family:Georgia,serif;font-size:13px;line-height:1.8;color:#dffaee;border-left:3px solid #34D399;padding:8px 0 8px 16px;margin-bottom:24px}
+.rl-rec-line{display:flex;flex-direction:column;gap:0}
+.rl-rec-node{position:relative;padding:0 0 22px 26px;border-left:2px solid #1c3a2c;margin-left:6px}
+.rl-rec-node:last-child{border-left-color:transparent}
+.rl-rec-dot{position:absolute;left:-7px;top:2px;width:12px;height:12px;border-radius:50%;background:var(--pc);box-shadow:0 0 8px var(--pc)}
+.rl-rec-card-hdr{display:flex;align-items:baseline;gap:10px;margin-bottom:5px}
+.rl-rec-phase{font-size:15px;font-weight:800;letter-spacing:.04em;color:var(--pc);font-family:Georgia,serif}
+.rl-rec-status{font-size:8px;letter-spacing:.14em;color:#7e9a8d;border:1px solid #1c3a2c;padding:2px 6px;border-radius:2px}
+.rl-rec-time{font-size:9px;letter-spacing:.1em;color:#7e9a8d;margin-bottom:9px}
+.rl-rec-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:8px}
+.rl-rec-col-lbl{display:block;font-size:7.5px;letter-spacing:.14em;color:#4f7a66;margin-bottom:3px}
+.rl-rec-col-txt{font-family:Georgia,serif;font-size:12px;color:#a8c4b6}
+.rl-rec-miles{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.rl-rec-mile{font-size:9px;letter-spacing:.04em;color:#bfe9d6;background:rgba(52,211,153,.06);border:1px solid rgba(52,211,153,.16);padding:3px 8px;border-radius:2px}
+.rl-rec-risks{margin-top:24px}
+.rl-sec-hdr{font-size:9px;letter-spacing:.2em;color:#34D399;margin-bottom:10px;padding-bottom:5px;border-bottom:1px solid rgba(52,211,153,.18)}
+.rl-rec-risk{font-family:Georgia,serif;font-size:12px;color:#ffb4ba;padding:5px 0 5px 14px;border-left:2px solid #FF4D5E;margin-bottom:7px}
+.rl-rec-conf{margin-top:22px;font-size:9px;letter-spacing:.08em;color:#7e9a8d;border-top:1px solid #1c3a2c;padding-top:12px}
+.rl-rec-conf b{color:#34D399}
+.rl-est{color:#FACC15}</style></head>
+<body><div class="banner">AUSPEX RELIEF — HUMANITARIAN OPERATIONS</div>
+<div class="body"><div class="wordmark">RECOVERY & RECONSTRUCTION TIMELINE</div><div class="title">${f.name}</div><div class="meta">GENERATED ${now} · GROUNDED IN LIVE AUSPEX SENSOR &amp; NEWS DATA · TIMEFRAMES ARE ESTIMATES</div>${body}</div>
+<div class="banner">AUSPEX RELIEF — HUMANITARIAN OPERATIONS</div></body></html>`;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+  a.download = `relief-recovery-${Date.now()}.html`;
+  a.click();
+}
+
+// ═══════════════════════════════════════════
+// TOOL 08 — GOOD NEWS (data; the progress feed)
+// ═══════════════════════════════════════════
+// The deliberate counter-weight to a doom feed. Pure data — surfaces:
+//   (a) SNAPSHOT_EVENTS with polarity==='breakthrough' (space/science/medical/
+//       physics/financial/tech), and
+//   (b) NEWS items matching progress keywords AND not matching disaster/conflict
+//       keywords (so a "peace deal" survives but a "ceasefire collapses amid
+//       deaths" does not).
+// Curated into an uplifting feed grouped by kind. Optional one-line AI "why this
+// matters" on the top items, graceful if no key.
+const _RL_GN_PROGRESS = [
+  'breakthrough', 'cure', 'vaccine', 'discovery', 'milestone', 'record', 'first-ever',
+  'first ever', 'restored', 'peace deal', 'peace agreement', 'rescued', 'rescue',
+  'recovery', 'recovered', 'approved', 'nobel', 'landmark', 'historic deal', 'ceasefire agreed',
+  'reunited', 'eradicated', 'remission', 'wildlife returns', 'reopened', 'treaty signed',
+  'aid reaches', 'released hostages', 'freed', 'restoration', 'reforest',
+];
+// If an item also reads as disaster/conflict/death, it is NOT good news.
+const _RL_GN_NEGATIVE = [
+  'kill', 'dead', 'death', 'died', 'casualt', 'massacre', 'strike kills', 'airstrike',
+  'shelling', 'bombard', 'attack', 'assault', 'invasion', 'war crime', 'genocide',
+  'famine', 'starv', 'collapse', 'crisis deepens', 'outbreak', 'epidemic', 'quake kills',
+  'flood kills', 'wounded', 'injur', 'hostage crisis', 'massive blast', 'explosion kills',
+  'shooting', 'gunmen', 'terror', 'abduct', 'atrocit', 'displaced', 'refugee crisis',
+];
+
+// Map a breakthrough sense / news category to one of three display groups.
+const _RL_GN_GROUPS = [
+  { id: 'science', label: 'Science & Space', icon: 'science', color: '#5AC8FA',
+    senses: ['space', 'science', 'physics', 'tech'], newsCats: ['tech', 'space', 'science'] },
+  { id: 'medical', label: 'Medical', icon: 'medical', color: '#34D399',
+    senses: ['medical'], newsCats: ['health'] },
+  { id: 'progress', label: 'Progress & Peace', icon: 'financial', color: '#FACC15',
+    senses: ['financial'], newsCats: ['geo', 'econ', 'cyber'] },
+];
+
+function _rlGoodNewsGroupFor(item) {
+  if (item._kind === 'event') {
+    const s = String(item.sense || item.type || '').toLowerCase();
+    const g = _RL_GN_GROUPS.find(grp => grp.senses.includes(s));
+    return g ? g.id : 'science';
+  }
+  // News: classify by keyword first (medical/science cues win), else category.
+  const txt = `${item.title || ''} ${item.summary || ''}`.toLowerCase();
+  if (/\b(cure|vaccine|remission|clinical trial|drug|patient|therapy|disease|surgery|transplant)\b/.test(txt)) return 'medical';
+  if (/\b(discovery|telescope|fusion|quantum|space|orbit|rover|launch|nobel|fossil|particle|ai model|chip|spacecraft|satellite)\b/.test(txt)) return 'science';
+  const cat = String(item.cat || '').toLowerCase();
+  const g = _RL_GN_GROUPS.find(grp => grp.newsCats.includes(cat));
+  return g ? g.id : 'progress';
+}
+
+function _rlBuildGoodNews() {
+  const EVENTS_ = (typeof SNAPSHOT_EVENTS !== 'undefined') ? SNAPSHOT_EVENTS : [];
+  const NEWS_ = (typeof NEWS !== 'undefined') ? NEWS : [];
+  const items = [];
+  const seenTitle = new Set();
+  const key = t => String(t || '').trim().toLowerCase().slice(0, 70);
+
+  // (a) Breakthrough-polarity sensed events.
+  EVENTS_.filter(e => e.polarity === 'breakthrough').forEach(e => {
+    const k = key(e.title);
+    if (!e.title || seenTitle.has(k)) return; seenTitle.add(k);
+    const src = (e.sources && e.sources[0]) || null;
+    items.push({
+      _kind: 'event',
+      sense: e.sense || e.type, icon: e.icon || e.sense || e.type,
+      title: e.title, brief: e.brief || e.title,
+      srcName: src ? src.name : 'AUSPEX sense', url: src ? src.url : null,
+      confidence: e.confidence || null, _ts: e.occurredAt ? Date.parse(e.occurredAt) : 0,
+    });
+  });
+
+  // (b) Positive/progress news — must hit a progress keyword and NOT a negative one.
+  NEWS_.forEach(s => {
+    const txt = `${s.title || ''} ${s.summary || ''}`.toLowerCase();
+    if (!_RL_GN_PROGRESS.some(k => txt.includes(k))) return;
+    if (_RL_GN_NEGATIVE.some(k => txt.includes(k))) return;
+    const k = key(s.title);
+    if (!s.title || seenTitle.has(k)) return; seenTitle.add(k);
+    items.push({
+      _kind: 'news',
+      cat: s.cat, icon: null,
+      title: s.title, brief: s.summary || s.title,
+      srcName: s.src || 'Wire', url: s.url || null, region: s.region || '',
+      confidence: null, _ts: s._pub || 0,
+    });
+  });
+
+  // Group + sort (most recent / breakthrough first within each group).
+  const grouped = _RL_GN_GROUPS.map(g => ({
+    ...g,
+    items: items
+      .filter(it => _rlGoodNewsGroupFor(it) === g.id)
+      .sort((a, b) => (b._ts || 0) - (a._ts || 0))
+      .slice(0, 10),
+  }));
+  return { grouped, total: items.length };
+}
+
+// Resolve an icon glyph for a good-news item.
+function _rlGoodNewsIcon(item, group) {
+  const ic = (typeof AUSPEX_EVENT_ICONS !== 'undefined') ? AUSPEX_EVENT_ICONS : null;
+  if (!ic) return '';
+  if (item._kind === 'event' && item.icon && ic[item.icon]) return ic[item.icon];
+  return ic[group.icon] || ic.default;
+}
+
+async function reliefGoodNews() {
+  reliefRefreshFocus();
+  const work = _rlWork();
+  const now = new Date().toLocaleString();
+  const { grouped, total } = _rlBuildGoodNews();
+  const shown = grouped.filter(g => g.items.length);
+
+  _rlStatus(`TOOL 08 · GOOD NEWS · ${total} POSITIVE SIGNALS CURATED`);
+
+  if (!shown.length) {
+    work.innerHTML = `
+      <div class="rl-tool-hdr"><span class="rl-tool-title">Good News</span><span class="rl-tool-sub">08 · THE PROGRESS FEED</span></div>
+      <div class="rl-mx-empty">No breakthrough-polarity events or qualifying progress stories are in the live feed right now. The progress feed only surfaces genuinely positive signals — it stays empty rather than manufacture good news.</div>`;
+    return;
+  }
+
+  work.innerHTML = `
+    <div class="rl-tool-hdr"><span class="rl-tool-title">Good News</span><span class="rl-tool-sub">08 · THE PROGRESS FEED · HUMANITY'S WINS</span></div>
+    <div class="rl-actbar">
+      <button class="rl-btn rl-btn-ghost" onclick="reliefGoodNews()">REFRESH</button>
+      <span class="rl-tool-sub" style="align-self:center">${total} positive signals from breakthrough events + progress news · the deliberate counter-weight to a doom feed · genuinely positive, honestly sourced · ${now}</span>
+    </div>
+    <div class="rl-gn">
+      ${shown.map(g => `
+        <section class="rl-gn-group" style="--gc:${g.color}">
+          <div class="rl-gn-group-hdr"><span class="rl-gn-group-ico">${(typeof AUSPEX_EVENT_ICONS !== 'undefined' && AUSPEX_EVENT_ICONS[g.icon]) || ''}</span>${g.label}<span class="rl-gn-group-n">${g.items.length}</span></div>
+          <div class="rl-gn-list">
+            ${g.items.map((it, i) => {
+              const safeTitle = (it.title || '').replace(/</g, '&lt;');
+              const safeBrief = (it.brief || '').replace(/</g, '&lt;');
+              return `
+              <article class="rl-gn-item" id="rl-gn-${g.id}-${i}">
+                <span class="rl-gn-ico">${_rlGoodNewsIcon(it, g)}</span>
+                <div class="rl-gn-body">
+                  <div class="rl-gn-title">${safeTitle}</div>
+                  <div class="rl-gn-brief">${safeBrief}</div>
+                  <div class="rl-gn-matters" id="rl-gn-matters-${g.id}-${i}"></div>
+                  <div class="rl-gn-meta">
+                    <span class="rl-gn-kind">${it._kind === 'event' ? 'SENSED BREAKTHROUGH' : 'PROGRESS NEWS'}${it.confidence ? ' · ' + it.confidence.toUpperCase() : ''}</span>
+                    ${it.url ? `<a class="rl-gn-src" href="${it.url}" target="_blank" rel="noopener">${it.srcName || 'source'} &#8599;</a>` : `<span class="rl-gn-src rl-gn-src-plain">${it.srcName || 'source'}</span>`}
+                  </div>
+                </div>
+              </article>`;
+            }).join('')}
+          </div>
+        </section>`).join('')}
+    </div>`;
+
+  // Optional AI "why this matters" — one line on the single top item of each
+  // group. Graceful (and silent) if no key. Pure data tool works without it.
+  const aiOff = (typeof OPENAI_KEY === 'undefined') || !OPENAI_KEY || OPENAI_KEY.includes('YOUR_OPENAI');
+  if (aiOff) { _rlStatus(`TOOL 08 · GOOD NEWS READY · ${total} POSITIVE SIGNALS · ${shown.length} CATEGORIES · ${now}`); return; }
+  for (const g of shown) {
+    const it = g.items[0];
+    const el = document.getElementById(`rl-gn-matters-${g.id}-0`);
+    if (!it || !el) continue;
+    try {
+      const txt = await callOpenAI(
+        'You explain why a piece of good news genuinely matters for humanity, in ONE honest sentence. No hype, no invented facts, no figures unless given. Plain text, one sentence, under 30 words.',
+        `Good news item:\nTITLE: ${it.title}\nBRIEF: ${it.brief}\n\nWrite one honest sentence on why this matters.`,
+        90
+      );
+      if (txt && txt.trim()) {
+        el.innerHTML = `<span class="rl-gn-matters-lbl">WHY IT MATTERS</span> ${txt.trim().replace(/</g, '&lt;')}`;
+      }
+    } catch (e) { /* silent — pure-data tool stands on its own */ }
+  }
+  _rlStatus(`TOOL 08 · GOOD NEWS READY · ${total} POSITIVE SIGNALS · ${shown.length} CATEGORIES · ${now}`);
+}
+
 // Expose globals (browser-global pattern, matching analyst.js).
 if (typeof window !== 'undefined') {
   window.openRelief = openRelief;
@@ -1078,4 +1440,7 @@ if (typeof window !== 'undefined') {
   window.reliefDisplacement = reliefDisplacement;
   window.reliefFamine = reliefFamine;
   window.reliefAccess = reliefAccess;
+  window.reliefRecovery = reliefRecovery;
+  window.reliefExportRecovery = reliefExportRecovery;
+  window.reliefGoodNews = reliefGoodNews;
 }

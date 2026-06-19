@@ -1311,3 +1311,49 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 .rl-access-marker .rla-bar{position:absolute;top:50%;left:50%;width:18px;height:2px;background:var(--rac);transform:translate(-50%,-50%) rotate(45deg)}
 .rl-access-marker .rla-bar2{transform:translate(-50%,-50%) rotate(-45deg)}
 .rl-access-sealed .rla-ring{animation:rl-pulse 1.6s ease-in-out infinite}
+
+/* ── RELIEF Tool 7 · Recovery Timeline ── */
+.rl-rec{max-width:840px}
+.rl-rec-summary{font-family:var(--f-ui);font-size:13px;line-height:1.85;color:#dffaee;border-left:3px solid #34D399;padding:6px 0 6px 16px;margin-bottom:24px}
+.rl-rec-line{display:flex;flex-direction:column}
+.rl-rec-node{position:relative;padding:0 0 22px 28px;border-left:2px solid #1c3a2c;margin-left:6px}
+.rl-rec-node:last-child{border-left-color:transparent;padding-bottom:6px}
+.rl-rec-dot{position:absolute;left:-7px;top:3px;width:12px;height:12px;border-radius:50%;background:var(--pc);box-shadow:0 0 9px var(--pc)}
+.rl-rec-card{background:#070c0a;border:1px solid #0e2018;border-radius:5px;padding:14px 17px}
+.rl-rec-card-hdr{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:5px}
+.rl-rec-phase{font-family:var(--f-head,var(--f-ui));font-size:15px;font-weight:800;letter-spacing:.03em;color:var(--pc)}
+.rl-rec-status{font-family:var(--f-mono);font-size:7.5px;letter-spacing:.14em;color:#7e9a8d;border:1px solid #1c3a2c;padding:2px 6px;border-radius:2px}
+.rl-rec-time{font-family:var(--f-mono);font-size:8.5px;letter-spacing:.08em;color:#7e9a8d;margin-bottom:10px}
+.rl-rec-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:6px}
+@media (max-width:620px){.rl-rec-grid{grid-template-columns:1fr}}
+.rl-rec-col-lbl{display:block;font-family:var(--f-mono);font-size:7px;letter-spacing:.14em;color:#4f7a66;margin-bottom:4px}
+.rl-rec-col-txt{font-family:var(--f-ui);font-size:11.5px;line-height:1.6;color:#a8c4b6}
+.rl-rec-miles{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.rl-rec-mile{font-family:var(--f-mono);font-size:8px;letter-spacing:.04em;color:#bfe9d6;background:rgba(52,211,153,.06);border:1px solid rgba(52,211,153,.16);padding:3px 8px;border-radius:2px}
+.rl-rec-risks{margin-top:24px;max-width:840px}
+.rl-rec-risk{font-family:var(--f-ui);font-size:11.5px;line-height:1.6;color:#ffb4ba;padding:5px 0 5px 14px;border-left:2px solid #FF4D5E;margin-bottom:7px}
+.rl-rec-conf{margin-top:20px;font-family:var(--f-mono);font-size:8px;letter-spacing:.08em;line-height:1.7;color:#7e9a8d;border-top:1px solid #1c3a2c;padding-top:12px;max-width:840px}
+.rl-rec-conf b{color:#34D399;letter-spacing:.12em}
+
+/* ── RELIEF Tool 8 · Good News ── */
+.rl-gn{display:flex;flex-direction:column;gap:26px;max-width:900px}
+.rl-gn-group-hdr{display:flex;align-items:center;gap:9px;font-family:var(--f-mono);font-size:9px;letter-spacing:.16em;color:var(--gc,#34D399);margin-bottom:12px;text-transform:uppercase}
+.rl-gn-group-hdr::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,color-mix(in srgb,var(--gc,#34D399) 30%,transparent),transparent)}
+.rl-gn-group-ico{width:16px;height:16px;display:inline-flex;color:var(--gc,#34D399);filter:drop-shadow(0 0 4px color-mix(in srgb,var(--gc,#34D399) 50%,transparent))}
+.rl-gn-group-ico svg{width:16px;height:16px}
+.rl-gn-group-n{font-family:var(--f-mono);font-size:8px;color:#4f7a66;border:1px solid #1c3a2c;border-radius:2px;padding:1px 6px;letter-spacing:.04em}
+.rl-gn-list{display:flex;flex-direction:column;gap:9px}
+.rl-gn-item{display:grid;grid-template-columns:34px 1fr;gap:13px;background:#070c0a;border:1px solid #0e2018;border-left:3px solid var(--gc,#34D399);border-radius:5px;padding:13px 16px;align-items:start;transition:border-color .16s,background .16s}
+.rl-gn-item:hover{background:#08110d;border-left-color:var(--gc,#34D399)}
+.rl-gn-ico{width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;color:var(--gc,#34D399);filter:drop-shadow(0 0 5px color-mix(in srgb,var(--gc,#34D399) 45%,transparent));margin-top:1px}
+.rl-gn-ico svg{width:22px;height:22px}
+.rl-gn-title{font-family:var(--f-head,var(--f-ui));font-size:13.5px;font-weight:700;line-height:1.4;color:#dffaee;margin-bottom:4px}
+.rl-gn-brief{font-family:var(--f-ui);font-size:11.5px;line-height:1.6;color:#9bbaac;margin-bottom:6px}
+.rl-gn-matters{font-family:var(--f-ui);font-size:11px;line-height:1.55;color:#bfe9d6}
+.rl-gn-matters:not(:empty){margin-bottom:7px}
+.rl-gn-matters-lbl{font-family:var(--f-mono);font-size:7px;letter-spacing:.14em;color:var(--gc,#34D399);margin-right:6px}
+.rl-gn-meta{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.rl-gn-kind{font-family:var(--f-mono);font-size:7px;letter-spacing:.12em;color:#4f7a66}
+.rl-gn-src{font-family:var(--f-mono);font-size:7.5px;letter-spacing:.06em;color:var(--gc,#34D399);text-decoration:none;border-bottom:1px solid transparent;transition:border-color .15s}
+.rl-gn-src:hover{border-bottom-color:var(--gc,#34D399)}
+.rl-gn-src-plain{color:#4f7a66}
