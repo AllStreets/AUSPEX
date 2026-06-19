@@ -531,21 +531,35 @@ ${pinned.length ? `<div class="section"><div class="sec-label">INTELLIGENCE ASSE
 // (Keys declared in config.js — do not redeclare here)
 
 async function callOpenAI(sys, user, maxTokens = 420) {
-  if (!OPENAI_KEY || OPENAI_KEY.includes('YOUR_OPENAI')) throw new Error('API_KEY_MISSING');
+  const hasClientKey = OPENAI_KEY && !OPENAI_KEY.includes('YOUR_OPENAI');
   const ctrl = new AbortController();
   const timeoutMs = maxTokens > 800 ? 55000 : 30000;
   const t = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    // ── Local dev: real client key present → call OpenAI directly (unchanged) ──
+    if (hasClientKey) {
+      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST', signal: ctrl.signal,
+        headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${OPENAI_KEY}` },
+        body: JSON.stringify({ model:AI_MODEL, max_completion_tokens:maxTokens, temperature:0.7,
+          messages:[{role:'system',content:sys},{role:'user',content:user}] }),
+      });
+      clearTimeout(t);
+      const d = await res.json();
+      if (d.error) throw new Error(d.error.message || 'OpenAI API error');
+      return d.choices?.[0]?.message?.content || '';
+    }
+    // ── Production: no client key → route through the serverless /api/ai proxy ──
+    if (!aiEnabled()) throw new Error('API_KEY_MISSING');
+    const res = await fetch(AI_PROXY_URL, {
       method: 'POST', signal: ctrl.signal,
-      headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${OPENAI_KEY}` },
-      body: JSON.stringify({ model:'gpt-5.4-mini', max_completion_tokens:maxTokens, temperature:0.7,
-        messages:[{role:'system',content:sys},{role:'user',content:user}] }),
+      headers: { 'Content-Type':'application/json' },
+      body: JSON.stringify({ system:sys, user, maxTokens, model:AI_MODEL }),
     });
     clearTimeout(t);
     const d = await res.json();
-    if (d.error) throw new Error(d.error.message || 'OpenAI API error');
-    return d.choices?.[0]?.message?.content || '';
+    if (!res.ok || d.error) throw new Error(d.error || 'AI proxy error');
+    return d.content || '';
   } catch(e) { clearTimeout(t); if (e.message==='API_KEY_MISSING') throw e; throw new Error(e.message||'API call failed'); }
 }
 // ═══════════════════════════════════════════
@@ -877,29 +891,28 @@ function buildMapKey() {
     { dash:'#FF2D55', lbl:'Red border — country in active armed conflict' },
     { dash:'rgba(255,45,85,0.9)', lbl:'Red dash — active front line / contact line' },
     { dash:'#FF9F0A', lbl:'Amber-black dash — disputed border / frozen DMZ' },
-    { s:'CITY ICONS' },
-    { cityType:'capital',    color:'#E8D5A3', lbl:'Capital city' },
-    { cityType:'financial',  color:'#FFD60A', lbl:'Financial centre' },
-    { cityType:'military',   color:'#FF6D00', lbl:'Military base / installation' },
-    { cityType:'naval',      color:'#2979FF', lbl:'Naval base' },
-    { cityType:'port',       color:'#00BCD4', lbl:'Port / maritime hub' },
-    { cityType:'conflict',   color:'#FF2D55', lbl:'Active conflict zone city' },
-    { cityType:'energy',     color:'#FF9F0A', lbl:'Energy / resource hub' },
-    { cityType:'diplomatic', color:'#30D158', lbl:'Diplomatic capital / embassy hub' },
-    { cityType:'city',       color:'#6674CC', lbl:'Major city' },
+    // CITY ICONS — intentionally NOT hardcoded here. The live, accurate city
+    // legend is derived from the distinct icon_type values actually present in
+    // CITY_DATA (see the CITY LAYER (LIVE) block below), so it can never drift
+    // out of sync with the markers on the globe. If cities are toggled off the
+    // section simply does not appear.
     { s:'COUNTRY LAYER' },
     { ctry:'☢', color:'#FF9F0A', lbl:'Nuclear-armed state' },
     { ctry:'▲', color:'#FF2D55', lbl:'Active conflict in-country' },
     { ctry:'⊘', color:'#2979FF', lbl:'Under international sanctions' },
     { ctry:'★', color:'#B7950B', lbl:'UN Security Council P5 member' },
-    { s:'THREAT / REGION RINGS' },
-    { ring:'#FF2D55', lbl:'CRITICAL — expanding pulse rings, radius scaled to zone size' },
-    { ring:'#FF9F0A', lbl:'HIGH — expanding pulse rings, radius scaled to zone size' },
-    { ring:'#B7950B', lbl:'ELEVATED — expanding pulse rings, radius scaled to zone size' },
+    { s:'REGION THREAT OVERLAY' },
+    { ring:'#FF2D55', lbl:'Threat hotspot — expanding red rings over breaking / military flashpoints' },
+    { dot:'#FF2D55', lbl:'CRITICAL region label — red text, shown with THREATS overlay' },
+    { dot:'#FF9F0A', lbl:'HIGH region label — amber text, shown with THREATS overlay' },
     { s:'FLIGHT ICONS' },
     { plane:'#0A84FF', lbl:'Passenger aircraft' },
     { plane:'#A78BFA', lbl:'Cargo freighter' },
     { plane:'#30D158', lbl:'Military / surveillance' },
+    { s:'CONNECTION & RELIEF ARCS' },
+    { dash:'rgba(52,224,138,.55)', lbl:'Connection link — AUSPEX event correlated to another (aura green)' },
+    { dash:'rgba(251,146,60,.7)',  lbl:'Displacement arc — RELIEF refugee / aid flow (amber, dashed)' },
+    { dash:'#0A84FF', lbl:'Media-divergence arc — same story, rival framings (blue↔red↔amber)' },
     { s:'ANALYST TOOLS' },
     { dash:'rgba(74,222,128,.7)',  lbl:'Entity network edge — same-domain connection' },
     { dash:'rgba(255,159,10,.7)', lbl:'Entity network edge — cross-domain signal correlation' },
@@ -946,13 +959,33 @@ function buildMapKey() {
       });
     }
   }
+  // CITY ICONS (LIVE) — derived from the DISTINCT icon_type values actually
+  // present in CITY_DATA, each drawn with its real glyph (_CITY_ICONS) and
+  // colour (_CITY_COLORS). Human labels below; any unmapped type falls back to
+  // a capitalised raw type. This guarantees the legend == what's on the globe.
+  const _CITY_LABELS = {
+    capital:'Capital', financial:'Financial hub', tech:'Tech hub', tourism:'Tourism',
+    port:'Port', energy:'Energy', megacity:'Megacity', city:'City',
+  };
   if (typeof CITY_DATA !== 'undefined' && CITY_DATA.length && citiesVisible) {
-    liveRows.push({ s: 'CITY LAYER (LIVE)' });
+    liveRows.push({ s: 'CITY ICONS (LIVE)' });
     const _cityCols = (typeof _CITY_COLORS !== 'undefined') ? _CITY_COLORS : {};
     const _typePop = {}; CITY_DATA.forEach(c => { _typePop[c.icon_type] = (_typePop[c.icon_type] || 0) + 1; });
     // Order legend by prevalence so the dominant types lead.
     Object.keys(_typePop).sort((a, b) => _typePop[b] - _typePop[a]).forEach(t =>
-      liveRows.push({ cityType: t, color: _cityCols[t] || '#8FA0E8', lbl: t.charAt(0).toUpperCase() + t.slice(1) }));
+      liveRows.push({ cityType: t, color: _cityCols[t] || '#8FA0E8',
+        lbl: _CITY_LABELS[t] || (t.charAt(0).toUpperCase() + t.slice(1)) }));
+  }
+  // Silence / blackout voids and broadcaster markers are overlay-gated; surface
+  // them in the key only while their layer is live, so nothing in the key is
+  // un-renderable at the moment it's shown.
+  if (typeof silenceVisible !== 'undefined' && silenceVisible) {
+    liveRows.push({ s: 'INFORMATION BLACKOUT (LIVE)' });
+    liveRows.push({ ring: '#FF2D55', lbl: 'Silence void — dark core + red pulse where a region has gone quiet vs its baseline' });
+  }
+  if (typeof _lnpActive !== 'undefined' && _lnpActive) {
+    liveRows.push({ s: 'BROADCASTERS (LIVE)' });
+    liveRows.push({ dot: '#E8A020', lbl: 'Broadcaster marker — colour per source; active one glows. Click to tune the feed' });
   }
   rows.unshift(...liveRows);
   const shapeClip = { diamond:'polygon(50% 0%,100% 50%,50% 100%,0% 50%)', triangle:'polygon(50% 0%,100% 100%,0% 100%)', square:'none', hex:'polygon(25% 0%,75% 0%,100% 50%,75% 100%,25% 100%,0% 50%)', star:'polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)' };

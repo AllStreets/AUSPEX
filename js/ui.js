@@ -48,11 +48,13 @@ function _bindFeedCards(container) {
   });
 }
 
-function renderFeed(stories) {
+function renderFeed(stories, instant) {
   _lastFeedStories = stories;
   const feed = document.getElementById('news-feed');
-  feed.style.opacity = '0';
-  setTimeout(() => {
+  // Build the feed contents in one place so we can run it either after the
+  // fade transition (normal) or immediately (instant — used while scrubbing,
+  // where the 130ms opacity fade would strobe on every slider tick).
+  const paint = () => {
     if (!stories.length) {
       feed.innerHTML = '<div class="feed-empty">NO ACTIVE STORIES</div>';
     } else {
@@ -74,7 +76,15 @@ function renderFeed(stories) {
     if (countEl && totalPool > stories.length) countEl.title = `${totalPool} total in archive`;
     document.getElementById('story-count').textContent = stories.length;
     feed.style.opacity = '1';
-  }, 130);
+  };
+  if (instant) {
+    // No fade — repaint in place. Keeps scrubbing smooth/flicker-free.
+    feed.style.opacity = '1';
+    paint();
+    return;
+  }
+  feed.style.opacity = '0';
+  setTimeout(paint, 130);
 }
 
 function showMoreFeedStories() {
@@ -635,14 +645,22 @@ function initScrubber() {
   }
   ticks.innerHTML = labels.join('');
 
-  document.getElementById('scrb-range').addEventListener('input', function() {
-    const v = parseInt(this.value);
+  // Coalesce rapid slider ticks into one render per animation frame. Firing the
+  // feed fade + globe rebuild on every 'input' event (dozens per drag) is what
+  // makes scrubbing strobe / flicker / transiently duplicate markers.
+  let _scrubRaf = null;
+  let _scrubPendingV = null;
+  const applyScrubValue = (v) => {
     scrubLive = v === 100;
-    document.getElementById('scrb-badge').classList.toggle('past', !scrubLive);
-    document.getElementById('scrb-badge').innerHTML = scrubLive ? '<span class="scrb-dot"></span>LIVE' : '<span class="scrb-dot"></span>PAST';
+    const badge = document.getElementById('scrb-badge');
+    badge.classList.toggle('past', !scrubLive);
+    badge.innerHTML = scrubLive ? '<span class="scrb-dot"></span>LIVE' : '<span class="scrb-dot"></span>PAST';
     if (scrubLive) {
       document.getElementById('scrb-time-lbl').textContent = 'LIVE';
-      if (STORY_ARCHIVE.length > 0) applyScrubSnapshot(STORY_ARCHIVE[STORY_ARCHIVE.length - 1]);
+      // Returning to live must restore the FULL live state (all overlay layers,
+      // full feed) — not replay the last snapshot, which froze the globe on a
+      // capped story-only subset and dropped countries/cities/threats.
+      scrubToLive();
     } else {
       const hoursAgo = (100 - v) * 0.24;
       const targetTs = Date.now() - hoursAgo * 3600000;
@@ -672,12 +690,23 @@ function initScrubber() {
         applyScrubSnapshot(nearest);
       }
     }
+  };
+
+  document.getElementById('scrb-range').addEventListener('input', function() {
+    _scrubPendingV = parseInt(this.value);
+    if (_scrubRaf) return;
+    _scrubRaf = requestAnimationFrame(() => {
+      _scrubRaf = null;
+      const v = _scrubPendingV;
+      _scrubPendingV = null;
+      applyScrubValue(v);
+    });
   });
 }
 
 function applyScrubSnapshot(snap) {
   const filtered = activeCat === 'all' ? snap.stories : snap.stories.filter(s => s.cat === activeCat);
-  renderFeed(filtered);
+  renderFeed(filtered, true); // instant — no fade, so scrubbing stays flicker-free
   if (G) {
     const scrubVisual = filtered.map(s => ({...s, _type:'story'}));
     try { if (_lnpActive) { BROADCASTERS.forEach(b => scrubVisual.push({...b, _type:'broadcaster'})); } } catch(e) {}
