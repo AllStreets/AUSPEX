@@ -24,3 +24,5 @@ worker/.env
 # verification screenshots
 auspex-*.png
 page-*.png
+
+auspex-country.png

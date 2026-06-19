@@ -355,9 +355,52 @@ function makeCountryMarker(country) {
   ].filter(Boolean).join(' · ');
   d.addEventListener('click', e => {
     e.stopPropagation();
-    if (typeof pinGeoAsset === 'function') pinGeoAsset('country', country);
+    openCountryPanel(country);
   });
   return d;
+}
+
+// ── COUNTRY MARKER → country intelligence briefing ──
+function openCountryPanel(country) {
+  const col = '#30D158'; // Living Green
+  const tierLbl = country.strategic_tier ? `TIER ${country.strategic_tier}` : '';
+  const badges = [
+    country.nuclear_armed     ? 'Nuclear-armed' : '',
+    country.nato_member       ? 'NATO' : '',
+    country.un_p5             ? 'UN P5' : '',
+    country.sanctions_subject ? 'Sanctioned' : '',
+    country.conflict_active   ? 'Active conflict' : '',
+  ].filter(Boolean);
+  const lines = [];
+  if (country.capital)    lines.push(`Capital: ${country.capital}`);
+  if (country.continent)  lines.push(`Continent: ${country.continent}`);
+  if (country.population != null && !isNaN(country.population)) lines.push(`Population: ${Number(country.population).toLocaleString()} thousand`);
+  if (country.gdp_billions)       lines.push(`GDP: $${Number(country.gdp_billions).toLocaleString()}B`);
+  if (country.mil_spend_billions) lines.push(`Military spend: $${Number(country.mil_spend_billions).toLocaleString()}B`);
+  lines.push(`Strategic tier: ${country.strategic_tier || '—'}`);
+
+  const lead = badges.length
+    ? `Status: ${badges.join(' · ')}.`
+    : 'No special strategic designations on record.';
+
+  openInfoPanel({
+    cat: 'COUNTRY',
+    catColor: col,
+    brk: tierLbl,
+    brkColor: col,
+    title: `${country.name}${country.capital ? ' — ' + country.capital : ''}`,
+    src: country.iso2 ? `ISO ${country.iso2}` : 'AUSPEX GEO-INTEL',
+    time: '',
+    region: (country.continent || country.name).toUpperCase(),
+    lead,
+    text: lines.join('\n'),
+    color: col,
+    lat: country.lat, lng: country.lng,
+    button: {
+      label: 'PIN TO ANALYST',
+      onClick: () => { if (typeof pinGeoAsset === 'function') pinGeoAsset('country', country); },
+    },
+  });
 }
 
 // ═══════════════════════════════════════════
