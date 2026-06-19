@@ -5,6 +5,8 @@
 // dedupes by normalized title, and returns a unified array.
 // ═══════════════════════════════════════════
 
+import { isJunk } from '../src/newsjunk.js';
+
 // Normalized article shape the frontend pipeline expects:
 // { title, description, url, source, publishedAt, urlToImage, origin, sourcecountry? }
 
@@ -126,6 +128,10 @@ export async function fetchAllNews() {
   for (const a of all) {
     if (!a.title || !a.url) continue;
     if (a.title === '[Removed]') continue;
+    // Drop advertisements, PR/marketing fluff, and pop-culture/celebrity noise
+    // before they ever reach the client. PRIORITY signals override junk so
+    // legitimate geopolitics/economy/disaster/science/health is never dropped.
+    if (isJunk(`${a.title} ${a.description || ''} ${a.source || ''}`)) continue;
     const key = a.title.trim().toLowerCase().slice(0, 80);
     if (!key || seen.has(key)) continue;
     seen.add(key);

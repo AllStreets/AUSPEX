@@ -306,9 +306,11 @@ function makeMarker(story) {
 // ═══════════════════════════════════════════
 function makeAuspexEventMarker(event) {
   const sev = event.severity ?? 0;
-  const color = event.polarity === 'breakthrough'
-    ? (sev > 0.7 ? '#5AC8FA' : '#007AFF')
-    : (sev > 0.7 ? '#FF2D55' : sev > 0.4 ? '#FF9F0A' : '#FFD60A');
+  // Color encodes TYPE (single source: auspexEventColor); severity still drives
+  // SIZE and glow intensity below, so both dimensions stay legible at a glance.
+  const color = (typeof auspexEventColor === 'function')
+    ? auspexEventColor(event)
+    : (event.polarity === 'breakthrough' ? '#5AC8FA' : '#FF8C66');
   const size = 8 + sev * 14;
   const glyph = size + 6; // glyph slightly larger than the legacy core dot
   const unconfirmed = event.confidence === 'unconfirmed';
@@ -400,6 +402,7 @@ function openCountryPanel(country) {
       label: 'PIN TO ANALYST',
       onClick: () => { if (typeof pinGeoAsset === 'function') pinGeoAsset('country', country); },
     },
+    relief: { type: 'geo', geoType: 'country', obj: country },
   });
 }
 
@@ -460,6 +463,27 @@ function makeReliefAccessMarker(item) {
   d.addEventListener('click', e => {
     e.stopPropagation();
     if (typeof reliefSelectTool === 'function') { if (typeof openRelief === 'function') openRelief(); reliefSelectTool('access'); }
+  });
+  return d;
+}
+
+// RELIEF health/outbreak marker (Tool 9) — distinct medical-cross style, phase-coloured.
+const _RELIEF_HEALTH_COL = { 1:'#34D399', 2:'#FACC15', 3:'#FB923C', 4:'#FF4D5E' };
+const _RELIEF_HEALTH_LBL = { 1:'WATCH', 2:'CONCERN', 3:'OUTBREAK', 4:'EMERGENCY' };
+function makeReliefHealthMarker(item) {
+  const phase = Math.max(1, Math.min(4, item.phase || 1));
+  const col = _RELIEF_HEALTH_COL[phase] || '#FACC15';
+  const d = document.createElement('div');
+  d.className = 'rl-health-marker';
+  d.style.cssText = `position:relative;transform:translate(-50%,-50%);pointer-events:auto;cursor:pointer;--rhc:${col}`;
+  d.title = `${item.name || 'Area'} — HEALTH ${_RELIEF_HEALTH_LBL[phase]} (phase ${phase})`;
+  d.innerHTML =
+    `<div class="rlh-glow"></div>` +
+    `<div class="rlh-badge"><span class="rlh-cross-v"></span><span class="rlh-cross-h"></span></div>` +
+    `<div class="rlh-tip">${(item.name || 'AREA').toUpperCase()} · ${_RELIEF_HEALTH_LBL[phase]}</div>`;
+  d.addEventListener('click', e => {
+    e.stopPropagation();
+    if (typeof reliefSelectTool === 'function') { if (typeof openRelief === 'function') openRelief(); reliefSelectTool('health'); }
   });
   return d;
 }
@@ -649,6 +673,11 @@ function _updateAllGlobeElementsNow() {
     if (typeof reliefAccessMarkers !== 'undefined' && reliefAccessMarkers.length)
       reliefAccessMarkers.forEach(m => visual.push({ ...m, _type: 'relief_access' }));
   } catch (e) {}
+  // RELIEF health/outbreak markers (Tool 9) — gated to the Health & Outbreak Watch tool.
+  try {
+    if (typeof reliefHealthMarkers !== 'undefined' && reliefHealthMarkers.length)
+      reliefHealthMarkers.forEach(m => visual.push({ ...m, _type: 'relief_health' }));
+  } catch (e) {}
 
   G.htmlElementsData(visual).htmlElement(item => {
     if (item._type === 'earthquake') return makeEqMarker(item);
@@ -681,6 +710,7 @@ function _updateAllGlobeElementsNow() {
     }
     if (item._type === 'relief_famine') return makeReliefFamineMarker(item);
     if (item._type === 'relief_access') return makeReliefAccessMarker(item);
+    if (item._type === 'relief_health') return makeReliefHealthMarker(item);
     if (item._type === 'city') return makeCityMarker(item);
     if (item._type === 'auspex_event') return makeAuspexEventMarker(item);
     if (item._type === 'country') return makeCountryMarker(item);
@@ -823,9 +853,11 @@ function openAuspexEventCard(event) {
   const panel = document.getElementById('art-panel');
   if (!panel) return;
   const sev = event.severity ?? 0;
-  const sevColor = event.polarity === 'breakthrough'
-    ? (sev > 0.7 ? '#5AC8FA' : '#007AFF')
-    : (sev > 0.7 ? '#FF2D55' : sev > 0.4 ? '#FF9F0A' : '#FFD60A');
+  // Type-distinct color (with high-severity peril red override) — matches the
+  // globe marker and the live map key.
+  const sevColor = (typeof auspexEventColor === 'function')
+    ? auspexEventColor(event)
+    : (event.polarity === 'breakthrough' ? '#5AC8FA' : '#FF8C66');
   const confirmed = event.confidence === 'confirmed';
   const set = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
   if (G && event.lat != null && event.lng != null && !isNaN(event.lat) && !isNaN(event.lng)) {
@@ -881,6 +913,23 @@ function openAuspexEventCard(event) {
   const link = document.getElementById('ap-link');
   if (link && event.sources?.[0]) { link.href = event.sources[0].url; link.textContent = 'SOURCES ›'; link.style.display = 'inline-flex'; }
   else if (link) { link.style.display = 'none'; }
+  // PIN TO ANALYST (story) + PIN TO RELIEF (own pool) for this sensed event.
+  const pinBtn = document.getElementById('ap-pin-btn');
+  if (pinBtn) {
+    if (pinBtn._infoHandler) { pinBtn.removeEventListener('click', pinBtn._infoHandler); pinBtn._infoHandler = null; }
+    const evPinned = (typeof analystAssets !== 'undefined') && event.id != null && analystAssets.includes(event.id);
+    const lblEl = document.getElementById('ap-pin-lbl');
+    if (lblEl) lblEl.textContent = evPinned ? 'PINNED ✓' : 'PIN TO ANALYST';
+    pinBtn.onclick = null;
+    pinBtn._infoHandler = (e) => {
+      e.stopPropagation();
+      if (typeof pinStory === 'function') pinStory(event.id);
+      if (lblEl) lblEl.textContent = (analystAssets.includes(event.id)) ? 'PINNED ✓' : 'PIN TO ANALYST';
+    };
+    pinBtn.addEventListener('click', pinBtn._infoHandler);
+    pinBtn.style.display = 'inline-flex';
+  }
+  _setReliefPanelButton({ type: 'story', story: event });
   panel.classList.add('on');
   document.getElementById('art-bd').classList.add('on');
 }
@@ -950,9 +999,39 @@ function openInfoPanel(opts) {
       pinBtn.style.display = 'none';
     }
   }
+  // Optional Pin-to-RELIEF button — its own pool, never touches Analyst.
+  _setReliefPanelButton(opts.relief || null);
   panel.classList.add('art-panel--event');
   panel.classList.add('on');
   document.getElementById('art-bd').classList.add('on');
+}
+
+// ── Pin-to-RELIEF button (shared #art-panel) ──────────────────────────────
+// Configures the secondary RELIEF pin button for the currently open panel.
+// cfg is { type:'geo', geoType, obj } | { type:'story', story } | null.
+function _setReliefPanelButton(cfg) {
+  window._apReliefTarget = cfg || null;
+  const btn = document.getElementById('ap-relief-btn');
+  const lbl = document.getElementById('ap-relief-lbl');
+  if (!btn) return;
+  if (!cfg) { btn.style.display = 'none'; return; }
+  let pinned = false;
+  if (cfg.type === 'geo' && typeof reliefIsGeoPinned === 'function') pinned = reliefIsGeoPinned(cfg.geoType, cfg.obj);
+  if (cfg.type === 'story' && typeof reliefIsStoryPinned === 'function') pinned = reliefIsStoryPinned(cfg.story);
+  if (lbl) lbl.textContent = pinned ? 'PINNED TO RELIEF' : 'PIN TO RELIEF';
+  btn.style.background = pinned ? 'rgba(52,211,153,.14)' : 'rgba(52,211,153,.05)';
+  btn.style.borderColor = pinned ? 'rgba(52,211,153,.5)' : 'rgba(52,211,153,.2)';
+  btn.style.color = pinned ? '#34D399' : 'rgba(52,211,153,.8)';
+  btn.style.display = 'inline-flex';
+}
+
+// Toggle the current panel's object in the RELIEF pool.
+function reliefPinFromPanel() {
+  const cfg = window._apReliefTarget;
+  if (!cfg) return;
+  if (cfg.type === 'geo' && typeof pinToRelief === 'function') pinToRelief(cfg.geoType, cfg.obj);
+  if (cfg.type === 'story' && typeof pinStoryToRelief === 'function') pinStoryToRelief(cfg.story);
+  _setReliefPanelButton(cfg); // refresh label/state
 }
 
 // Restore the pin button + read-link to their default article behaviour when
@@ -992,6 +1071,11 @@ function openRegionPanel(region) {
     text: region.notes || `Threat level: ${lvl}. ${region.radius_km ? 'Monitored radius ~' + Math.round(region.radius_km) + ' km. ' : ''}Region labels appear while the THREATS overlay is active and reflect aggregated instability across news, military and geopolitical signals.`,
     color: col,
     lat: region.lat, lng: region.lng,
+    button: {
+      label: 'PIN TO ANALYST',
+      onClick: () => { if (typeof pinGeoAsset === 'function') pinGeoAsset('region', region); },
+    },
+    relief: { type: 'geo', geoType: 'region', obj: region },
   });
 }
 
@@ -1021,6 +1105,13 @@ function openThreatPanel(threat) {
     color: col,
     lat: threat.lat, lng: threat.lng,
     link: threat.url ? { href: threat.url, label: 'READ SOURCE' } : null,
+    button: (threat.id != null) ? {
+      label: 'PIN TO ANALYST',
+      onClick: () => { if (typeof pinStory === 'function') pinStory(threat.id); },
+    } : null,
+    relief: (threat.id != null)
+      ? { type: 'story', story: threat }
+      : { type: 'geo', geoType: 'region', obj: { name: threat.title || threat.region || 'Threat', lat: threat.lat, lng: threat.lng, threat_level: 'high', region: threat.region } },
   });
 }
 
@@ -1040,6 +1131,11 @@ function openSilencePanel(anomaly) {
     text: 'AUSPEX flags a region as silent when its news coverage falls far below its 7-day baseline, or when a known conflict zone reports nothing at all. Sudden silence can itself be a signal — disruption, censorship, or loss of access on the ground.',
     color: col,
     lat: anomaly.lat, lng: anomaly.lng,
+    button: {
+      label: 'PIN TO ANALYST',
+      onClick: () => { if (typeof pinGeoAsset === 'function') pinGeoAsset('region', { name: anomaly.region || 'Blackout zone', lat: anomaly.lat, lng: anomaly.lng }); },
+    },
+    relief: { type: 'geo', geoType: 'region', obj: { name: anomaly.region || 'Blackout zone', lat: anomaly.lat, lng: anomaly.lng, region: anomaly.region, threat_level: anomaly.severity === 'HIGH' ? 'critical' : 'high' } },
   });
 }
 
@@ -1073,6 +1169,7 @@ function openBroadcasterPanel(b) {
         closeArticle();
       },
     },
+    relief: { type: 'geo', geoType: 'city', obj: { name: b.name, country: b.cover || b.city || '', lat: b.lat, lng: b.lng, icon_type: 'city' } },
   });
 }
 

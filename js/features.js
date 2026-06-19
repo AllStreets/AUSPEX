@@ -428,6 +428,17 @@ const _CITY_TYPE_SVG = {
 const _CITY_COL = { capital:'#E8D5A3', financial:'#FFD60A', military:'#FF6D00', naval:'#2979FF', port:'#00BCD4', conflict:'#FF2D55', energy:'#FF9F0A', diplomatic:'#30D158', city:'#6674CC' };
 const _CITY_TYPE_LBL = { capital:'CAPITAL CITY', financial:'FINANCIAL CENTRE', military:'MILITARY BASE', naval:'NAVAL BASE', port:'PORT / MARITIME HUB', conflict:'CONFLICT ZONE', energy:'ENERGY HUB', diplomatic:'DIPLOMATIC CAPITAL', city:'MAJOR CITY' };
 
+// Refresh the city panel's Pin-to-RELIEF button to reflect its pinned state.
+function _cipRefreshReliefBtn() {
+  const btn = document.getElementById('cip-relief-btn');
+  const city = window._cipCurrentCity;
+  if (!btn || !city) return;
+  const pinned = (typeof reliefIsGeoPinned === 'function') && reliefIsGeoPinned('city', city);
+  btn.textContent = pinned ? 'PINNED' : 'RELIEF';
+  btn.style.color = pinned ? '#34D399' : '';
+  btn.style.borderColor = pinned ? '#34D39966' : '';
+}
+
 function openCityPanel(city) {
   window._cipCurrentCity = city;
   const panel = document.getElementById('city-panel');
@@ -441,6 +452,7 @@ function openCityPanel(city) {
     pinBtn.textContent = isPinned ? 'PINNED' : 'PIN';
     pinBtn.style.color = isPinned ? '#4ADE80' : '';
   }
+  _cipRefreshReliefBtn();
 
   // Header
   const iconEl = document.getElementById('cip-type-icon');

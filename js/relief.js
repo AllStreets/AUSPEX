@@ -2,10 +2,11 @@
 
 // ═══════════════════════════════════════════
 // RELIEF — HUMANITARIAN OPERATIONS BOARD
-//   Counterpart to the Analyst Board. Shares the pin pool
-//   (analystAssets / _analystGeoMap), callOpenAI, and the
-//   live data globals (NEWS, REGION_DATA, COUNTRY_DATA,
-//   CITY_DATA, SNAPSHOT_EVENTS). Living Green theme.
+//   Counterpart to the Analyst Board. Keeps its OWN pin pool
+//   (reliefAssets / _reliefGeoMap) — fully independent of the
+//   Analyst pool — and shares callOpenAI and the live data
+//   globals (NEWS, REGION_DATA, COUNTRY_DATA, CITY_DATA,
+//   SNAPSHOT_EVENTS). Living Green theme.
 //
 //   Pass 1 tools: 01 Situation Report (AI),
 //                 02 Response Council (AI, multi-role),
@@ -36,35 +37,150 @@ function reliefClearGlobe() {
   if (typeof reliefArcs !== 'undefined' && reliefArcs.length) { reliefArcs = []; changed = true; }
   if (typeof reliefFamineMarkers !== 'undefined' && reliefFamineMarkers.length) { reliefFamineMarkers = []; changed = true; }
   if (typeof reliefAccessMarkers !== 'undefined' && reliefAccessMarkers.length) { reliefAccessMarkers = []; changed = true; }
+  if (typeof reliefHealthMarkers !== 'undefined' && reliefHealthMarkers.length) { reliefHealthMarkers = []; changed = true; }
   if (!changed) return;
   if (typeof refreshArcs === 'function') refreshArcs();
   if (typeof updateAllGlobeElements === 'function') updateAllGlobeElements();
 }
 
+// ── RELIEF pin pool ─────────────────────────────────────────
+// RELIEF owns reliefAssets / _reliefGeoMap (declared in config.js),
+// entirely separate from the Analyst pool. Pinning here sets the RELIEF
+// focus and never touches analystAssets / _analystGeoMap (and vice versa).
+
+// Resolve a RELIEF-pinned id (geo key or story id) to a story-like object.
+function _reliefResolveAsset(id) {
+  // RELIEF-cached object (geo key OR a story/event we cached on pin).
+  if (typeof _reliefGeoMap !== 'undefined' && _reliefGeoMap[id]) {
+    const g = _reliefGeoMap[id];
+    return g._geoType === 'story' ? (g._geoObj || g) : g;
+  }
+  if (typeof _resolveStory === 'function') {
+    const s = _resolveStory(id);
+    if (s) return s;
+  }
+  if (typeof NEWS !== 'undefined') { const s = NEWS.find(n => n.id === id); if (s) return s; }
+  if (typeof SNAPSHOT_EVENTS !== 'undefined') { const e = SNAPSHOT_EVENTS.find(n => n.id === id); if (e) return e; }
+  return null;
+}
+
+// Build the same geo key analyst.js builds, so a given object pins consistently.
+function _reliefGeoKey(geoType, obj) {
+  return `${geoType}:${obj.name || obj.iso2}:${(obj.lat || 0).toFixed(1)}`;
+}
+
+// Pin a geo asset (city / country / region / event-location) to the RELIEF pool.
+// Mirrors pinGeoAsset's key-building and summary shape. Toggles off if already pinned.
+function pinToRelief(geoType, obj) {
+  if (!obj) return;
+  const key = _reliefGeoKey(geoType, obj);
+  if (reliefAssets.includes(key)) {
+    // Toggle off
+    reliefAssets = reliefAssets.filter(k => k !== key);
+    delete _reliefGeoMap[key];
+    _reliefAfterPinChange();
+    return;
+  }
+  const typeColors = { city:'#E8D5A3', capital:'#E8D5A3', financial:'#FFD60A', military:'#FF6D00',
+    naval:'#2979FF', port:'#00BCD4', conflict:'#FF2D55', energy:'#FF9F0A',
+    diplomatic:'#30D158', country:'#B163E0', region:'#34D399', event:'#FB923C', base:'#FF6D00' };
+  const color = typeColors[obj.icon_type] || typeColors[geoType] || '#34D399';
+
+  let summary = '';
+  if (geoType === 'city') {
+    summary = `Strategic location in ${obj.country || 'unknown'}. Coordinates: ${(obj.lat||0).toFixed(2)}, ${(obj.lng||0).toFixed(2)}.`;
+    if (obj.notes) summary += ` ${obj.notes}`;
+  } else if (geoType === 'country') {
+    const flags = [obj.conflict_active ? 'Active conflict' : '', obj.sanctions_subject ? 'Under sanctions' : ''].filter(Boolean);
+    summary = `${flags.join(' · ') || 'Nation-state'}. ${obj.capital ? 'Capital: ' + obj.capital + '. ' : ''}`;
+  } else if (geoType === 'region') {
+    summary = `${(obj.threat_level || 'monitored').toUpperCase()} threat region. ${obj.description || obj.notes || ''}`;
+  } else if (geoType === 'event') {
+    summary = obj.brief || obj.title || 'Sensed event.';
+  }
+
+  _reliefGeoMap[key] = {
+    id: key, _geoType: geoType, _geoObj: obj,
+    title: obj.name || obj.title || 'Pinned location',
+    summary, cat: 'geo', color,
+    src: geoType === 'country' ? (obj.iso2 || 'CTRY') : geoType.toUpperCase(),
+    time: 'CURRENT', region: obj.country || obj.name || obj.region || '',
+    threat_level: obj.threat_level || null,
+    lat: obj.lat, lng: obj.lng,
+  };
+  reliefAssets.push(key);
+  _reliefAfterPinChange();
+}
+
+// Pin a NEWS / archive story OR a sensed event to the RELIEF pool (mirrors
+// pinStory). Toggles off. If the object is not a plain NEWS story (e.g. a
+// SNAPSHOT_EVENT or threat with coords), we cache the object so focus
+// resolution always finds it without depending on the Analyst NEWS lookup.
+function pinStoryToRelief(story) {
+  const id = (story && typeof story === 'object') ? story.id : story;
+  if (id == null) return;
+  if (reliefAssets.includes(id)) {
+    reliefAssets = reliefAssets.filter(k => k !== id);
+    if (typeof _reliefGeoMap !== 'undefined' && _reliefGeoMap[id]) delete _reliefGeoMap[id];
+    _reliefAfterPinChange();
+    return;
+  }
+  // Cache full object when it carries its own coords/title (not resolvable via NEWS).
+  if (story && typeof story === 'object' && (story.title || story.region) && typeof _reliefGeoMap !== 'undefined') {
+    _reliefGeoMap[id] = {
+      id, _geoType: 'story', _geoObj: story,
+      title: story.title || story.region || 'Pinned event',
+      summary: story.summary || story.brief || '',
+      region: story.region || '', lat: story.lat, lng: story.lng,
+      threat_level: story.threat_level || null,
+    };
+  }
+  reliefAssets.push(id);
+  _reliefAfterPinChange();
+}
+
+// After any RELIEF pin change: re-resolve focus and, if the overlay is open,
+// refresh the context strip + the active tool. Never touches Analyst.
+function _reliefAfterPinChange() {
+  if (typeof reliefRefreshFocus === 'function') reliefRefreshFocus();
+  const ov = document.getElementById('relief-overlay');
+  if (ov && ov.classList.contains('on') && _reliefActiveTool && typeof reliefSelectTool === 'function') {
+    reliefSelectTool(_reliefActiveTool);
+  }
+}
+
+// Is a given object currently pinned to RELIEF?
+function reliefIsGeoPinned(geoType, obj) {
+  return obj ? reliefAssets.includes(_reliefGeoKey(geoType, obj)) : false;
+}
+function reliefIsStoryPinned(story) {
+  const id = (story && typeof story === 'object') ? story.id : story;
+  return id != null && reliefAssets.includes(id);
+}
+
 // ── Focus resolution ────────────────────────────────────────
-// The current focus = the most recently pinned region / event / city
-// in the shared pin pool. Geo assets resolve through _analystGeoMap
-// (the analyst.js pin pool) exactly as analyst.js does. We also fold
-// in any pinned SNAPSHOT_EVENT or NEWS story that carries coordinates.
+// The current focus = the most recently pinned region / event / city / story
+// in the RELIEF pin pool (reliefAssets / _reliefGeoMap) — independent of the
+// Analyst pool. Falls back to Global when nothing is pinned to RELIEF.
 function reliefResolveFocus() {
-  const assets = (typeof analystAssets !== 'undefined') ? analystAssets : [];
+  const assets = (typeof reliefAssets !== 'undefined') ? reliefAssets : [];
   // Walk most-recent-first.
   for (let i = assets.length - 1; i >= 0; i--) {
     const id = assets[i];
-    // Geo asset (city / country) pinned via pinGeoAsset
-    if (typeof id === 'string' && id.includes(':') && typeof _analystGeoMap !== 'undefined' && _analystGeoMap[id]) {
-      const g = _analystGeoMap[id];
+    // Geo asset pinned via pinToRelief
+    if (typeof id === 'string' && id.includes(':') && typeof _reliefGeoMap !== 'undefined' && _reliefGeoMap[id]) {
+      const g = _reliefGeoMap[id];
       const o = g._geoObj || {};
       return {
         kind: g._geoType || 'geo',
-        name: o.name || g.title || 'Pinned location',
+        name: o.name || o.title || g.title || 'Pinned location',
         lat: o.lat, lng: o.lng,
-        region: o.country || o.name || g.region || '',
+        region: o.country || o.name || o.region || g.region || '',
         raw: o, asset: g,
       };
     }
     // Story (NEWS / archive) — use its region + coords
-    const s = (typeof _resolveStory === 'function') ? _resolveStory(id) : null;
+    const s = _reliefResolveAsset(id);
     if (s) {
       return {
         kind: 'story',
@@ -79,6 +195,27 @@ function reliefResolveFocus() {
   return { kind: 'global', name: 'GLOBAL', lat: null, lng: null, region: '', raw: null, asset: null };
 }
 
+// ── Clear / change focus ────────────────────────────────────
+// Empties the RELIEF pin pool, resets focus to Global, clears any RELIEF globe
+// layers, and refreshes the context strip + the open tool. Analyst untouched.
+function reliefClearFocus() {
+  reliefAssets = [];
+  _reliefGeoMap = {};
+  if (typeof reliefClearGlobe === 'function') reliefClearGlobe();
+  if (typeof reliefRefreshFocus === 'function') reliefRefreshFocus();
+  const ov = document.getElementById('relief-overlay');
+  if (ov && ov.classList.contains('on') && _reliefActiveTool && typeof reliefSelectTool === 'function') {
+    reliefSelectTool(_reliefActiveTool);
+  }
+}
+
+// Remove a single pinned focus by key/id (used by the × on the context strip).
+function reliefRemoveFocus(id) {
+  reliefAssets = reliefAssets.filter(k => String(k) !== String(id));
+  if (typeof _reliefGeoMap !== 'undefined' && _reliefGeoMap[id]) delete _reliefGeoMap[id];
+  _reliefAfterPinChange();
+}
+
 function reliefRefreshFocus() {
   _reliefFocus = reliefResolveFocus();
   const f = _reliefFocus;
@@ -86,7 +223,15 @@ function reliefRefreshFocus() {
   const nameEl = document.getElementById('rl-focus-name');
   if (nameEl) nameEl.textContent = (f.name || 'GLOBAL').toUpperCase();
   const ctxVal = document.getElementById('rl-ctx-val');
-  if (ctxVal) ctxVal.textContent = isGlobal ? 'GLOBAL — no region pinned' : `${f.name}`;
+  if (ctxVal) {
+    if (isGlobal) {
+      ctxVal.textContent = 'GLOBAL — no region pinned';
+    } else {
+      // Show the pinned focus with a small × to remove it.
+      const focusId = (f.asset && f.asset.id != null) ? f.asset.id : (reliefAssets.length ? reliefAssets[reliefAssets.length - 1] : '');
+      ctxVal.innerHTML = `${(f.name || '').replace(/</g, '&lt;')}<button class="rl-ctx-clear" title="Remove this focus" onclick="reliefRemoveFocus('${String(focusId).replace(/'/g, "\\'")}')">&times;</button>`;
+    }
+  }
   const ctxMeta = document.getElementById('rl-ctx-meta');
   if (ctxMeta) {
     if (isGlobal) {
@@ -96,14 +241,18 @@ function reliefRefreshFocus() {
       bits.push(f.kind.toUpperCase());
       if (typeof f.lat === 'number' && typeof f.lng === 'number') bits.push(`${f.lat.toFixed(1)}, ${f.lng.toFixed(1)}`);
       if (f.raw && f.raw.threat_level) bits.push(`THREAT ${String(f.raw.threat_level).toUpperCase()}`);
+      if (reliefAssets.length > 1) bits.push(`${reliefAssets.length} PINNED`);
       ctxMeta.textContent = bits.join(' · ');
     }
   }
+  // CLEAR FOCUS button — only meaningful when something is pinned.
+  const clearBtn = document.getElementById('rl-clear-focus');
+  if (clearBtn) clearBtn.style.display = reliefAssets.length ? 'inline-flex' : 'none';
 }
 
 // ── Tool selection ──────────────────────────────────────────
-// All 8 tools are live.
-const _RELIEF_BUILT = { sitrep: 1, council: 1, matrix: 1, displacement: 1, famine: 1, access: 1, recovery: 1, goodnews: 1 };
+// All 10 tools are live.
+const _RELIEF_BUILT = { sitrep: 1, council: 1, matrix: 1, displacement: 1, famine: 1, access: 1, recovery: 1, goodnews: 1, health: 1, protection: 1 };
 
 function reliefSelectTool(tool) {
   if (!_RELIEF_BUILT[tool]) return;
@@ -121,6 +270,8 @@ function reliefSelectTool(tool) {
   if (tool === 'access')       return reliefAccess();
   if (tool === 'recovery')     return reliefRecovery();
   if (tool === 'goodnews')     return reliefGoodNews();
+  if (tool === 'health')       return reliefHealth();
+  if (tool === 'protection')   return reliefProtection();
 }
 
 function _rlWork() { return document.getElementById('rl-work-scroll'); }
@@ -142,8 +293,31 @@ function _reliefFocusTokens(f) {
   return [...new Set(src.split(/[\s,\/]+/).filter(w => w.length > 3))];
 }
 
-// Returns { news:[], events:[], regionRec, tokens, radiusKm }
-function reliefBuildContext(f) {
+// Score a story's relevance to the focus: token overlap + geo proximity + recency.
+// Higher is better. Used to rank the (now deeper) relevant-news set.
+function _reliefStoryRelevance(s, f, tokens, hasCoords, radiusKm) {
+  const txt = `${s.title || ''} ${s.summary || ''} ${s.region || ''}`.toLowerCase();
+  // Base relevance MUST come from topical (token) or geographic match — a story
+  // with neither is not relevant to the focus, no matter how recent.
+  let base = 0;
+  for (const t of tokens) { if (txt.includes(t)) base += 3; }
+  if (hasCoords && typeof s.lat === 'number' && typeof s.lng === 'number') {
+    const d = _haversineKm(f.lat, f.lng, s.lat, s.lng);
+    if (d < radiusKm) base += Math.max(0, 4 * (1 - d / radiusKm));
+  }
+  if (base <= 0) return 0;   // no topical/geo link → not focus-relevant
+  // Recency + breaking only BOOST an already-relevant story (rank within set).
+  let score = base;
+  const pub = s._pub || 0;
+  if (pub) { const ageH = (Date.now() - pub) / 3600000; if (ageH < 72) score += Math.max(0, 1.5 * (1 - ageH / 72)); }
+  if (s.brk) score += 0.5;
+  return score;
+}
+
+// Returns { news, events, links, regionRec, countryRec, history, tokens, radiusKm }
+// ASYNC: pulls Supabase HISTORICAL context for the focus region so tools see how
+// a situation developed over time, not just this minute. Callers await it.
+async function reliefBuildContext(f) {
   f = f || _reliefFocus || reliefResolveFocus();
   const NEWS_ = (typeof NEWS !== 'undefined') ? NEWS : [];
   const EVENTS_ = (typeof SNAPSHOT_EVENTS !== 'undefined') ? SNAPSHOT_EVENTS : [];
@@ -152,46 +326,89 @@ function reliefBuildContext(f) {
   const tokens = _reliefFocusTokens(f);
   const hasCoords = typeof f.lat === 'number' && typeof f.lng === 'number' && !isNaN(f.lat);
   const radiusKm = 1400;
+  const NEWS_CAP = 30;     // deeper: up to ~30 focus-relevant stories
 
-  // News relevant to the focus
-  let news;
+  // News relevant to the focus — ranked by relevance/recency, deeper cap.
+  // We track how many items are genuinely focus-relevant vs ambient filler so
+  // the context text can honestly label the latter (prevents the AI treating
+  // unrelated wider-feed stories as if they were about the focus).
+  let news, focusRelevantCount;
   if (f.kind === 'global') {
-    news = NEWS_.slice(0, 16);
+    news = [...NEWS_]
+      .sort((a, b) => (b._pub || 0) - (a._pub || 0))
+      .slice(0, NEWS_CAP);
+    focusRelevantCount = news.length;   // global: all are in-scope
   } else {
-    const tokMatch = s => {
-      const txt = `${s.title || ''} ${s.summary || ''} ${s.region || ''}`.toLowerCase();
-      return tokens.some(t => txt.includes(t));
-    };
-    const geoMatch = s => hasCoords && typeof s.lat === 'number' && typeof s.lng === 'number'
-      && _haversineKm(f.lat, f.lng, s.lat, s.lng) < radiusKm;
-    news = NEWS_.filter(s => tokMatch(s) || geoMatch(s));
-    if (news.length < 4) {
-      // Broaden — keep relevance but ensure the model has material
-      const extra = NEWS_.filter(s => !news.includes(s)).slice(0, 8 - news.length);
-      news = [...news, ...extra];
+    const scored = NEWS_
+      .map(s => ({ s, score: _reliefStoryRelevance(s, f, tokens, hasCoords, radiusKm) }))
+      .filter(x => x.score > 0)
+      .sort((a, b) => b.score - a.score);
+    news = scored.map(x => x.s);
+    focusRelevantCount = news.length;
+    if (news.length < 6) {
+      const have = new Set(news);
+      // Tier 1 broaden — stories geographically near the focus (wider radius)
+      // are far better filler than global noise.
+      let extra = [];
+      if (hasCoords) {
+        extra = NEWS_
+          .filter(s => !have.has(s) && typeof s.lat === 'number' && _haversineKm(f.lat, f.lng, s.lat, s.lng) < radiusKm * 2.6)
+          .sort((a, b) => (b._pub || 0) - (a._pub || 0));
+      }
+      // Tier 2 broaden — most-recent global stories only if still short.
+      if (news.length + extra.length < 6) {
+        const haveAll = new Set([...have, ...extra]);
+        extra = [...extra, ...[...NEWS_].filter(s => !haveAll.has(s)).sort((a, b) => (b._pub || 0) - (a._pub || 0))];
+      }
+      news = [...news, ...extra.slice(0, 8 - news.length)];
     }
-    news = news.slice(0, 16);
+    news = news.slice(0, NEWS_CAP);
   }
 
   // Nearby snapshot events
   let events;
   if (f.kind === 'global') {
-    events = [...EVENTS_].sort((a, b) => (b.severity ?? 0) - (a.severity ?? 0)).slice(0, 12);
+    events = [...EVENTS_].sort((a, b) => (b.severity ?? 0) - (a.severity ?? 0)).slice(0, 14);
   } else if (hasCoords) {
     events = EVENTS_
       .map(e => ({ e, d: (typeof e.lat === 'number') ? _haversineKm(f.lat, f.lng, e.lat, e.lng) : Infinity }))
       .filter(x => x.d < radiusKm * 1.6)
       .sort((a, b) => a.d - b.d)
-      .slice(0, 12)
+      .slice(0, 14)
       .map(x => ({ ...x.e, _distKm: Math.round(x.d) }));
   } else {
     events = EVENTS_.filter(e => {
       const txt = `${e.title || ''} ${e.brief || ''}`.toLowerCase();
       return tokens.some(t => txt.includes(t));
-    }).slice(0, 12);
+    }).slice(0, 14);
   }
 
-  // Focus region / country record
+  // Connection links among the in-context events (events carry `.links` = ids of
+  // events connected in space & time by the worker). Surface the resolved pairs
+  // so AI tools see how nearby events relate, not just isolated points.
+  const links = [];
+  try {
+    const inCtx = new Map();
+    events.forEach(e => { if (e && typeof e.id === 'string') inCtx.set(e.id, e); });
+    const seenLink = new Set();
+    for (const a of events) {
+      if (!a || !Array.isArray(a.links)) continue;
+      for (const bId of a.links) {
+        const b = inCtx.get(bId) || EVENTS_.find(x => x && x.id === bId);
+        if (!b) continue;
+        const k = a.id < bId ? `${a.id}|${bId}` : `${bId}|${a.id}`;
+        if (seenLink.has(k)) continue; seenLink.add(k);
+        const la = a.title || a.brief || a.id;
+        const lb = b.title || b.brief || bId;
+        // Skip pairs whose display labels are identical (duplicate-title events)
+        // so the context never shows a meaningless "A <-> A" connection.
+        if (String(la).trim().toLowerCase() === String(lb).trim().toLowerCase()) continue;
+        links.push({ a: la, b: lb });
+      }
+    }
+  } catch (e) {}
+
+  // Focus region / country record (full record: threat, conflict, sanctions, nuclear, pop, gdp)
   let regionRec = null;
   if (f.raw && f.raw.threat_level) regionRec = f.raw;     // focus already is a region
   if (!regionRec && hasCoords && REGIONS_.length) {
@@ -210,25 +427,105 @@ function reliefBuildContext(f) {
       .sort((a, b) => a.d - b.d)[0];
     countryRec = (countryRec && countryRec.d < 1500) ? countryRec.c : null;
   }
+  if (!countryRec) {
+    countryRec = COUNTRIES_.find(c => tokens.some(t => (c.name || '').toLowerCase().includes(t))) || null;
+  }
 
-  return { news, events, regionRec, countryRec, tokens, radiusKm };
+  // HISTORICAL context from Supabase (~2000-row stories table). Pull stories
+  // related to the focus so tools see how the situation developed over time.
+  // The archive title-search matches on `title`, so a compound region name
+  // (e.g. "Eastern Ukraine / Donbas") rarely matches — we instead try a ranked
+  // list of distinctive single-word query candidates (country name, focus
+  // tokens) and take the first that returns material. Best-effort, never blocks.
+  let history = [];
+  history = await _reliefFetchHistory(f, tokens, countryRec, regionRec, news);
+
+  return { news, events, links, regionRec, countryRec, history, tokens, radiusKm, focusRelevantCount };
 }
 
-// Render context as a compact text block for the model.
+// Stopwords that make poor archive queries (too generic / structural).
+const _RL_HIST_STOP = new Set(['region', 'zone', 'east', 'eastern', 'west', 'western', 'north',
+  'northern', 'south', 'southern', 'central', 'strait', 'sea', 'gulf', 'coast', 'border',
+  'peninsula', 'crisis', 'conflict', 'global', 'area', 'province', 'city', 'state']);
+
+// Resolve focus → ranked archive query candidates, then fetch + geo/relevance-
+// filter historical stories. Pulled out of reliefBuildContext for clarity + test.
+async function _reliefFetchHistory(f, tokens, countryRec, regionRec, liveNews) {
+  if (typeof sbSearchHistory !== 'function') return [];
+  const hasCoords = typeof f.lat === 'number' && !isNaN(f.lat);
+  const liveTitles = new Set((liveNews || []).map(s => (s.title || '').toLowerCase().slice(0, 70)));
+
+  // Build ranked, de-duplicated query candidates.
+  const cands = [];
+  const add = q => { const v = (q || '').trim(); if (v && v.length > 3 && !cands.includes(v)) cands.push(v); };
+  if (countryRec && countryRec.name) add(countryRec.name);   // most reliable (e.g. "Ukraine")
+  if (regionRec && regionRec.name) {
+    // Split a compound region name into distinctive single tokens.
+    regionRec.name.split(/[\s,\/]+/).filter(w => w.length > 3 && !_RL_HIST_STOP.has(w.toLowerCase())).forEach(add);
+  }
+  (tokens || []).filter(t => !_RL_HIST_STOP.has(t)).forEach(add);
+
+  const isGlobalLike = f.kind === 'global' || !cands.length;
+  try {
+    if (isGlobalLike) {
+      if (typeof sbFetchRelatedHistory === 'function' && (liveNews || []).length) {
+        const remote = await sbFetchRelatedHistory(liveNews.slice(0, 8), 14);
+        return (remote || []).filter(s => !liveTitles.has((s.title || '').toLowerCase().slice(0, 70))).slice(0, 14);
+      }
+      return [];
+    }
+    // Try candidates in order; accumulate until we have enough, dedupe by title.
+    const seen = new Set(liveTitles);
+    const out = [];
+    for (const q of cands.slice(0, 4)) {
+      if (out.length >= 14) break;
+      let remote;
+      try { remote = await sbSearchHistory({ query: q, days: 180, limit: 24 }); }
+      catch (e) { continue; }
+      for (const s of (remote || [])) {
+        const k = (s.title || '').toLowerCase().slice(0, 70);
+        if (!k || seen.has(k)) continue;
+        // If we have focus coords and the story is geo-tagged, keep it loosely near.
+        if (hasCoords && typeof s.lat === 'number' && !isNaN(s.lat)) {
+          if (_haversineKm(f.lat, f.lng, s.lat, s.lng) > 3000) continue;
+        }
+        seen.add(k);
+        out.push(s);
+      }
+    }
+    return out.sort((a, b) => (b._pub || 0) - (a._pub || 0)).slice(0, 14);
+  } catch (e) { return []; }
+}
+
+// Render context as a compact text block for the model. Grounds AI tools in the
+// DEEPER context object: full region/country record, nearby events + their
+// connection links, the relevant live-news set, and Supabase historical context.
 function _reliefContextText(f, ctx) {
   const lines = [];
   lines.push(`OPERATIONAL FOCUS: ${f.name}${f.region && f.region !== f.name ? ' (' + f.region + ')' : ''}`);
   if (typeof f.lat === 'number') lines.push(`COORDINATES: ${f.lat.toFixed(2)}, ${f.lng.toFixed(2)}`);
   if (ctx.regionRec) {
     const r = ctx.regionRec;
-    lines.push(`REGION RECORD: ${r.name || '—'} · threat level ${(r.threat_level || 'unknown').toUpperCase()}${r.radius_km ? ' · zone radius ~' + r.radius_km + 'km' : ''}${r.notes ? ' · ' + r.notes : ''}`);
+    lines.push(`REGION RECORD: ${r.name || '—'} · threat level ${(r.threat_level || 'unknown').toUpperCase()}` +
+      `${r.conflict_active ? ' · CONFLICT ACTIVE' : ''}${r.radius_km ? ' · zone radius ~' + r.radius_km + 'km' : ''}` +
+      `${r.description ? ' · ' + r.description : (r.notes ? ' · ' + r.notes : '')}`);
   }
   if (ctx.countryRec) {
     const c = ctx.countryRec;
-    const flags = [c.conflict_active ? 'ACTIVE CONFLICT' : '', c.sanctions_subject ? 'UNDER SANCTIONS' : ''].filter(Boolean).join(', ');
-    lines.push(`COUNTRY: ${c.name}${flags ? ' (' + flags + ')' : ''}`);
+    const flags = [
+      c.conflict_active   ? 'ACTIVE CONFLICT' : '',
+      c.sanctions_subject ? 'UNDER SANCTIONS' : '',
+      c.nuclear_armed     ? 'NUCLEAR ARMED'  : '',
+      c.un_p5             ? 'UN P5'           : '',
+      c.nato_member       ? 'NATO'            : '',
+    ].filter(Boolean).join(', ');
+    const stats = [
+      c.population_millions != null ? `pop ~${c.population_millions}M (estimate)` : (c.population ? `pop ~${c.population} (estimate)` : ''),
+      c.gdp_billions != null ? `GDP ~$${c.gdp_billions}B (estimate)` : '',
+    ].filter(Boolean).join(' · ');
+    lines.push(`COUNTRY RECORD: ${c.name}${flags ? ' (' + flags + ')' : ''}${stats ? ' · ' + stats : ''}`);
   }
-  if (ctx.events.length) {
+  if (ctx.events && ctx.events.length) {
     lines.push('\nNEARBY SENSED EVENTS (live):');
     ctx.events.forEach(e => {
       lines.push(`- [${(e.type || e.sense || 'event').toUpperCase()}] ${e.title || ''} — ${e.brief || ''}` +
@@ -236,10 +533,31 @@ function _reliefContextText(f, ctx) {
         `${e._distKm != null ? ' (~' + e._distKm + 'km)' : ''} [${e.confidence || 'unconfirmed'}]`);
     });
   }
-  if (ctx.news.length) {
-    lines.push('\nRELEVANT NEWS (live feed):');
-    ctx.news.forEach(s => {
-      lines.push(`- [${(s.cat || 'geo').toUpperCase()}] ${s.title}${s.summary ? ' — ' + s.summary : ''} (${s.src || 'src'})`);
+  if (ctx.links && ctx.links.length) {
+    lines.push('\nEVENT CONNECTIONS (sensed links in space & time):');
+    ctx.links.slice(0, 10).forEach(l => lines.push(`- ${l.a} <-> ${l.b}`));
+  }
+  if (ctx.news && ctx.news.length) {
+    const frc = (typeof ctx.focusRelevantCount === 'number') ? ctx.focusRelevantCount : ctx.news.length;
+    const relevant = ctx.news.slice(0, frc);
+    const ambient = ctx.news.slice(frc);
+    if (relevant.length) {
+      lines.push('\nFOCUS-RELEVANT NEWS (live feed):');
+      relevant.forEach(s => {
+        lines.push(`- [${(s.cat || 'geo').toUpperCase()}] ${s.title}${s.summary ? ' — ' + s.summary : ''} (${s.src || 'src'})`);
+      });
+    }
+    if (ambient.length) {
+      lines.push('\nWIDER FEED (ambient context — NOT confirmed specific to this focus; do not treat as local facts):');
+      ambient.forEach(s => {
+        lines.push(`- [${(s.cat || 'geo').toUpperCase()}] ${s.title}${s.summary ? ' — ' + s.summary : ''} (${s.src || 'src'})`);
+      });
+    }
+  }
+  if (ctx.history && ctx.history.length) {
+    lines.push('\nHISTORICAL CONTEXT (archive — how this developed over time):');
+    ctx.history.forEach(s => {
+      lines.push(`- [${(s.cat || 'geo').toUpperCase()}] ${s.title}${s.summary ? ' — ' + s.summary : ''} (${s.src || 'archive'}${s.time ? ', ' + s.time : ''})`);
     });
   }
   return lines.join('\n');
@@ -247,8 +565,9 @@ function _reliefContextText(f, ctx) {
 
 function _reliefSourceList(ctx) {
   const srcs = new Set();
-  ctx.news.forEach(s => { if (s.src) srcs.add(s.src); });
-  ctx.events.forEach(e => (e.sources || []).forEach(src => { if (src && src.name) srcs.add(src.name); }));
+  (ctx.news || []).forEach(s => { if (s.src) srcs.add(s.src); });
+  (ctx.history || []).forEach(s => { if (s.src) srcs.add(s.src); });
+  (ctx.events || []).forEach(e => (e.sources || []).forEach(src => { if (src && src.name) srcs.add(src.name); }));
   return [...srcs];
 }
 
@@ -267,7 +586,6 @@ function _reliefAIUnavailable(msg) {
 async function reliefSituationReport() {
   reliefRefreshFocus();
   const f = _reliefFocus;
-  const ctx = reliefBuildContext(f);
   const work = _rlWork();
   const now = new Date().toLocaleString();
   const globalHint = _reliefNoFocusGuard()
@@ -278,8 +596,11 @@ async function reliefSituationReport() {
     <div class="rl-tool-hdr"><span class="rl-tool-title">Situation Report</span><span class="rl-tool-sub">01 · HUMANITARIAN SITREP</span></div>
     ${globalHint}
     <div class="rl-classify">RELIEF SITREP · ${f.name.toUpperCase()} · ${now}</div>
-    <div class="rl-brief"><div class="rl-loading rl-loading-anim">GROUNDING IN ${ctx.news.length} NEWS ITEMS · ${ctx.events.length} SENSED EVENTS…</div></div>`;
+    <div class="rl-brief"><div class="rl-loading rl-loading-anim">GROUNDING IN LIVE NEWS, SENSED EVENTS &amp; ARCHIVE HISTORY…</div></div>`;
 
+  const ctx = await reliefBuildContext(f);
+  const briefLoad = work.querySelector('.rl-brief .rl-loading');
+  if (briefLoad) briefLoad.textContent = `GROUNDING IN ${ctx.news.length} NEWS ITEMS · ${ctx.events.length} SENSED EVENTS · ${ctx.history.length} ARCHIVE STORIES…`;
   const ctxText = _reliefContextText(f, ctx);
   const sources = _reliefSourceList(ctx);
 
@@ -404,7 +725,7 @@ const _RL_ROLE_ICON = {
 async function reliefResponseCouncil() {
   reliefRefreshFocus();
   const f = _reliefFocus;
-  const ctx = reliefBuildContext(f);
+  const ctx = await reliefBuildContext(f);
   const work = _rlWork();
   const now = new Date().toLocaleString();
   const ctxText = _reliefContextText(f, ctx);
@@ -503,21 +824,31 @@ const _RL_MX_SECTORS = [
   { id: 'logistics',  label: 'Logistics',   kw: ['access', 'aid', 'corridor', 'convoy', 'blockade', 'siege', 'road', 'airport', 'port', 'supply', 'border'] },
 ];
 
-function reliefNeedsMatrix() {
+async function reliefNeedsMatrix() {
   reliefRefreshFocus();
   const f = _reliefFocus;
-  const ctx = reliefBuildContext(f);
   const work = _rlWork();
+  if (work && !work.querySelector('.rl-mx-grid')) {
+    work.innerHTML = `<div class="rl-tool-hdr"><span class="rl-tool-title">Needs &amp; Gaps Matrix</span><span class="rl-tool-sub">03 · LIVE SIGNAL SCORING</span></div>
+      <div class="rl-mx-empty rl-loading-anim">Scoring sectors from live news, sensed events, region threat &amp; archive history…</div>`;
+  }
+  const ctx = await reliefBuildContext(f);
   const now = new Date().toLocaleTimeString();
 
   // Region threat → base severity multiplier
   const threatMul = { critical: 1.0, high: 0.8, elevated: 0.55 };
   const baseThreat = ctx.regionRec ? (threatMul[ctx.regionRec.threat_level] || 0.4) : 0.3;
 
+  // Combined live + archive news pool for sector scoring (history deepens the
+  // signal). Use only FOCUS-RELEVANT live news (exclude ambient broadened filler)
+  // so sector scores trace to real focus signals, not unrelated wider-feed noise.
+  const frc = (typeof ctx.focusRelevantCount === 'number') ? ctx.focusRelevantCount : (ctx.news || []).length;
+  const newsPool = [...(ctx.news || []).slice(0, frc), ...(ctx.history || [])];
+
   // Per-sector raw signals
   const rows = _RL_MX_SECTORS.map(sec => {
-    // News signals: stories whose text hits this sector's keywords
-    const newsHits = ctx.news.filter(s => {
+    // News signals: stories whose text hits this sector's keywords (live first, then archive)
+    const newsHits = newsPool.filter(s => {
       const t = `${s.title || ''} ${s.summary || ''}`.toLowerCase();
       return sec.kw.some(k => t.includes(k));
     });
@@ -538,7 +869,7 @@ function reliefNeedsMatrix() {
     // COVERAGE 0-100: presence of response/aid signals in the same news set.
     // Low coverage when severe but no response language is present.
     const coverWords = ['aid', 'relief', 'humanitarian', 'response', 'deliver', 'evacuat', 'rescue', 'corridor', 'assist', 'ngo', 'red cross', 'un '];
-    const coverHits = ctx.news.filter(s => {
+    const coverHits = newsPool.filter(s => {
       const t = `${s.title || ''} ${s.summary || ''}`.toLowerCase();
       return sec.kw.some(k => t.includes(k)) && coverWords.some(c => t.includes(c));
     });
@@ -617,7 +948,7 @@ function reliefMatrixCell(sectorId, colKey) {
 
   const newsSig = row.newsHits.map(s => `
     <div class="rl-sig">
-      <div class="rl-sig-cat">${(s.cat || 'news').toUpperCase()} · NEWS</div>
+      <div class="rl-sig-cat">${(s.cat || 'news').toUpperCase()} · ${s._hist ? 'ARCHIVE' : 'NEWS'}</div>
       <div class="rl-sig-title">${s.title}</div>
       <div class="rl-sig-meta">${s.src || ''}${s.time ? ' · ' + s.time : ''}</div>
     </div>`).join('');
@@ -825,7 +1156,7 @@ async function reliefDisplacement() {
     if (!el) continue;
     if (aiOff) { el.classList.remove('rl-loading-anim'); el.innerHTML = '<span style="color:#FF8A93">AI unavailable — data and globe arcs still rendered.</span>'; continue; }
     const f = { name: s.origin.name, region: s.origin.name, lat: s.origin.lat, lng: s.origin.lng, kind: s.kind, raw: s.event || null };
-    const ctx = reliefBuildContext(f);
+    const ctx = await reliefBuildContext(f);
     const ctxText = _reliefContextText(f, ctx);
     try {
       const txt = await callOpenAI(
@@ -962,7 +1293,7 @@ async function reliefFamine() {
     if (aiOff) { el.classList.remove('rl-loading-anim'); el.innerHTML = `<span style="color:#FF8A93">AI unavailable</span> — drivers: ${areas[i].drivers.join(', ')}.`; continue; }
     const a = areas[i];
     const f = { name: a.name, region: a.name, lat: a.lat, lng: a.lng, kind: 'famine', raw: null };
-    const ctx = reliefBuildContext(f);
+    const ctx = await reliefBuildContext(f);
     const ctxText = _reliefContextText(f, ctx);
     try {
       const txt = await callOpenAI(
@@ -1087,7 +1418,6 @@ const _RL_REC_PHASES = [
 async function reliefRecovery() {
   reliefRefreshFocus();
   const f = _reliefFocus;
-  const ctx = reliefBuildContext(f);
   const work = _rlWork();
   const now = new Date().toLocaleString();
   const globalHint = _reliefNoFocusGuard()
@@ -1098,7 +1428,11 @@ async function reliefRecovery() {
     <div class="rl-tool-hdr"><span class="rl-tool-title">Recovery Timeline</span><span class="rl-tool-sub">07 · RECOVERY & RECONSTRUCTION ASSESSMENT</span></div>
     ${globalHint}
     <div class="rl-classify">RECOVERY TIMELINE · ${f.name.toUpperCase()} · ${now}</div>
-    <div class="rl-rec" id="rl-rec-body"><div class="rl-loading rl-loading-anim">PHASING RECOVERY FROM ${ctx.news.length} NEWS ITEMS · ${ctx.events.length} SENSED EVENTS…</div></div>`;
+    <div class="rl-rec" id="rl-rec-body"><div class="rl-loading rl-loading-anim">PHASING RECOVERY FROM LIVE NEWS, SENSED EVENTS &amp; ARCHIVE HISTORY…</div></div>`;
+
+  const ctx = await reliefBuildContext(f);
+  const recLoad = document.querySelector('#rl-rec-body .rl-loading');
+  if (recLoad) recLoad.textContent = `PHASING RECOVERY FROM ${ctx.news.length} NEWS ITEMS · ${ctx.events.length} SENSED EVENTS · ${ctx.history.length} ARCHIVE STORIES…`;
 
   if (typeof OPENAI_KEY === 'undefined' || !OPENAI_KEY || OPENAI_KEY.includes('YOUR_OPENAI')) {
     _rlStatus('TOOL 07 · AI UNAVAILABLE');
@@ -1426,11 +1760,382 @@ async function reliefGoodNews() {
   _rlStatus(`TOOL 08 · GOOD NEWS READY · ${total} POSITIVE SIGNALS · ${shown.length} CATEGORIES · ${now}`);
 }
 
+// ═══════════════════════════════════════════
+// TOOL 09 — HEALTH & OUTBREAK WATCH (data + globe markers + AI)
+// ═══════════════════════════════════════════
+// Detects disease / health-emergency signals for the focus or globally from
+// REAL data only:
+//   - NEWS matching outbreak/epidemic/disease keywords (cholera, measles, ebola,
+//     dengue, polio, malnutrition, contaminated water, …),
+//   - health-relevant SNAPSHOT_EVENTS (medical sense / outbreak-type), and
+//   - health-stressing regions (active conflict / critical-high threat — system
+//     collapse and displacement drive outbreaks).
+// Ranks affected areas with a severity PHASE (1-4), names drivers, renders
+// distinct health markers on the globe (gated to this tool), and asks the model
+// for a short honest explanation per top area. Complements Famine Watch.
+const _RL_HEALTH_KW = [
+  'outbreak', 'epidemic', 'pandemic', 'cholera', 'measles', 'ebola', 'marburg',
+  'dengue', 'malaria', 'polio', 'mpox', 'monkeypox', 'diphtheria', 'typhoid',
+  'meningitis', 'yellow fever', 'lassa', 'avian flu', 'bird flu', 'h5n1',
+  'contaminated water', 'waterborne', 'disease', 'infection', 'virus', 'cases surge',
+  'malnutrition', 'malnourish', 'famine deaths', 'hospital overwhelmed', 'vaccine shortage',
+];
+// Keywords that, with a health keyword, lift the severity (active, deadly spread).
+const _RL_HEALTH_ACUTE = ['deaths', 'dead', 'killed', 'surge', 'spreading', 'overwhelmed', 'declared', 'emergency', 'thousands', 'children'];
+const _RL_HEALTH_PHASE_LBL = { 1: 'WATCH', 2: 'CONCERN', 3: 'OUTBREAK', 4: 'EMERGENCY' };
+const _RL_HEALTH_PHASE_COL = { 1: '#34D399', 2: '#FACC15', 3: '#FB923C', 4: '#FF4D5E' };
+// Composite health score → 1-4 phase. Mirrors src/relief-signals.js (tested).
+function _rlHealthScoreToPhase(score) {
+  const s = Number(score) || 0;
+  return s >= 3.2 ? 4 : s >= 2.0 ? 3 : s >= 1.0 ? 2 : 1;
+}
+
+// A region string is a usable PLACE label only if it does not look like a
+// source domain / URL (some archived stories carry the publisher domain in the
+// region field, e.g. "Abcnews.com"). Surfacing a website as an affected area
+// would be a data mismatch, so we reject those and fall back to the focus.
+function _rlValidPlace(name) {
+  const n = String(name || '').trim();
+  if (n.length < 2) return false;
+  if (/\.(com|org|net|co|io|gov|edu|news|tv|info|uk|us)\b/i.test(n)) return false; // domain-like
+  if (/https?:|www\.|@|\//.test(n)) return false;                                  // url-like
+  return true;
+}
+
+// Map a disease keyword found in text → a short disease label for display.
+function _rlHealthDisease(txt) {
+  const named = ['cholera', 'measles', 'ebola', 'marburg', 'dengue', 'malaria', 'polio', 'mpox',
+    'monkeypox', 'diphtheria', 'typhoid', 'meningitis', 'yellow fever', 'lassa', 'avian flu',
+    'bird flu', 'h5n1', 'malnutrition'];
+  const hit = named.find(d => txt.includes(d));
+  if (hit) return hit.replace('h5n1', 'avian flu (H5N1)');
+  if (txt.includes('waterborne') || txt.includes('contaminated water')) return 'waterborne disease';
+  if (/outbreak|epidemic|pandemic/.test(txt)) return 'disease outbreak';
+  return 'health emergency';
+}
+
+// Build ranked health-signal areas from live data. Pure data — no randomness.
+function _rlBuildHealth(f) {
+  const NEWS_ = (typeof NEWS !== 'undefined') ? NEWS : [];
+  const EVENTS_ = (typeof SNAPSHOT_EVENTS !== 'undefined') ? SNAPSHOT_EVENTS : [];
+  const REGIONS_ = (typeof REGION_DATA !== 'undefined') ? REGION_DATA : [];
+  const COUNTRIES_ = (typeof COUNTRY_DATA !== 'undefined') ? COUNTRY_DATA : [];
+
+  const focused = f && f.kind !== 'global';
+  const tokens = focused ? _reliefFocusTokens(f) : [];
+  const hasCoords = focused && typeof f.lat === 'number' && !isNaN(f.lat);
+  const radiusKm = 1600;
+
+  const areas = [];
+  const findArea = name => areas.find(a => a.name.toLowerCase() === name.toLowerCase());
+  const pushArea = (name, lat, lng) => {
+    if (!name) return null;
+    let a = findArea(name);
+    if (!a) { a = { name, lat, lng, score: 0, diseases: new Set(), drivers: new Set(), newsHits: [], eventHits: [] }; areas.push(a); }
+    if (a.lat == null && typeof lat === 'number') { a.lat = lat; a.lng = lng; }
+    return a;
+  };
+
+  // (1) NEWS health signals — attribute to the story's region (or focus when no region).
+  NEWS_.forEach(s => {
+    const txt = `${s.title || ''} ${s.summary || ''}`.toLowerCase();
+    const kw = _RL_HEALTH_KW.find(k => txt.includes(k));
+    if (!kw) return;
+    // If focus is set, only keep stories relevant to it.
+    if (focused) {
+      const rel = tokens.some(t => `${txt} ${(s.region || '').toLowerCase()}`.includes(t))
+        || (hasCoords && typeof s.lat === 'number' && _haversineKm(f.lat, f.lng, s.lat, s.lng) < radiusKm);
+      if (!rel) return;
+    }
+    // Truthful area label: a real place if the region is one, else the focus
+    // (focused) or the disease itself (global) — never a source domain.
+    const disease = _rlHealthDisease(txt);
+    const areaName = (_rlValidPlace(s.region) ? s.region : null)
+      || (focused ? f.name : (disease.charAt(0).toUpperCase() + disease.slice(1) + ' — reported'));
+    const a = pushArea(areaName, s.lat, s.lng);
+    if (!a) return;
+    a.newsHits.push(s);
+    a.diseases.add(disease);
+    a.drivers.add('Disease/health news signals');
+    let pts = 1.0;
+    if (_RL_HEALTH_ACUTE.some(k => txt.includes(k))) pts += 0.8;
+    if (s.brk) pts += 0.4;
+    a.score += pts;
+  });
+
+  // (2) Health-relevant sensed events (medical sense, or outbreak/disease-type).
+  EVENTS_.forEach(e => {
+    const txt = `${e.title || ''} ${e.brief || ''} ${e.type || ''} ${e.sense || ''}`.toLowerCase();
+    const isHealth = e.sense === 'medical' || /outbreak|disease|epidemic|cholera|measles|ebola|dengue|polio/.test(txt);
+    if (!isHealth) return;
+    if (focused && hasCoords && typeof e.lat === 'number' && _haversineKm(f.lat, f.lng, e.lat, e.lng) > radiusKm) return;
+    const areaName = e.title && e.title.length < 42 ? e.title : (focused ? f.name : 'Sensed health event');
+    const a = pushArea(areaName, e.lat, e.lng);
+    if (!a) return;
+    a.eventHits.push(e);
+    a.diseases.add(_rlHealthDisease(txt));
+    a.drivers.add('Sensed health event');
+    a.score += 0.8 + (e.severity ?? 0);
+  });
+
+  // (3) Health-stressing regions/countries — conflict & collapse drive outbreaks.
+  //     Only adds weight to areas already flagged, or seeds a low-level watch when
+  //     a focus region is itself in conflict.
+  const stressNames = new Set();
+  COUNTRIES_.filter(c => c.conflict_active && typeof c.lat === 'number').forEach(c => stressNames.add(c.name.toLowerCase()));
+  REGIONS_.filter(r => (r.threat_level === 'critical' || r.threat_level === 'high') && typeof r.lat === 'number').forEach(r => stressNames.add((r.name || '').toLowerCase()));
+  areas.forEach(a => {
+    if (stressNames.has(a.name.toLowerCase())) { a.score += 0.7; a.drivers.add('Conflict-driven health-system stress'); }
+  });
+  // Seed the focus region if it is itself in conflict and surfaced no news (honest low watch).
+  if (focused && hasCoords && !findArea(f.name)) {
+    const inConflict = COUNTRIES_.some(c => c.conflict_active && tokens.some(t => (c.name || '').toLowerCase().includes(t)))
+      || REGIONS_.some(r => (r.threat_level === 'critical' || r.threat_level === 'high') && tokens.some(t => (r.name || '').toLowerCase().includes(t)));
+    if (inConflict) {
+      const a = pushArea(f.name, f.lat, f.lng);
+      if (a) { a.score += 0.7; a.drivers.add('Conflict-driven health-system stress'); }
+    }
+  }
+
+  // Composite score → phase 1-4. Thresholds mirror src/relief-signals.js
+  // (healthScoreToPhase) — the tested source of truth.
+  areas.forEach(a => {
+    a.phase = _rlHealthScoreToPhase(a.score);
+    a.diseases = [...a.diseases];
+    a.drivers = [...a.drivers];
+  });
+
+  return areas
+    .filter(a => a.score > 0 && typeof a.lat === 'number')
+    .sort((a, b) => b.score - a.score || b.phase - a.phase)
+    .slice(0, 12);
+}
+
+async function reliefHealth() {
+  reliefRefreshFocus();
+  const f = _reliefFocus;
+  const work = _rlWork();
+  const now = new Date().toLocaleString();
+  const areas = _rlBuildHealth(f);
+
+  // Globe markers — gated to this tool (cleared on switch via reliefClearGlobe).
+  reliefHealthMarkers = areas.map(a => ({ lat: a.lat, lng: a.lng, name: a.name, phase: a.phase, _relief_health: true }));
+  if (typeof updateAllGlobeElements === 'function') updateAllGlobeElements();
+
+  _rlStatus(`TOOL 09 · HEALTH & OUTBREAK WATCH · ${areas.length} AREAS · ${reliefHealthMarkers.length} MARKERS`);
+
+  const globalHint = _reliefNoFocusGuard()
+    ? '<div class="rl-mx-empty" style="margin-bottom:10px">No region pinned — scanning GLOBAL health signals. Pin a region to focus on local outbreak risk.</div>' : '';
+
+  if (!areas.length) {
+    work.innerHTML = `
+      <div class="rl-tool-hdr"><span class="rl-tool-title">Health &amp; Outbreak Watch</span><span class="rl-tool-sub">09 · DISEASE &amp; HEALTH-EMERGENCY SIGNALS</span></div>
+      ${globalHint}
+      <div class="rl-mx-empty">No disease or health-emergency signals detected in the live news, sensed events, or health-stressed regions for this focus right now. Absence of a signal is not a guarantee of health security.</div>`;
+    return;
+  }
+
+  const legend = [1, 2, 3, 4].map(p => `<span class="rl-legend-item"><span class="rl-legend-swatch" style="background:${_RL_HEALTH_PHASE_COL[p]}"></span>${_RL_HEALTH_PHASE_LBL[p]}</span>`).join('');
+
+  work.innerHTML = `
+    <div class="rl-tool-hdr"><span class="rl-tool-title">Health &amp; Outbreak Watch</span><span class="rl-tool-sub">09 · DISEASE &amp; HEALTH-EMERGENCY SIGNALS · LIVE</span></div>
+    ${globalHint}
+    <div class="rl-actbar"><span class="rl-tool-sub" style="align-self:center">${areas.length} areas from disease/outbreak news + health events + conflict-driven health stress · markers on globe · phases are an indicative signal classification, not a clinical assessment · ${now}</span></div>
+    <div class="rl-legend">${legend}</div>
+    <div class="rl-fam" id="rl-health-list">
+      ${areas.map((a, i) => `
+        <div class="rl-fam-row">
+          <div class="rl-fam-phase" style="background:${_RL_HEALTH_PHASE_COL[a.phase]};${a.phase >= 3 ? 'color:#fff' : ''}">
+            <span class="rl-fam-phase-n">${a.phase}</span><span class="rl-fam-phase-l">${_RL_HEALTH_PHASE_LBL[a.phase]}</span>
+          </div>
+          <div>
+            <div class="rl-fam-area">${(a.name || '').replace(/</g, '&lt;')}${a.diseases.length ? ` <span class="rl-health-dz">${a.diseases.slice(0, 3).join(' · ').replace(/</g, '&lt;')}</span>` : ''}</div>
+            <div class="rl-fam-drivers">${a.drivers.map(d => `<span class="rl-fam-driver">${d}</span>`).join('')}</div>
+            <div class="rl-fam-expl rl-loading-anim" id="rl-health-expl-${i}">Assessing health signal…</div>
+          </div>
+        </div>`).join('')}
+    </div>`;
+
+  // AI explanation for the TOP areas only (cost + clutter control). Graceful w/o AI.
+  const aiOff = (typeof OPENAI_KEY === 'undefined') || !OPENAI_KEY || OPENAI_KEY.includes('YOUR_OPENAI');
+  const topN = Math.min(areas.length, 4);
+  for (let i = 0; i < areas.length; i++) {
+    const el = document.getElementById(`rl-health-expl-${i}`);
+    if (!el) continue;
+    const a = areas[i];
+    const summary = `Signals: ${a.diseases.join(', ') || 'health stress'}. Drivers: ${a.drivers.join(', ')}.`;
+    if (i >= topN) { el.classList.remove('rl-loading-anim'); el.textContent = summary; continue; }
+    if (aiOff) { el.classList.remove('rl-loading-anim'); el.innerHTML = `<span style="color:#FF8A93">AI unavailable</span> — ${summary}`; continue; }
+    const fa = { name: a.name, region: a.name, lat: a.lat, lng: a.lng, kind: 'health', raw: null };
+    const ctx = await reliefBuildContext(fa);
+    const ctxText = _reliefContextText(fa, ctx);
+    try {
+      const txt = await callOpenAI(
+        'You are a public-health emergency analyst (think WHO / epidemiology desk). You are honest and grounded: use ONLY the supplied context, never invent case numbers, and label any figure as an ESTIMATE. Do not sensationalise. Write 2 short sentences of plain text on the health signal and what is driving it. No headers.',
+        `Assess the health/outbreak signal for ${a.name}.\nINDICATIVE PHASE: ${a.phase} (${_RL_HEALTH_PHASE_LBL[a.phase]}).\nDETECTED SIGNALS: ${a.diseases.join(', ') || 'general health stress'}.\nDRIVERS: ${a.drivers.join(', ')}.\n\nGROUNDING CONTEXT:\n${ctxText}\n\nBe concise and grounded; if the context is thin, say the classification rests mainly on the detected signals.`,
+        180
+      );
+      el.classList.remove('rl-loading-anim');
+      el.textContent = (txt && txt.trim()) ? txt.trim() : summary;
+    } catch (e) {
+      el.classList.remove('rl-loading-anim');
+      el.innerHTML = `<span style="color:#FF8A93">AI unavailable</span> — ${summary}`;
+    }
+  }
+  _rlStatus(`TOOL 09 · HEALTH & OUTBREAK WATCH READY · ${areas.length} AREAS · ${reliefHealthMarkers.length} MARKERS · ${now}`);
+}
+
+// ═══════════════════════════════════════════
+// TOOL 10 — CIVILIAN PROTECTION (data + AI)
+// ═══════════════════════════════════════════
+// Surfaces civilian-harm / protection signals for the focus or globally from
+// REAL data only:
+//   - NEWS matching protection keywords (civilian casualties, attack on hospital/
+//     school, displacement, detention, human rights, war crime, siege, blockade
+//     of aid, …), and
+//   - active-conflict regions/countries (the structural backdrop to civilian harm).
+// Produces a ranked list of protection concerns, each with an honest AI
+// assessment — grounded, sourced, no sensationalism. No globe layer (analytic).
+// Taxonomy mirrors src/relief-signals.js PROTECTION_SIGNALS (the tested source).
+// Keywords are deliberately specific to humanitarian protection: bare words like
+// "blockade" (matches a naval blockade), "disappear" ("jobs disappear"), "fled"
+// or "refugee" (matches sports/business copy) caused false positives in live
+// testing, so each entry requires a civilian-harm phrasing.
+const _RL_PROT_SIGNALS = [
+  { id: 'casualties',   label: 'Civilian casualties',          kw: ['civilian casualt', 'civilians killed', 'civilian deaths', 'civilians dead', 'killed civilians', 'civilian toll'] },
+  { id: 'health_ed',    label: 'Attacks on hospitals/schools', kw: ['hospital hit', 'attack on hospital', 'hospital struck', 'hospital bombed', 'school hit', 'attack on school', 'school struck', 'clinic struck', 'medical facility hit', 'attack on medical'] },
+  { id: 'siege',        label: 'Siege / blockade of aid',      kw: ['under siege', 'besieged', 'aid blocked', 'aid denied', 'aid convoy blocked', 'humanitarian blockade', 'starvation as a weapon', 'blockade of aid', 'denied humanitarian access'] },
+  { id: 'displacement', label: 'Forced displacement',          kw: ['forcibly displaced', 'forced displacement', 'mass displacement', 'forced to flee', 'expelled from their', 'ethnic cleansing', 'driven from their homes'] },
+  { id: 'detention',    label: 'Detention / disappearance',    kw: ['arbitrary detention', 'arbitrarily detained', 'mass detention', 'forced disappearance', 'forcibly disappeared', 'enforced disappearance', 'abducted civilians', 'hostages held', 'taken hostage'] },
+  { id: 'rights',       label: 'Human-rights violations',      kw: ['human rights violation', 'human rights abuse', 'war crime', 'atrocit', 'torture', 'extrajudicial', 'crimes against humanity', 'genocide', 'summary execution'] },
+  { id: 'gbv_child',    label: 'GBV / child protection',       kw: ['gender-based violence', 'sexual violence', 'rape as a weapon', 'child soldier', 'children recruited', 'human trafficking', 'child abduction'] },
+];
+
+// Build ranked protection concerns from live data. Pure data — no randomness.
+function _rlBuildProtection(f) {
+  const NEWS_ = (typeof NEWS !== 'undefined') ? NEWS : [];
+  const REGIONS_ = (typeof REGION_DATA !== 'undefined') ? REGION_DATA : [];
+  const COUNTRIES_ = (typeof COUNTRY_DATA !== 'undefined') ? COUNTRY_DATA : [];
+
+  const focused = f && f.kind !== 'global';
+  const tokens = focused ? _reliefFocusTokens(f) : [];
+  const hasCoords = focused && typeof f.lat === 'number' && !isNaN(f.lat);
+  const radiusKm = 1600;
+
+  // Candidate news = protection-relevant, optionally filtered to focus.
+  const relevant = NEWS_.filter(s => {
+    if (!focused) return true;
+    const txt = `${s.title || ''} ${s.summary || ''} ${s.region || ''}`.toLowerCase();
+    return tokens.some(t => txt.includes(t))
+      || (hasCoords && typeof s.lat === 'number' && _haversineKm(f.lat, f.lng, s.lat, s.lng) < radiusKm);
+  });
+
+  const concerns = _RL_PROT_SIGNALS.map(sig => {
+    const hits = relevant.filter(s => {
+      const t = `${s.title || ''} ${s.summary || ''}`.toLowerCase();
+      return sig.kw.some(k => t.includes(k));
+    });
+    return { ...sig, hits, score: hits.length };
+  }).filter(c => c.score > 0);
+
+  // Structural backdrop: count active-conflict areas relevant to the focus.
+  let conflictAreas = [];
+  const relName = name => !focused || tokens.some(t => (name || '').toLowerCase().includes(t));
+  COUNTRIES_.filter(c => c.conflict_active).forEach(c => { if (relName(c.name)) conflictAreas.push(c.name); });
+  REGIONS_.filter(r => (r.threat_level === 'critical' || r.threat_level === 'high')).forEach(r => { if (relName(r.name)) conflictAreas.push(r.name); });
+  conflictAreas = [...new Set(conflictAreas)];
+
+  return {
+    concerns: concerns.sort((a, b) => b.score - a.score).slice(0, 8),
+    conflictAreas: conflictAreas.slice(0, 10),
+    totalSignals: concerns.reduce((n, c) => n + c.score, 0),
+  };
+}
+
+async function reliefProtection() {
+  reliefRefreshFocus();
+  const f = _reliefFocus;
+  const work = _rlWork();
+  const now = new Date().toLocaleString();
+  const { concerns, conflictAreas, totalSignals } = _rlBuildProtection(f);
+
+  _rlStatus(`TOOL 10 · CIVILIAN PROTECTION · ${concerns.length} CONCERN TYPES · ${totalSignals} SIGNALS`);
+
+  const globalHint = _reliefNoFocusGuard()
+    ? '<div class="rl-mx-empty" style="margin-bottom:10px">No region pinned — scanning GLOBAL civilian-protection signals. Pin a region to focus on a specific crisis.</div>' : '';
+
+  if (!concerns.length && !conflictAreas.length) {
+    work.innerHTML = `
+      <div class="rl-tool-hdr"><span class="rl-tool-title">Civilian Protection</span><span class="rl-tool-sub">10 · CIVILIAN-HARM &amp; PROTECTION SIGNALS</span></div>
+      ${globalHint}
+      <div class="rl-mx-empty">No civilian-protection signals surfaced in the live news or active-conflict records for this focus right now. This reflects the current feed, not a verified absence of harm.</div>`;
+    return;
+  }
+
+  const backdrop = conflictAreas.length
+    ? `<div class="rl-prot-backdrop"><span class="rl-prot-backdrop-lbl">ACTIVE-CONFLICT BACKDROP</span> ${conflictAreas.map(n => `<span class="rl-prot-area">${(n || '').replace(/</g, '&lt;')}</span>`).join('')}</div>`
+    : '';
+
+  work.innerHTML = `
+    <div class="rl-tool-hdr"><span class="rl-tool-title">Civilian Protection</span><span class="rl-tool-sub">10 · CIVILIAN-HARM &amp; PROTECTION SIGNALS · LIVE</span></div>
+    ${globalHint}
+    <div class="rl-actbar"><span class="rl-tool-sub" style="align-self:center">${concerns.length} concern types · ${totalSignals} protection signals from live news + ${conflictAreas.length} active-conflict areas · grounded, sourced, no sensationalism · ${now}</span></div>
+    ${backdrop}
+    <div class="rl-prot" id="rl-prot-list">
+      ${concerns.map((c, i) => `
+        <div class="rl-prot-row" id="rl-prot-${i}">
+          <div class="rl-prot-hd">
+            <span class="rl-prot-concern">${c.label}</span>
+            <span class="rl-prot-count">${c.score} SIGNAL${c.score === 1 ? '' : 'S'}</span>
+          </div>
+          <div class="rl-prot-stories">
+            ${c.hits.slice(0, 4).map(s => `<div class="rl-prot-story">${(s.title || '').replace(/</g, '&lt;')} <span class="rl-prot-src">${s.src || 'src'}${s._hist ? ' · ARCHIVE' : ''}</span></div>`).join('')}
+          </div>
+          <div class="rl-prot-assess rl-loading-anim" id="rl-prot-assess-${i}">Assessing protection concern…</div>
+        </div>`).join('')}
+    </div>`;
+
+  // AI honest assessment for the TOP concerns. Graceful w/o AI.
+  const aiOff = (typeof OPENAI_KEY === 'undefined') || !OPENAI_KEY || OPENAI_KEY.includes('YOUR_OPENAI');
+  const ctx = await reliefBuildContext(f);
+  const ctxText = _reliefContextText(f, ctx);
+  const topN = Math.min(concerns.length, 4);
+  for (let i = 0; i < concerns.length; i++) {
+    const el = document.getElementById(`rl-prot-assess-${i}`);
+    if (!el) continue;
+    const c = concerns[i];
+    const fallback = `Grounded in ${c.score} live ${c.score === 1 ? 'story' : 'stories'}. See cited sources above.`;
+    if (i >= topN) { el.classList.remove('rl-loading-anim'); el.textContent = fallback; continue; }
+    if (aiOff) { el.classList.remove('rl-loading-anim'); el.innerHTML = `<span style="color:#FF8A93">AI unavailable</span> — ${fallback}`; continue; }
+    const storyLines = c.hits.slice(0, 5).map(s => `- ${s.title}${s.summary ? ': ' + s.summary : ''} (${s.src || 'src'})`).join('\n');
+    try {
+      const txt = await callOpenAI(
+        'You are a protection-of-civilians analyst (think OHCHR / ICRC desk). You are rigorously honest and grounded: use ONLY the supplied stories and context, never invent figures or allegations, attribute claims to their source, and never sensationalise. If reports are unverified, say so. Write 2-3 sentences of measured plain text. No headers.',
+        `Assess this civilian-protection concern for the focus "${f.name}".\nCONCERN: ${c.label}\n\nREPORTED SIGNALS:\n${storyLines}\n\nWIDER CONTEXT:\n${ctxText}\n\nGive a measured, sourced assessment: what is being reported, how confident the picture is, and the principal protection implication. Do not overstate.`,
+        220
+      );
+      el.classList.remove('rl-loading-anim');
+      el.textContent = (txt && txt.trim()) ? txt.trim() : fallback;
+    } catch (e) {
+      el.classList.remove('rl-loading-anim');
+      el.innerHTML = `<span style="color:#FF8A93">AI unavailable</span> — ${fallback}`;
+    }
+  }
+  _rlStatus(`TOOL 10 · CIVILIAN PROTECTION READY · ${concerns.length} CONCERNS · ${totalSignals} SIGNALS · ${now}`);
+}
+
 // Expose globals (browser-global pattern, matching analyst.js).
 if (typeof window !== 'undefined') {
   window.openRelief = openRelief;
   window.closeRelief = closeRelief;
   window.reliefClearGlobe = reliefClearGlobe;
+  window.pinToRelief = pinToRelief;
+  window.pinStoryToRelief = pinStoryToRelief;
+  window.reliefIsGeoPinned = reliefIsGeoPinned;
+  window.reliefIsStoryPinned = reliefIsStoryPinned;
+  window.reliefClearFocus = reliefClearFocus;
+  window.reliefRemoveFocus = reliefRemoveFocus;
+  window.reliefRefreshFocus = reliefRefreshFocus;
   window.reliefSelectTool = reliefSelectTool;
   window.reliefSituationReport = reliefSituationReport;
   window.reliefExportSitrep = reliefExportSitrep;
@@ -1443,4 +2148,6 @@ if (typeof window !== 'undefined') {
   window.reliefRecovery = reliefRecovery;
   window.reliefExportRecovery = reliefExportRecovery;
   window.reliefGoodNews = reliefGoodNews;
+  window.reliefHealth = reliefHealth;
+  window.reliefProtection = reliefProtection;
 }

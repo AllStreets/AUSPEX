@@ -247,8 +247,10 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 .cip-hdr-text{min-width:0}
 .cip-name{font-family:var(--f-mono);font-size:11px;font-weight:700;letter-spacing:.12em;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cip-meta{font-family:var(--f-mono);font-size:7px;letter-spacing:.1em;color:var(--t3);margin-top:2px}
-.cip-pin-btn{position:absolute;top:10px;right:38px;height:22px;padding:0 7px;background:none;border:1px solid var(--b1);border-radius:2px;color:var(--t3);cursor:pointer;font-family:var(--f-mono);font-size:7px;letter-spacing:.12em;transition:all .15s}
+.cip-pin-btn{position:absolute;top:10px;right:92px;height:22px;min-width:42px;padding:0 7px;background:none;border:1px solid var(--b1);border-radius:2px;color:var(--t3);cursor:pointer;font-family:var(--f-mono);font-size:7px;letter-spacing:.12em;transition:all .15s}
 .cip-pin-btn:hover{border-color:#4ADE8044;color:#4ADE80}
+.cip-relief-btn{right:38px;min-width:48px}
+.cip-relief-btn:hover{border-color:#34D39966;color:#34D399}
 .cip-close{position:absolute;top:10px;right:10px;width:22px;height:22px;background:none;border:1px solid var(--b1);border-radius:2px;color:var(--t3);cursor:pointer;font-family:monospace;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all .15s;line-height:1}
 .cip-close:hover{border-color:var(--b2);color:var(--t1)}
 .cip-body{overflow-y:auto;flex:1;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.05) transparent}
@@ -361,6 +363,9 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 .nc-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
 .nc-star{width:20px;height:20px;background:none;border:none;cursor:pointer;color:var(--t3);display:flex;align-items:center;justify-content:center;padding:0;transition:color .18s;flex-shrink:0}
 .nc-star.saved{color:#FFD60A}
+.nc-pin-btn.saved{color:#4ADE80}
+.nc-relief-btn.saved{color:#34D399}
+.nc-relief-btn:hover{color:#34D399}
 .nc-pin-btn.saved{color:#4ADE80!important}
 .nc-star:hover{color:var(--t2)}
 .sb-wl-btn{width:24px;height:24px;border:none;background:none;border-radius:2px;font-size:13px;line-height:1;color:var(--t3);cursor:pointer;transition:all .18s;display:flex;align-items:center;justify-content:center;flex-shrink:0}
@@ -1167,6 +1172,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 .rl-bar-sep{width:1px;height:18px;background:rgba(255,255,255,.07)}
 .rl-close-btn{padding:5px 14px;border:1px solid rgba(255,77,94,.3);background:none;color:rgba(255,120,130,.7);font-family:var(--f-mono);font-size:8px;letter-spacing:.15em;cursor:pointer;border-radius:2px;transition:all .18s}
 .rl-close-btn:hover{border-color:#FF4D5E;color:#FF4D5E;background:rgba(255,77,94,.07)}
+.rl-clear-focus{display:inline-flex;align-items:center;padding:5px 12px;border:1px solid rgba(52,211,153,.3);background:rgba(52,211,153,.05);color:#34D399;font-family:var(--f-mono);font-size:8px;letter-spacing:.14em;cursor:pointer;border-radius:2px;transition:all .18s}
+.rl-clear-focus:hover{border-color:#34D399;background:rgba(52,211,153,.14);color:#7ef0c0}
 .rl-body{flex:1;display:grid;grid-template-columns:262px 1fr;overflow:hidden;min-height:0}
 .rl-menu{border-right:1px solid #0a140f;display:flex;flex-direction:column;overflow-y:auto;background:#060a09;padding:10px 0}
 .rl-menu-hdr{font-family:var(--f-mono);font-size:7.5px;letter-spacing:.24em;color:#34D399;padding:8px 18px 12px}
@@ -1183,7 +1190,9 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 .rl-work{display:flex;flex-direction:column;overflow:hidden;min-height:0}
 .rl-context-strip{display:flex;align-items:center;gap:14px;padding:11px 22px;border-bottom:1px solid #0a140f;background:#060a09;flex-shrink:0}
 .rl-ctx-lbl{font-family:var(--f-mono);font-size:7px;letter-spacing:.22em;color:#34D399}
-.rl-ctx-val{font-family:var(--f-mono);font-size:9px;letter-spacing:.06em;color:#bfe9d6}
+.rl-ctx-val{font-family:var(--f-mono);font-size:9px;letter-spacing:.06em;color:#bfe9d6;display:inline-flex;align-items:center;gap:7px}
+.rl-ctx-clear{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(52,211,153,.3);background:rgba(52,211,153,.06);color:#34D399;font-size:11px;line-height:1;cursor:pointer;border-radius:2px;padding:0;transition:all .15s}
+.rl-ctx-clear:hover{border-color:#FF4D5E;color:#FF4D5E;background:rgba(255,77,94,.1)}
 .rl-ctx-meta{font-family:var(--f-mono);font-size:8px;color:#3a564a;margin-left:auto;letter-spacing:.08em}
 .rl-work-scroll{flex:1;overflow-y:auto;padding:22px 26px 60px}
 
@@ -1311,6 +1320,31 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 .rl-access-marker .rla-bar{position:absolute;top:50%;left:50%;width:18px;height:2px;background:var(--rac);transform:translate(-50%,-50%) rotate(45deg)}
 .rl-access-marker .rla-bar2{transform:translate(-50%,-50%) rotate(-45deg)}
 .rl-access-sealed .rla-ring{animation:rl-pulse 1.6s ease-in-out infinite}
+
+/* ── RELIEF Tool 9 · Health/Outbreak globe marker (distinct medical-cross style) ── */
+.rl-health-marker .rlh-glow{position:absolute;top:50%;left:50%;width:30px;height:30px;border-radius:50%;background:radial-gradient(circle,var(--rhc) 0%,transparent 70%);opacity:.4;transform:translate(-50%,-50%);animation:rl-pulse 1.9s ease-in-out infinite}
+.rl-health-marker .rlh-badge{position:relative;width:18px;height:18px;border-radius:5px;background:rgba(5,8,9,.9);border:1.5px solid var(--rhc);box-shadow:0 0 10px var(--rhc);display:flex;align-items:center;justify-content:center}
+.rl-health-marker .rlh-cross-v{position:absolute;width:3px;height:11px;background:var(--rhc);border-radius:1px}
+.rl-health-marker .rlh-cross-h{position:absolute;width:11px;height:3px;background:var(--rhc);border-radius:1px}
+.rl-health-marker .rlh-tip{position:absolute;top:120%;left:50%;transform:translateX(-50%);white-space:nowrap;font-family:var(--f-mono);font-size:7.5px;letter-spacing:.08em;color:#dffaee;background:rgba(5,8,9,.92);border:1px solid rgba(255,255,255,.12);padding:3px 6px;border-radius:3px;opacity:0;pointer-events:none;transition:opacity .15s}
+.rl-health-marker:hover .rlh-tip{opacity:1}
+
+/* ── RELIEF Tool 9 · Health list disease tag ── */
+.rl-health-dz{font-family:var(--f-mono);font-size:8px;letter-spacing:.05em;color:#bfe9d6;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.2);padding:1px 6px;border-radius:3px;text-transform:uppercase;vertical-align:middle}
+
+/* ── RELIEF Tool 10 · Civilian Protection ── */
+.rl-prot{display:flex;flex-direction:column;gap:12px;max-width:880px}
+.rl-prot-backdrop{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:6px;padding:8px 12px;border:1px solid rgba(251,146,60,.22);border-radius:6px;background:rgba(251,146,60,.05)}
+.rl-prot-backdrop-lbl{font-family:var(--f-mono);font-size:8px;letter-spacing:.16em;color:#FB923C;margin-right:4px}
+.rl-prot-area{font-family:var(--f-mono);font-size:9px;letter-spacing:.04em;color:#ffd9b8;background:rgba(251,146,60,.1);border:1px solid rgba(251,146,60,.2);padding:2px 7px;border-radius:3px}
+.rl-prot-row{border:1px solid rgba(255,255,255,.08);border-left:3px solid #FB923C;border-radius:6px;padding:12px 14px;background:rgba(255,255,255,.015)}
+.rl-prot-hd{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:8px}
+.rl-prot-concern{font-family:var(--f-ui);font-size:14px;font-weight:700;color:#ffe0cc;letter-spacing:.02em}
+.rl-prot-count{font-family:var(--f-mono);font-size:8px;letter-spacing:.12em;color:#FB923C;flex-shrink:0}
+.rl-prot-stories{display:flex;flex-direction:column;gap:4px;margin-bottom:8px}
+.rl-prot-story{font-family:var(--f-mono);font-size:10px;line-height:1.5;color:#a8c4b6}
+.rl-prot-src{color:#6f8a7d;font-size:8px;letter-spacing:.04em}
+.rl-prot-assess{font-family:var(--f-ui);font-size:12px;line-height:1.7;color:#dffaee;padding-top:7px;border-top:1px solid rgba(255,255,255,.06)}
 
 /* ── RELIEF Tool 7 · Recovery Timeline ── */
 .rl-rec{max-width:840px}

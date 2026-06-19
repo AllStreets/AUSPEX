@@ -921,18 +921,27 @@ function buildMapKey() {
   if (typeof SNAPSHOT_EVENTS !== 'undefined' && SNAPSHOT_EVENTS.length) {
     const perils = SNAPSHOT_EVENTS.filter(e => e.polarity !== 'breakthrough');
     const breaks = SNAPSHOT_EVENTS.filter(e => e.polarity === 'breakthrough');
+    // Legend color comes from the SAME resolver as the globe markers so the key
+    // always matches what's on the map. We color by TYPE (severity 0 here, so
+    // the high-severity red override doesn't fire) using a representative event.
+    const _legendColor = (group, t) => {
+      const rep = group.find(e => (e.icon || e.type) === t);
+      return (typeof auspexEventColor === 'function')
+        ? auspexEventColor(rep || { polarity: group === breaks ? 'breakthrough' : 'peril', icon: t })
+        : (group === breaks ? '#5AC8FA' : '#FF8C66');
+    };
     if (perils.length) {
       liveRows.push({ s: 'DISASTER EVENTS (LIVE)' });
       [...new Set(perils.map(e => e.icon || e.type))].sort().forEach(t => {
-        liveRows.push({ icon: t, color: '#FF6D00', lbl: t.charAt(0).toUpperCase() + t.slice(1) });
+        liveRows.push({ icon: t, color: _legendColor(perils, t), lbl: t.charAt(0).toUpperCase() + t.slice(1) });
       });
       if (SNAPSHOT_EVENTS.some(e => e.confidence === 'unconfirmed')) liveRows.push({ dot: '#FF9F0A', lbl: 'Dashed ring — unconfirmed / preliminary' });
-      liveRows.push({ dot: '#FF2D55', lbl: 'Solid ring — confirmed event' });
+      liveRows.push({ dot: '#FF4D5E', lbl: 'Red glyph / ring — genuinely severe peril' });
     }
     if (breaks.length) {
       liveRows.push({ s: 'BREAKTHROUGHS (LIVE)' });
       [...new Set(breaks.map(e => e.icon || e.type))].sort().forEach(t => {
-        liveRows.push({ icon: t, color: '#5AC8FA', lbl: t.charAt(0).toUpperCase() + t.slice(1) });
+        liveRows.push({ icon: t, color: _legendColor(breaks, t), lbl: t.charAt(0).toUpperCase() + t.slice(1) });
       });
     }
   }

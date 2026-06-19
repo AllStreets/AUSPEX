@@ -180,6 +180,10 @@
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
         <span id="ap-pin-lbl">PIN TO ANALYST</span>
       </button>
+      <button id="ap-relief-btn" onclick="reliefPinFromPanel()" style="display:none;align-items:center;gap:7px;padding:9px 16px;background:rgba(52,211,153,.05);border:1px solid rgba(52,211,153,.2);border-radius:3px;font-family:var(--f-mono);font-size:10px;color:rgba(52,211,153,.8);letter-spacing:.08em;cursor:pointer;transition:all .18s" onmouseover="this.style.background='rgba(52,211,153,.14)';this.style.borderColor='rgba(52,211,153,.5)';this.style.color='#34D399'" onmouseout="this.style.background='rgba(52,211,153,.05)';this.style.borderColor='rgba(52,211,153,.2)';this.style.color='rgba(52,211,153,.8)'">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        <span id="ap-relief-lbl">PIN TO RELIEF</span>
+      </button>
     </div>
     <div class="ap-foot">
       <div class="ap-cdot" id="ap-cdot"></div>
@@ -294,6 +298,7 @@
     <span class="rl-status-line" id="rl-status">SYSTEM READY · STANDING BY</span>
     <div class="rl-bar-acts">
       <span class="rl-focus-chip" id="rl-focus-chip" title="Current operational focus — most recently pinned region/event/city">FOCUS: <strong id="rl-focus-name">GLOBAL</strong></span>
+      <button class="rl-clear-focus" id="rl-clear-focus" onclick="reliefClearFocus()" title="Clear the RELIEF focus and return to Global" style="display:none">CLEAR FOCUS</button>
       <div class="rl-bar-sep"></div>
       <button class="rl-close-btn" onclick="closeRelief()">EXIT RELIEF</button>
     </div>
@@ -325,6 +330,12 @@
       <button class="rl-tool" data-tool="goodnews" onclick="reliefSelectTool('goodnews')">
         <span class="rl-tool-n">08</span><span class="rl-tool-l">Good News</span><span class="rl-tool-tag">LIVE</span>
       </button>
+      <button class="rl-tool" data-tool="health" onclick="reliefSelectTool('health')">
+        <span class="rl-tool-n">09</span><span class="rl-tool-l">Health &amp; Outbreak Watch</span><span class="rl-tool-tag">GLOBE</span>
+      </button>
+      <button class="rl-tool" data-tool="protection" onclick="reliefSelectTool('protection')">
+        <span class="rl-tool-n">10</span><span class="rl-tool-l">Civilian Protection</span><span class="rl-tool-tag rl-ai">AI</span>
+      </button>
       <div class="rl-menu-foot" id="rl-menu-foot">Focus is the most recently pinned region, event, or city. Pin from the globe or Analyst feed.</div>
     </nav>
     <main class="rl-work" id="rl-work">
@@ -347,6 +358,8 @@
             <button class="rl-welcome-btn" onclick="reliefSelectTool('access')">06 · Access &amp; Blackout</button>
             <button class="rl-welcome-btn" onclick="reliefSelectTool('recovery')">07 · Recovery Timeline</button>
             <button class="rl-welcome-btn" onclick="reliefSelectTool('goodnews')">08 · Good News</button>
+            <button class="rl-welcome-btn" onclick="reliefSelectTool('health')">09 · Health &amp; Outbreak Watch</button>
+            <button class="rl-welcome-btn" onclick="reliefSelectTool('protection')">10 · Civilian Protection</button>
           </div>
         </div>
       </div>
@@ -473,6 +486,7 @@
       </div>
     </div>
     <button class="cip-pin-btn" id="cip-pin-btn" onclick="if(window._cipCurrentCity)pinGeoAsset('city',window._cipCurrentCity)" title="Pin to Analyst Board">PIN</button>
+    <button class="cip-pin-btn cip-relief-btn" id="cip-relief-btn" onclick="if(window._cipCurrentCity){pinToRelief('city',window._cipCurrentCity);_cipRefreshReliefBtn();}" title="Pin to RELIEF Board">RELIEF</button>
     <button class="cip-close" onclick="closeCityPanel()">×</button>
   </div>
   <div class="cip-body">
