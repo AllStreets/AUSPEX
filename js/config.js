@@ -34,6 +34,29 @@ const WORKER_BASE =
       : ''; // production: same-origin proxy, or set window.AUSPEX_WORKER_BASE
 
 // ═══════════════════════════════════════════
+// AI ROUTING — direct (local) vs serverless proxy (production)
+// The Analyst + RELIEF tools call OpenAI via callOpenAI() in js/analyst.js.
+// Locally (keys.local.js present) OPENAI_KEY is non-empty → direct call.
+// In production OPENAI_KEY is '' → callOpenAI() POSTs to /api/ai, where the
+// real key lives in process.env.AUSPEX_LLM_KEY. AI_ENABLED tells the tools'
+// guards (the "AI unavailable" gates) that the model is reachable either way.
+// ═══════════════════════════════════════════
+const AI_MODEL = 'gpt-5.4-mini';
+const AI_PROXY_URL = `${WORKER_BASE || ''}/api/ai`;
+function aiEnabled() {
+  // Direct path: a real client key (local dev with keys.local.js).
+  if (typeof OPENAI_KEY === 'string' && OPENAI_KEY && !OPENAI_KEY.includes('YOUR_OPENAI')) return true;
+  // Proxy path: deployed (non-localhost) origin serves /api/ai with the
+  // server-side key. Localhost without a client key has no proxy → off.
+  if (typeof location !== 'undefined') {
+    const h = location.hostname;
+    if (h && h !== 'localhost' && h !== '127.0.0.1') return true;
+    if (typeof window !== 'undefined' && window.AUSPEX_WORKER_BASE) return true;
+  }
+  return false;
+}
+
+// ═══════════════════════════════════════════
 // API KEYS — defined in js/keys.js (gitignored)
 // ═══════════════════════════════════════════
 const NEWS_CACHE_KEY = 'auspex_news_cache_v2';

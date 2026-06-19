@@ -783,7 +783,7 @@ async function reliefResponseCouncil() {
       <div class="rl-synth-body rl-loading-anim" id="rl-synth-body">Awaiting role assessments…</div>
     </div>`;
 
-  if (!OPENAI_KEY || OPENAI_KEY.includes('YOUR_OPENAI')) {
+  if (typeof aiEnabled !== 'function' || !aiEnabled()) {
     _rlStatus('TOOL 02 · AI UNAVAILABLE');
     document.getElementById('rl-council-cards').innerHTML = _reliefAIUnavailable('The Response Council needs the OpenAI model. Configure a key to convene the council.');
     document.getElementById('rl-council-synth').style.display = 'none';
@@ -1183,7 +1183,7 @@ async function reliefDisplacement() {
     </div>`;
 
   // AI narratives — one short paragraph per situation, grounded. Graceful if no AI.
-  const aiOff = (typeof OPENAI_KEY === 'undefined') || !OPENAI_KEY || OPENAI_KEY.includes('YOUR_OPENAI');
+  const aiOff = (typeof aiEnabled !== 'function') || !aiEnabled();
   for (let i = 0; i < situations.length; i++) {
     const s = situations[i];
     const el = document.getElementById(`rl-disp-narr-${i}`);
@@ -1318,7 +1318,7 @@ async function reliefFamine() {
     </div>`;
 
   // AI driver-explanation for the TOP areas only (cost + clutter control).
-  const aiOff = (typeof OPENAI_KEY === 'undefined') || !OPENAI_KEY || OPENAI_KEY.includes('YOUR_OPENAI');
+  const aiOff = (typeof aiEnabled !== 'function') || !aiEnabled();
   const topN = Math.min(areas.length, 4);
   for (let i = 0; i < areas.length; i++) {
     const el = document.getElementById(`rl-fam-expl-${i}`);
@@ -1468,7 +1468,7 @@ async function reliefRecovery() {
   const recLoad = document.querySelector('#rl-rec-body .rl-loading');
   if (recLoad) recLoad.textContent = `PHASING RECOVERY FROM ${ctx.news.length} NEWS ITEMS · ${ctx.events.length} SENSED EVENTS · ${ctx.history.length} ARCHIVE STORIES…`;
 
-  if (typeof OPENAI_KEY === 'undefined' || !OPENAI_KEY || OPENAI_KEY.includes('YOUR_OPENAI')) {
+  if (typeof aiEnabled !== 'function' || !aiEnabled()) {
     _rlStatus('TOOL 07 · AI UNAVAILABLE');
     const b = document.getElementById('rl-rec-body');
     if (b) b.innerHTML = _reliefAIUnavailable('The Recovery Timeline needs the OpenAI model. Configure a key to generate the phased assessment.');
@@ -1774,7 +1774,7 @@ async function reliefGoodNews() {
 
   // Optional AI "why this matters" — one line on the single top item of each
   // group. Graceful (and silent) if no key. Pure data tool works without it.
-  const aiOff = (typeof OPENAI_KEY === 'undefined') || !OPENAI_KEY || OPENAI_KEY.includes('YOUR_OPENAI');
+  const aiOff = (typeof aiEnabled !== 'function') || !aiEnabled();
   if (aiOff) { _rlStatus(`TOOL 08 · GOOD NEWS READY · ${total} POSITIVE SIGNALS · ${shown.length} CATEGORIES · ${now}`); return; }
   for (const g of shown) {
     const it = g.items[0];
@@ -1991,7 +1991,7 @@ async function reliefHealth() {
     </div>`;
 
   // AI explanation for the TOP areas only (cost + clutter control). Graceful w/o AI.
-  const aiOff = (typeof OPENAI_KEY === 'undefined') || !OPENAI_KEY || OPENAI_KEY.includes('YOUR_OPENAI');
+  const aiOff = (typeof aiEnabled !== 'function') || !aiEnabled();
   const topN = Math.min(areas.length, 4);
   for (let i = 0; i < areas.length; i++) {
     const el = document.getElementById(`rl-health-expl-${i}`);
@@ -2130,7 +2130,7 @@ async function reliefProtection() {
     </div>`;
 
   // AI honest assessment for the TOP concerns. Graceful w/o AI.
-  const aiOff = (typeof OPENAI_KEY === 'undefined') || !OPENAI_KEY || OPENAI_KEY.includes('YOUR_OPENAI');
+  const aiOff = (typeof aiEnabled !== 'function') || !aiEnabled();
   const ctx = await reliefBuildContext(f);
   const ctxText = _reliefContextText(f, ctx);
   const topN = Math.min(concerns.length, 4);

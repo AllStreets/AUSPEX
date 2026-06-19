@@ -531,21 +531,35 @@ ${pinned.length ? `<div class="section"><div class="sec-label">INTELLIGENCE ASSE
 // (Keys declared in config.js — do not redeclare here)
 
 async function callOpenAI(sys, user, maxTokens = 420) {
-  if (!OPENAI_KEY || OPENAI_KEY.includes('YOUR_OPENAI')) throw new Error('API_KEY_MISSING');
+  const hasClientKey = OPENAI_KEY && !OPENAI_KEY.includes('YOUR_OPENAI');
   const ctrl = new AbortController();
   const timeoutMs = maxTokens > 800 ? 55000 : 30000;
   const t = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    // ── Local dev: real client key present → call OpenAI directly (unchanged) ──
+    if (hasClientKey) {
+      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST', signal: ctrl.signal,
+        headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${OPENAI_KEY}` },
+        body: JSON.stringify({ model:AI_MODEL, max_completion_tokens:maxTokens, temperature:0.7,
+          messages:[{role:'system',content:sys},{role:'user',content:user}] }),
+      });
+      clearTimeout(t);
+      const d = await res.json();
+      if (d.error) throw new Error(d.error.message || 'OpenAI API error');
+      return d.choices?.[0]?.message?.content || '';
+    }
+    // ── Production: no client key → route through the serverless /api/ai proxy ──
+    if (!aiEnabled()) throw new Error('API_KEY_MISSING');
+    const res = await fetch(AI_PROXY_URL, {
       method: 'POST', signal: ctrl.signal,
-      headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${OPENAI_KEY}` },
-      body: JSON.stringify({ model:'gpt-5.4-mini', max_completion_tokens:maxTokens, temperature:0.7,
-        messages:[{role:'system',content:sys},{role:'user',content:user}] }),
+      headers: { 'Content-Type':'application/json' },
+      body: JSON.stringify({ system:sys, user, maxTokens, model:AI_MODEL }),
     });
     clearTimeout(t);
     const d = await res.json();
-    if (d.error) throw new Error(d.error.message || 'OpenAI API error');
-    return d.choices?.[0]?.message?.content || '';
+    if (!res.ok || d.error) throw new Error(d.error || 'AI proxy error');
+    return d.content || '';
   } catch(e) { clearTimeout(t); if (e.message==='API_KEY_MISSING') throw e; throw new Error(e.message||'API call failed'); }
 }
 // ═══════════════════════════════════════════
