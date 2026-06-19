@@ -310,13 +310,17 @@ function makeAuspexEventMarker(event) {
     ? (sev > 0.7 ? '#5AC8FA' : '#007AFF')
     : (sev > 0.7 ? '#FF2D55' : sev > 0.4 ? '#FF9F0A' : '#FFD60A');
   const size = 8 + sev * 14;
+  const glyph = size + 6; // glyph slightly larger than the legacy core dot
   const unconfirmed = event.confidence === 'unconfirmed';
+  const svg = (typeof AUSPEX_EVENT_ICONS !== 'undefined')
+    ? (AUSPEX_EVENT_ICONS[event.icon] || AUSPEX_EVENT_ICONS[event.type] || AUSPEX_EVENT_ICONS.default)
+    : '';
   const d = document.createElement('div');
   d.className = `auspex-m auspex-${event.type}${unconfirmed ? ' auspex-unconfirmed' : ''}`;
   d.style.cssText = `color:${color};position:relative;transform:translate(-50%,-50%)`;
   d.innerHTML =
     `<div class="auspex-ring" style="width:${size*2}px;height:${size*2}px;border:1px ${unconfirmed?'dashed':'solid'} ${color}${unconfirmed?'66':'99'};border-radius:50%;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);animation:auspex-pulse 2.4s ease-out infinite"></div>` +
-    `<div class="auspex-core" style="width:${size}px;height:${size}px;background:${color};border-radius:50%;box-shadow:0 0 ${Math.round(sev*12)}px ${color}bb;opacity:${unconfirmed?0.6:1}"></div>` +
+    `<div class="auspex-glyph" style="width:${glyph}px;height:${glyph}px;display:flex;align-items:center;justify-content:center;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle,${color}33 0%,${color}11 60%,transparent 75%);filter:drop-shadow(0 0 ${Math.round(sev*10)+2}px ${color}aa);opacity:${unconfirmed?0.65:1}">${svg}</div>` +
     `<div class="auspex-tip">${event.title}</div>`;
   d.addEventListener('click', e => { e.stopPropagation(); openAuspexEventCard(event); });
   return d;
@@ -723,7 +727,10 @@ function openAuspexEventCard(event) {
     G.pointOfView({ lat: event.lat, lng: event.lng, altitude: 1.55 }, 1400);
   }
   panel.classList.add('art-panel--event');
-  set('ap-cat', (event.type || '').toUpperCase());
+  const _glyph = (typeof AUSPEX_EVENT_ICONS !== 'undefined')
+    ? (AUSPEX_EVENT_ICONS[event.icon] || AUSPEX_EVENT_ICONS[event.type] || AUSPEX_EVENT_ICONS.default)
+    : '';
+  set('ap-cat', `<span class="ap-cat-glyph" style="display:inline-flex;width:13px;height:13px;vertical-align:-2px;margin-right:5px">${_glyph}</span>${(event.type || '').toUpperCase()}`);
   const catEl = document.getElementById('ap-cat');
   if (catEl) catEl.style.cssText = `color:${sevColor};background:${sevColor}18`;
   const brk = document.getElementById('ap-brk');

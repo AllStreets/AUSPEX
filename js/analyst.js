@@ -919,12 +919,22 @@ function buildMapKey() {
   // AUSPEX live disaster events (derived from what is on the globe) — prepended above static rows
   const liveRows = [];
   if (typeof SNAPSHOT_EVENTS !== 'undefined' && SNAPSHOT_EVENTS.length) {
-    liveRows.push({ s: 'DISASTER EVENTS (LIVE)' });
-    [...new Set(SNAPSHOT_EVENTS.map(e => e.type))].sort().forEach(type => {
-      liveRows.push({ dot: '#FF6D00', lbl: type.charAt(0).toUpperCase() + type.slice(1) });
-    });
-    if (SNAPSHOT_EVENTS.some(e => e.confidence === 'unconfirmed')) liveRows.push({ dot: '#FF9F0A', lbl: 'Dashed ring — unconfirmed / preliminary' });
-    liveRows.push({ dot: '#FF2D55', lbl: 'Solid ring — confirmed event' });
+    const perils = SNAPSHOT_EVENTS.filter(e => e.polarity !== 'breakthrough');
+    const breaks = SNAPSHOT_EVENTS.filter(e => e.polarity === 'breakthrough');
+    if (perils.length) {
+      liveRows.push({ s: 'DISASTER EVENTS (LIVE)' });
+      [...new Set(perils.map(e => e.icon || e.type))].sort().forEach(t => {
+        liveRows.push({ icon: t, color: '#FF6D00', lbl: t.charAt(0).toUpperCase() + t.slice(1) });
+      });
+      if (SNAPSHOT_EVENTS.some(e => e.confidence === 'unconfirmed')) liveRows.push({ dot: '#FF9F0A', lbl: 'Dashed ring — unconfirmed / preliminary' });
+      liveRows.push({ dot: '#FF2D55', lbl: 'Solid ring — confirmed event' });
+    }
+    if (breaks.length) {
+      liveRows.push({ s: 'BREAKTHROUGHS (LIVE)' });
+      [...new Set(breaks.map(e => e.icon || e.type))].sort().forEach(t => {
+        liveRows.push({ icon: t, color: '#5AC8FA', lbl: t.charAt(0).toUpperCase() + t.slice(1) });
+      });
+    }
   }
   if (typeof CITY_DATA !== 'undefined' && CITY_DATA.length && citiesVisible) {
     liveRows.push({ s: 'CITY LAYER (LIVE)' });
@@ -942,6 +952,11 @@ function buildMapKey() {
     if (r.cityType) {
       const svg = (typeof _CITY_ICONS !== 'undefined' && _CITY_ICONS[r.cityType]) || '';
       return `<div class="mk-row"><div class="mk-city-ico" style="color:${r.color};filter:drop-shadow(0 0 3px ${r.color}66)">${svg}</div><span class="mk-lbl">${r.lbl}</span></div>`;
+    }
+    if (r.icon) {
+      const svg = (typeof AUSPEX_EVENT_ICONS !== 'undefined')
+        ? (AUSPEX_EVENT_ICONS[r.icon] || AUSPEX_EVENT_ICONS.default) : '';
+      return `<div class="mk-row"><div class="mk-event-ico" style="color:${r.color};filter:drop-shadow(0 0 3px ${r.color}66)">${svg}</div><span class="mk-lbl">${r.lbl}</span></div>`;
     }
     if (r.ctry)     return `<div class="mk-row"><div class="mk-ico-lbl" style="color:${r.color}">${r.ctry}</div><span class="mk-lbl">${r.lbl}</span></div>`;
     if (r.ctrl) {
