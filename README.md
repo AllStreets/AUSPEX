@@ -1,135 +1,212 @@
 <div align="center">
 
-# AUSPEX
+<img src=".github/assets/auspex-banner.svg" alt="AUSPEX — a living instrument for watching over the world" width="100%"/>
 
-**A living instrument for watching over the world.**
+&nbsp;
 
-*The auspex was the one who read the sky for signs and spoke them aloud,*
-*so the city could act before the storm. This is that — for the whole planet, for everyone.*
+<img alt="senses" src="https://img.shields.io/badge/senses-perils_%2B_breakthroughs-34D399?style=for-the-badge&labelColor=04070b"/>
+<img alt="relief tools" src="https://img.shields.io/badge/RELIEF_tools-10-34D399?style=for-the-badge&labelColor=04070b"/>
+<img alt="boards" src="https://img.shields.io/badge/tool_boards-2-34D399?style=for-the-badge&labelColor=04070b"/>
+<img alt="tests" src="https://img.shields.io/badge/tests-104_passing-A3E635?style=for-the-badge&labelColor=04070b"/>
+<a href="LICENSE"><img alt="license" src="https://img.shields.io/badge/license-Apache--2.0-34D399?style=for-the-badge&labelColor=04070b"/></a>
+<br/>
+<img alt="news" src="https://img.shields.io/badge/news-GDELT_%2B_NewsAPI_(server--side)-6b7382?style=flat-square&labelColor=04070b"/>
+<img alt="globe" src="https://img.shields.io/badge/globe-three--globe_%2F_NASA_marble-6b7382?style=flat-square&labelColor=04070b"/>
+<img alt="data" src="https://img.shields.io/badge/data-USGS_%C2%B7_GDACS_%C2%B7_Launch_Library-6b7382?style=flat-square&labelColor=04070b"/>
+<img alt="backend" src="https://img.shields.io/badge/worker-node_%2F_express_%C2%B7_supabase-6b7382?style=flat-square&labelColor=04070b"/>
 
-`watchful · honest · open · alive`
+&nbsp;
+
+<a href="#quickstart"><kbd> &nbsp; <strong>Quickstart</strong> &nbsp; </kbd></a> &nbsp;
+<a href="#what-it-senses"><kbd> &nbsp; <strong>What it senses</strong> &nbsp; </kbd></a> &nbsp;
+<a href="#two-boards"><kbd> &nbsp; <strong>The boards</strong> &nbsp; </kbd></a> &nbsp;
+<a href="#how-it-works"><kbd> &nbsp; <strong>Architecture</strong> &nbsp; </kbd></a> &nbsp;
+<a href="#deploy"><kbd> &nbsp; <strong>Deploy</strong> &nbsp; </kbd></a>
 
 </div>
 
 ---
 
-AUSPEX is an open, real-time instrument for sensing the whole pulse of the planet — its perils and
-its breakthroughs. Autonomous pipelines continuously read the world's public signals and render
-them on a living globe that **anyone** can read: no login, no terminal, no institutional wall. The
-kind of situational awareness that today costs a Bloomberg subscription, made into a commons and
-given to the world.
+## What this is
 
-```
-  what it watches                            status
-  ├─ disasters ........ quake · cyclone · flood · volcano · fire ....... LIVE  (USGS · GDACS)
-  ├─ conflict ......... unrest · escalation .............................. planned
-  ├─ supply chains .... ports · shipping · shortages ..................... planned
-  ├─ climate .......... drought · heat · environment ..................... planned
-  ├─ public health .... outbreak signals ................................. planned
-  └─ breakthroughs .... financial · space · medical · physics · science .. planned
+The *auspex* was the one who read the sky for signs and spoke them aloud, so the city could act before the storm. Not a spy — a guardian who turned what the world was already showing into warning, in time for it to matter.
 
-  what it does
-  ├─ senses ........... open, keyless public feeds, geolocated in real time
-  ├─ reasons .......... severity, calibrated confidence, plain-language briefs
-  ├─ connects ......... the link between events, drawn in light            (planned)
-  └─ shows ............ a planet with a pulse: calm where calm, light where not
-```
+**AUSPEX is that, for the whole planet, for everyone.** A living globe where autonomous pipelines read the world's public signals — earthquakes, floods, cyclones, conflict, displacement, outbreaks, *and* the world's progress: launches, discoveries, medical and scientific breakthroughs — score them honestly, draw the connections between them, and render it all so that *anyone* can see what is actually happening. No login. No Bloomberg terminal. No institutional wall.
+
+It is built against one specific enemy: the version of the world sold by a doom-optimised feed. AUSPEX is calm where the world is calm, lights up where it isn't, reserves red for genuine danger, and carries the good news beside the bad — because awareness, not alarm, is the point.
+
+> *The globe is the page. Red means danger. Everything else is the world, alive.*
+
+---
 
 ## How it works
 
-Two processes, one data contract — so the public side ships **zero secrets** and a million
-visitors cost about the same as one.
+Two processes, one contract — so the public side ships **zero secrets** and a million visitors cost about the same as one.
 
 ```
-  PUBLIC  (keyless, edge-cacheable)            PRIVATE  (keyed, scheduled)
-  ┌────────────────────────────────┐          ┌──────────────────────────────┐
-  │ frontend · static · :8800      │  reads   │ snapshot worker · :8801       │
-  │  NASA day/night globe          │ ◄─────── │  polls USGS + GDACS (keyless) │
-  │  1,000-city base layer         │ snapshot │  normalizes · scores · briefs │
-  │  event markers · honest cards  │  .json   │  writes snapshot.json         │
-  │  live, collapsing map key      │          │  (LLM key stays server-side)  │
-  └────────────────────────────────┘          └──────────────────────────────┘
+  PUBLIC  (keyless, edge-cacheable)                PRIVATE  (keyed, scheduled)
+  ┌──────────────────────────────────┐            ┌────────────────────────────────┐
+  │ frontend · static · :8800        │   reads    │ worker · node/express · :8801  │
+  │   the living green globe         │ ◄───────── │   USGS + GDACS  (perils)       │
+  │   1,000-city base layer          │  snapshot  │   Launch Library 2 (progress)  │
+  │   typed event icons + arcs       │   .json    │   GDELT + NewsAPI (server-side)│
+  │   honest cards · live map key    │  news.json │   honest reasoning (severity,  │
+  │   Analyst + RELIEF tool boards   │            │   confidence, links, sources)  │
+  └──────────────────────────────────┘            └────────────────────────────────┘
+                  │                                              │
+                  └────────────  Supabase  ──────────────────────┘
+                       persistence · ~2,000-story history · countries · regions
 ```
 
-The heavy reasoning runs **once per event** in the worker, not once per visitor. That is what lets
-AUSPEX be free, fast on a weak connection, and sustainable at planetary scale.
+The heavy work runs **once per event in the worker**, not once per visitor. That — plus a keyless disaster path (USGS and GDACS need no keys) — is what lets AUSPEX be free, fast on a weak connection, and honest about its sources.
 
-## Run it locally
+```
+  the instrument
+  ├─ living globe ......... NASA day/night marble, breathing green aura that
+  │                         shifts with world state — red only on real peril
+  ├─ typed event icons .... quake · volcano · flood · cyclone · fire · drought ·
+  │                         launch · medical · physics · science · financial
+  ├─ connections .......... real links between events close in space + time,
+  │                         drawn in light — never invented causation
+  ├─ honest cards ......... severity · confidence · plain brief · sources, one tap
+  ├─ live map key .......... a legend that derives itself from what's on the globe
+  └─ every icon clickable .. nothing on the map is a dead pixel
+```
+
+---
+
+## What it senses
+
+AUSPEX reads two halves of the same pulse.
+
+<table>
+<tr>
+<td valign="top" width="50%">
+
+#### ◆ Perils
+| | sensed from |
+|---|---|
+| earthquakes | USGS (keyless) |
+| cyclone · flood · volcano · drought | GDACS (keyless) |
+| conflict · unrest | news + regions |
+| displacement · famine · access | news + regions |
+| outbreaks · civilian harm | news signals |
+
+</td>
+<td valign="top" width="50%">
+
+#### ◆ Breakthroughs
+| | sensed from |
+|---|---|
+| space launches · milestones | Launch Library 2 |
+| medical · physics · science | news signals |
+| financial · technological | news signals |
+| human progress | the *Good News* feed |
+
+</td>
+</tr>
+</table>
+
+The word *auspicious* descends from *auspex* — the watcher announced **favourable** omens too. Carrying the world's breakthroughs beside its perils isn't an add-on; it is the truest form of the name.
+
+---
+
+## Two boards
+
+AUSPEX puts genuinely powerful tools in ordinary hands. Two parallel boards, both AI-powered, both pin-linked to anything on the globe, both grounded in the live feed and Supabase history.
+
+<table>
+<tr>
+<td valign="top" width="50%">
+
+### ANALYST
+*The intelligence lens — military-grade, democratised.*
+
+- Situation Synthesis (AI brief)
+- Consensus Board (5-persona panel)
+- Red Team / Adversary Playbook
+- Escalation Matrix
+- Dead Reckoning · Narrative Timeline
+- Historical Search · Saved Boards
+
+</td>
+<td valign="top" width="50%">
+
+### RELIEF
+*The humanitarian lens — its equal, for care.*
+
+- Situation Report · Response Council
+- Needs & Gaps Matrix
+- Displacement Tracker · Famine & Food-Security Watch
+- Access & Blackout · Recovery Timeline
+- **Health & Outbreak Watch** · **Civilian Protection**
+- Good News — humanity's wins
+
+</td>
+</tr>
+</table>
+
+Pin a region, event, city, country, or story to either board (the green **PIN TO RELIEF** sits beside every **PIN TO ANALYST**), change focus freely, and run the tools against deep, real context — focus-relevant news, Supabase history, nearby events and their links, full region and country records.
+
+---
+
+## The unbiased feed
+
+The news layer is the anti-social-media core, and it is deliberate:
+
+- **Server-side and broad.** GDELT (a free, global, no-key firehose) plus NewsAPI, fetched in the worker, deduped, cached — perils *and* progress, never rate-limited.
+- **Filtered for signal.** A junk filter drops advertisements, PR fluff, and pop-culture/celebrity noise, while a priority allowlist guarantees real geopolitics, economy, disaster, science, and health are never wrongly dropped.
+- **Multi-source by design.** **Divergence** compares how Western, Chinese, and Russian outlets cover the same story; **Silence** detects information blackouts; nine global **broadcasters** span every region. You see the spread, not one outlet's frame.
+
+---
+
+## Quickstart
+
+> **Prerequisites:** Node 18+ (24 recommended). Disaster sensing needs **zero** API keys. For the AI tools and the keyed feeds, copy `js/keys.example.js` → `js/keys.js` and `worker/.env.example` → `worker/.env`.
 
 ```bash
-npm install          # frontend dev tooling + tests
-npm test             # 54 passing — the tested pure core (severity / normalize / filter / snapshot / connect / cities)
+git clone https://github.com/AllStreets/AUSPEX.git
+cd AUSPEX
+npm install
+npm test                 # 104 passing — the tested core (severity / normalize / filter / news / connect)
 
-# terminal 1 — the snapshot worker (senses the world, writes snapshot.json)
+# terminal 1 — the worker: senses the world, serves snapshot.json + news.json
 cd worker && npm install && cd ..
-npm run worker       # http://localhost:8801  · polls USGS + GDACS every 3 min
+npm run worker           # http://localhost:8801
 
-# terminal 2 — the globe
-npm run dev          # http://localhost:8800
+# terminal 2 — the living globe
+npm run dev              # http://localhost:8800
 ```
 
-Open **http://localhost:8800**. The globe lights up with live earthquakes and disasters; toggle
-**CITIES** for the 1,000-city layer; click any event for an honest card (severity, confidence,
-plain brief, sources); open the **MAP KEY** for a legend that derives itself from whatever is
-currently on the globe. Disaster sensing is **keyless** — it runs with no API keys at all.
+Open **http://localhost:8800**. The globe lights up with live events; toggle **CITIES** for the 1,000-city layer; click any icon for an honest card; open the **MAP KEY** for the live legend; open **ANALYST** or **RELIEF** above it for the tool boards.
+
+---
+
+## Deploy
+
+| piece | host | notes |
+|---|---|---|
+| frontend | static (Vercel) — `vercel.json` included | point `WORKER_BASE` at the worker URL |
+| worker | container (Railway / Render / Fly) — `worker/Dockerfile` included | env: `NEWS_API_KEY`, `AUSPEX_LLM_KEY`, `ALLOWED_ORIGIN` |
+| database | Supabase | schema in `sql/schema.sql`; anon key is publishable, RLS-protected |
+
+The public frontend ships no secrets — all keyed work lives in the worker. **AUSPEX does not go public until it is worthy of everyone in the world.** That is the bar.
+
+---
 
 ## Principles
 
 - **For everyone.** No login to see the planet. Readable by a child, useful to an analyst, fast on a cheap phone.
-- **Honest before impressive.** Confidence and sources on every event. Unconfirmed signals look unconfirmed. We never cry wolf.
+- **Honest before impressive.** Confidence and sources on every claim. Unconfirmed signals look unconfirmed. We never cry wolf, and we never dress a rumour as a fact.
 - **A commons, not a product.** It watches events and systems — never people. A guardian's name, not a spy's.
-- **Worthy before public.** It does not ship to the world until it is worthy of everyone in the world.
-
-## Status
-
-**Phase 1 — the disaster instrument — is live locally.** The globe, the 1,000-city layer, the
-keyless USGS + GDACS snapshot worker, event rendering, honest cards, and the live map key all work
-end to end on a tested foundation. Next: the remaining senses (conflict, supply, climate, health,
-and the breakthroughs — financial, space, medical, physics), cross-domain connection reasoning, and
-the accessibility/performance/deploy work that earns the public launch.
-
-Vision: [`docs/VISION.md`](docs/VISION.md) · Architecture: [`docs/specs/`](docs/specs) · Build plan: [`docs/plans/`](docs/plans)
-
-## Deploy
-
-Two pieces, deployed independently. The frontend is static; the worker is a small container.
-
-```
-  frontend (static)              worker (container)             Supabase
-  ┌──────────────────┐  reads    ┌──────────────────┐  reads    ┌──────────────┐
-  │ Vercel / any CDN │ ───────►  │ Railway/Render/Fly│ ───────►  │ hosted (RLS) │
-  │ index.html+js+css│ snapshot  │ :8801 · USGS+news │  stories  │ already live │
-  └──────────────────┘  +news    └──────────────────┘           └──────────────┘
-```
-
-**1. Worker** — deploy `worker/Dockerfile` to a container host. Build context
-must be the **repo root** (the worker imports from `../src`). Expose port 8801.
-Set env vars (full list in [`worker/README.md`](worker/README.md)):
-
-- `ALLOWED_ORIGIN` — your frontend's URL, e.g. `https://auspex.example.com` (enables CORS).
-- `NEWS_API_KEY` — optional; NewsAPI key for richer news (GDELT works without it).
-- `AUSPEX_LLM_KEY` — optional; reasoning degrades gracefully if unset.
-
-Note the worker's public URL, e.g. `https://auspex-worker.up.railway.app`.
-
-**2. Frontend** — deploy the repo root to a static host. `vercel.json` is a
-build-free static config; on Vercel just import the repo (no build command).
-Tell the frontend where the worker lives by setting **`WORKER_BASE`** (declared
-in [`js/config.js`](js/config.js)). On `localhost` it auto-resolves to
-`http://localhost:8801`; in production set it one of two ways:
-
-- add `<script>window.AUSPEX_WORKER_BASE='https://auspex-worker.up.railway.app'</script>`
-  to `index.html` **before** `js/config.js`, **or**
-- edit the production fallback string in `js/config.js`.
-
-(Leaving it `''` means same-origin — only correct behind a reverse proxy that
-forwards `/snapshot.json` and `/news.json` to the worker.)
-
-**3. Supabase** — already hosted. Schema lives in [`sql/schema.sql`](sql/schema.sql);
-the anon key in `js/supabase.js` is publishable (RLS-protected). No deploy step.
+- **Alive, calm, uncluttered.** Severity is light. Red is earned. Green is the instrument, breathing.
 
 ---
 
 <div align="center">
-<sub>One of three. AgentZeus watches the world <em>for you</em>. NEXUS runs the agents. AUSPEX watches the world <em>for everyone</em>.</sub>
+
+One of three. **AgentZeus** watches the world *for you*. **NEXUS** runs the agents. **AUSPEX** watches the world *for everyone*.
+
+<sub>Built on the Meridian globe platform · vision in <a href="docs/VISION.md">docs/VISION.md</a> · specs + plans under <a href="docs/specs">docs/</a></sub>
+
 </div>
