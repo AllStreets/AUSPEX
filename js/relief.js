@@ -49,14 +49,17 @@ function reliefClearGlobe() {
 
 // Resolve a RELIEF-pinned id (geo key or story id) to a story-like object.
 function _reliefResolveAsset(id) {
-  if (typeof id === 'string' && id.includes(':') && typeof _reliefGeoMap !== 'undefined' && _reliefGeoMap[id]) {
-    return _reliefGeoMap[id];
+  // RELIEF-cached object (geo key OR a story/event we cached on pin).
+  if (typeof _reliefGeoMap !== 'undefined' && _reliefGeoMap[id]) {
+    const g = _reliefGeoMap[id];
+    return g._geoType === 'story' ? (g._geoObj || g) : g;
   }
   if (typeof _resolveStory === 'function') {
     const s = _resolveStory(id);
     if (s) return s;
   }
   if (typeof NEWS !== 'undefined') { const s = NEWS.find(n => n.id === id); if (s) return s; }
+  if (typeof SNAPSHOT_EVENTS !== 'undefined') { const e = SNAPSHOT_EVENTS.find(n => n.id === id); if (e) return e; }
   return null;
 }
 
@@ -108,14 +111,28 @@ function pinToRelief(geoType, obj) {
   _reliefAfterPinChange();
 }
 
-// Pin a NEWS / archive story to the RELIEF pool (mirrors pinStory). Toggles off.
+// Pin a NEWS / archive story OR a sensed event to the RELIEF pool (mirrors
+// pinStory). Toggles off. If the object is not a plain NEWS story (e.g. a
+// SNAPSHOT_EVENT or threat with coords), we cache the object so focus
+// resolution always finds it without depending on the Analyst NEWS lookup.
 function pinStoryToRelief(story) {
   const id = (story && typeof story === 'object') ? story.id : story;
   if (id == null) return;
   if (reliefAssets.includes(id)) {
     reliefAssets = reliefAssets.filter(k => k !== id);
+    if (typeof _reliefGeoMap !== 'undefined' && _reliefGeoMap[id]) delete _reliefGeoMap[id];
     _reliefAfterPinChange();
     return;
+  }
+  // Cache full object when it carries its own coords/title (not resolvable via NEWS).
+  if (story && typeof story === 'object' && (story.title || story.region) && typeof _reliefGeoMap !== 'undefined') {
+    _reliefGeoMap[id] = {
+      id, _geoType: 'story', _geoObj: story,
+      title: story.title || story.region || 'Pinned event',
+      summary: story.summary || story.brief || '',
+      region: story.region || '', lat: story.lat, lng: story.lng,
+      threat_level: story.threat_level || null,
+    };
   }
   reliefAssets.push(id);
   _reliefAfterPinChange();

@@ -180,6 +180,10 @@
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
         <span id="ap-pin-lbl">PIN TO ANALYST</span>
       </button>
+      <button id="ap-relief-btn" onclick="reliefPinFromPanel()" style="display:none;align-items:center;gap:7px;padding:9px 16px;background:rgba(52,211,153,.05);border:1px solid rgba(52,211,153,.2);border-radius:3px;font-family:var(--f-mono);font-size:10px;color:rgba(52,211,153,.8);letter-spacing:.08em;cursor:pointer;transition:all .18s" onmouseover="this.style.background='rgba(52,211,153,.14)';this.style.borderColor='rgba(52,211,153,.5)';this.style.color='#34D399'" onmouseout="this.style.background='rgba(52,211,153,.05)';this.style.borderColor='rgba(52,211,153,.2)';this.style.color='rgba(52,211,153,.8)'">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        <span id="ap-relief-lbl">PIN TO RELIEF</span>
+      </button>
     </div>
     <div class="ap-foot">
       <div class="ap-cdot" id="ap-cdot"></div>
@@ -474,6 +478,7 @@
       </div>
     </div>
     <button class="cip-pin-btn" id="cip-pin-btn" onclick="if(window._cipCurrentCity)pinGeoAsset('city',window._cipCurrentCity)" title="Pin to Analyst Board">PIN</button>
+    <button class="cip-pin-btn cip-relief-btn" id="cip-relief-btn" onclick="if(window._cipCurrentCity){pinToRelief('city',window._cipCurrentCity);_cipRefreshReliefBtn();}" title="Pin to RELIEF Board">RELIEF</button>
     <button class="cip-close" onclick="closeCityPanel()">×</button>
   </div>
   <div class="cip-body">

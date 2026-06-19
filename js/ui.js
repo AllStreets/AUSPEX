@@ -21,11 +21,23 @@ function _cardHtml(s) {
         <button class="nc-star ${analystAssets.includes(s.id)?'saved':''} nc-pin-btn" data-pin-id="${s.id}" onclick="pinStory(${s.id})" title="Pin to Analyst Mode" style="color:${analystAssets.includes(s.id)?'#4ADE80':''}">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
         </button>
+        <button class="nc-star ${reliefAssets.includes(s.id)?'saved':''} nc-relief-btn" data-relief-id="${s.id}" onclick="pinStoryToRelief(NEWS.find(n=>n.id===${s.id})||{id:${s.id}});_ncRefreshReliefBtn(${s.id})" title="Pin to RELIEF Board" style="color:${reliefAssets.includes(s.id)?'#34D399':''}">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        </button>
       </div>
     </div>
     <div class="nc-title">${s.title||''}</div>
     ${s.region ? `<div class="nc-loc"><div class="nc-pip"></div>${s.region}</div>` : ''}
   </div>`;
+}
+
+// Reflect a feed card's Pin-to-RELIEF state after a toggle.
+function _ncRefreshReliefBtn(id) {
+  const pinned = (typeof reliefAssets !== 'undefined') && reliefAssets.includes(id);
+  document.querySelectorAll(`[data-relief-id="${id}"]`).forEach(btn => {
+    btn.classList.toggle('saved', pinned);
+    btn.style.color = pinned ? '#34D399' : '';
+  });
 }
 
 function _bindFeedCards(container) {
@@ -191,6 +203,8 @@ function openArticle(story) {
   const btn = document.getElementById('ap-pin-btn');
   if (lbl) lbl.textContent = pinned ? 'PINNED ✓' : 'PIN TO ANALYST';
   if (btn) { btn.style.background = pinned?'rgba(74,222,128,.12)':'rgba(74,222,128,.05)'; btn.style.borderColor = pinned?'rgba(74,222,128,.45)':'rgba(74,222,128,.2)'; btn.style.color = pinned?'#4ADE80':'rgba(74,222,128,.7)'; }
+  // Pin-to-RELIEF for this story (independent pool)
+  if (typeof _setReliefPanelButton === 'function') _setReliefPanelButton({ type: 'story', story });
   if (G && story.lat != null && story.lng != null && !isNaN(story.lat) && !isNaN(story.lng)) {
     G.controls().autoRotate = false;
     G.pointOfView({lat: story.lat, lng: story.lng, altitude: 1.55}, 1400);
