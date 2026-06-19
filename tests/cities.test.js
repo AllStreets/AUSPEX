@@ -4,7 +4,7 @@ const cities = JSON.parse(readFileSync(new URL('../data/cities-1000.json', impor
 describe('cities-1000.json', () => {
   it('has at least 800 entries', () => expect(cities.length).toBeGreaterThan(800));
   it('every entry has valid fields', () => {
-    const ALLOWED = ['capital','financial','port','military','naval','energy','diplomatic','city'];
+    const ALLOWED = ['capital','financial','tech','tourism','port','megacity','military','naval','energy','diplomatic','city'];
     cities.forEach(c => {
       expect(typeof c.lat).toBe('number');
       expect(typeof c.lng).toBe('number');

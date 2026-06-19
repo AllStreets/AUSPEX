@@ -582,6 +582,77 @@ function initGlobe() {
   });
 
   window.addEventListener('resize', () => G.width(innerWidth).height(innerHeight));
+
+  // Textured Moon orbiting the Earth (globe.gl custom THREE layer + rAF orbit).
+  initMoon(G);
+}
+
+// ═══════════════════════════════════════════
+// MOON — real-textured sphere orbiting Earth
+// ═══════════════════════════════════════════
+// globe.gl bundles three (rev exposed via window.__THREE__). It does not expose
+// the THREE namespace globally, so we load a matching ES-module build and add a
+// sphere mesh through globe.gl's customLayer API. Globe internal radius = 100u.
+const MOON_RADIUS      = 30;    // slightly larger than realistic (27u) for presence
+const MOON_ORBIT_R     = 280;   // orbit radius around Earth's centre (units)
+const MOON_ORBIT_SECS  = 80;    // one orbit ≈ 80s — clearly visible, not frantic
+const MOON_INCLINATION = 0.32;  // ~18° orbital inclination (radians)
+const MOON_TEX_URL     = 'https://cdn.jsdelivr.net/gh/mrdoob/three.js/examples/textures/planets/moon_1024.jpg';
+let _moonMesh = null;
+let _moonRAF  = null;
+
+async function initMoon(G) {
+  if (_moonMesh) return;                       // guard against double-init
+  try {
+    const rev = window.__THREE__ || '183';
+    const THREE = await import(`https://cdn.jsdelivr.net/npm/three@0.${rev}.0/build/three.module.js`);
+
+    const geo = new THREE.SphereGeometry(MOON_RADIUS, 48, 48);
+    const tex = new THREE.TextureLoader().load(MOON_TEX_URL);
+    if ('colorSpace' in tex) tex.colorSpace = THREE.SRGBColorSpace;
+    // Phong so the moon reads as a lit sphere; emissive floor guarantees it's
+    // never fully black even if the globe scene has minimal lighting.
+    const mat = new THREE.MeshPhongMaterial({
+      map: tex,
+      shininess: 2,
+      emissive: new THREE.Color(0x222428),
+      emissiveMap: tex,
+      emissiveIntensity: 0.35,
+    });
+    _moonMesh = new THREE.Mesh(geo, mat);
+    _moonMesh.name = 'auspex-moon';
+    window._auspexMoon = _moonMesh;   // introspection hook (orbit/debug)
+
+    // A soft directional light so the lit/shadow terminator is visible.
+    const moonLight = new THREE.DirectionalLight(0xffffff, 0.9);
+    moonLight.position.set(1, 0.4, 1);
+    const moonGroup = new THREE.Group();
+    moonGroup.name = 'auspex-moon-group';
+    moonGroup.add(_moonMesh);
+    moonGroup.add(moonLight);
+    moonGroup.add(new THREE.AmbientLight(0xffffff, 0.25));
+
+    // Mount via globe.gl's custom layer (single static datum; we animate the
+    // mesh ourselves so depth/occlusion against the Earth stays correct).
+    G.customLayerData([{}])
+     .customThreeObject(() => moonGroup)
+     .customThreeObjectUpdate(() => {});
+
+    const t0 = performance.now();
+    const animateMoon = (now) => {
+      const t = (now - t0) / 1000;
+      const a = (t / MOON_ORBIT_SECS) * Math.PI * 2;       // orbital angle
+      const x = Math.cos(a) * MOON_ORBIT_R;
+      const z = Math.sin(a) * MOON_ORBIT_R;
+      const y = Math.sin(a) * MOON_ORBIT_R * Math.sin(MOON_INCLINATION);
+      _moonMesh.position.set(x, y, z);
+      _moonMesh.rotation.y += 0.0015;                       // slow tidal spin
+      _moonRAF = requestAnimationFrame(animateMoon);
+    };
+    _moonRAF = requestAnimationFrame(animateMoon);
+  } catch (err) {
+    console.warn('[AUSPEX] Moon init failed:', err);
+  }
 }
 
 function refreshGlobeData(stories) {
