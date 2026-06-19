@@ -648,6 +648,11 @@ function _updateAllGlobeElementsNow() {
     })
     .ringRepeatPeriod(r => r._auspex ? 1400 : r._region ? 4000 : (r.cat === 'finance' || r.cat === 'climate') ? 1600 : 900)
     .ringAltitude(0.006);
+
+  // Refresh arcs so honest connection links (computeAuspexLinkArcs) appear/update
+  // whenever events change — e.g. after the snapshot loads asynchronously. This
+  // merges with the existing meaningful/overlay arcs; it does not replace them.
+  if (typeof refreshArcs === 'function') refreshArcs();
 }
 
 function showEqInfo(eq) {
@@ -740,7 +745,31 @@ function openAuspexEventCard(event) {
   set('ap-time', event.occurredAt ? new Date(event.occurredAt).toLocaleString() : '');
   set('ap-region', `${event.metric?.label ?? ''}: ${event.metric?.value ?? ''} (${event.metric?.band ?? ''})`);
   set('ap-lead', event.brief || '');
-  set('ap-text', '');
+  // Connected events — honest "nearby in space & time" links, clickable.
+  const _connected = (Array.isArray(event.links) ? event.links : [])
+    .map(id => SNAPSHOT_EVENTS.find(e => e.id === id))
+    .filter(Boolean);
+  if (_connected.length) {
+    const esc = s => String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const items = _connected.map(e =>
+      `<span class="ap-conn-item" role="button" tabindex="0" data-eid="${esc(e.id)}" style="display:block;text-align:left;border-left:2px solid ${_connectionColor()}66;padding:4px 0 4px 9px;margin:3px 0;cursor:pointer;opacity:.85">${esc(e.title || e.type || 'Event')}</span>`
+    ).join('');
+    set('ap-text',
+      `<span class="ap-conn" style="display:block;margin-top:12px">
+        <span style="display:block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;opacity:.6;margin-bottom:5px">Nearby in space &amp; time</span>
+        ${items}
+      </span>`);
+    const txtEl = document.getElementById('ap-text');
+    if (txtEl) txtEl.querySelectorAll('.ap-conn-item').forEach(btn => {
+      btn.addEventListener('click', ev => {
+        ev.stopPropagation();
+        const target = SNAPSHOT_EVENTS.find(e => e.id === btn.getAttribute('data-eid'));
+        if (target) openAuspexEventCard(target);
+      });
+    });
+  } else {
+    set('ap-text', '');
+  }
   const cdot = document.getElementById('ap-cdot'); if (cdot) cdot.style.background = sevColor;
   const coords = document.getElementById('ap-coords');
   if (coords && event.lat != null && !isNaN(event.lat)) {
@@ -992,6 +1021,46 @@ function computeMeaningfulArcs(stories) {
   }
   _arcCacheResult = arcs.sort((a,b) => b.strength - a.strength).slice(0, 18);
   return _arcCacheResult;
+}
+
+// ═══════════════════════════════════════════
+// CONNECTION ARCS — honest links between AUSPEX events
+// Events carry `.links` (ids of events nearby in space & time, set by the
+// worker via src/connect.js). We draw each unordered pair once, as a quiet,
+// thin, low-opacity arc in the aura/connection colour. They whisper, not shout.
+// ═══════════════════════════════════════════
+function _connectionColor() {
+  try {
+    const v = getComputedStyle(document.documentElement).getPropertyValue('--aura').trim();
+    if (v) return v;
+  } catch (e) {}
+  return '#34E08A'; // soft cyan-green fallback
+}
+
+function computeAuspexLinkArcs() {
+  if (!snapshotVisible || !SNAPSHOT_EVENTS.length) return [];
+  const byId = new Map();
+  SNAPSHOT_EVENTS.forEach(e => { if (e && typeof e.id === 'string') byId.set(e.id, e); });
+  const seen = new Set();
+  const col = _connectionColor();
+  const arcs = [];
+  for (const a of SNAPSHOT_EVENTS) {
+    if (!a || !Array.isArray(a.links)) continue;
+    for (const bId of a.links) {
+      const b = byId.get(bId);
+      if (!b) continue;
+      const key = a.id < bId ? `${a.id}|${bId}` : `${bId}|${a.id}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      arcs.push({
+        slat: a.lat, slng: a.lng, elat: b.lat, elng: b.lng,
+        // Low-alpha, fade toward the far end — subtle thread, not a beam.
+        c1: col + '4D', c2: col + '0D',
+        _link: true,
+      });
+    }
+  }
+  return arcs;
 }
 
 function applyMeaningfulArcs(stories) {
