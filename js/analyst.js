@@ -147,8 +147,9 @@ function pinGeoAsset(geoType, obj) {
     updateAnalystStatus();
     return;
   }
-  const typeColors = { city:'#E8D5A3', capital:'#E8D5A3', financial:'#FFD60A', military:'#FF6D00',
-    naval:'#2979FF', port:'#00BCD4', conflict:'#FF2D55', energy:'#FF9F0A',
+  const typeColors = { city:'#8FA0E8', capital:'#E8D5A3', financial:'#FFD60A', tech:'#9D8CFF',
+    tourism:'#FF8FA3', megacity:'#9FB3C8', military:'#FF6D00',
+    naval:'#2979FF', port:'#2DD4BF', conflict:'#FF2D55', energy:'#FFB02E',
     diplomatic:'#30D158', country:'#B163E0', base:'#FF6D00' };
   const color = typeColors[obj.icon_type] || typeColors[geoType] || '#8A93C8';
 
@@ -158,7 +159,7 @@ function pinGeoAsset(geoType, obj) {
 
   let summary = '';
   if (geoType === 'city') {
-    const typeLbl = { capital:'Capital city', financial:'Financial hub', military:'Military installation', naval:'Naval base', port:'Port/maritime hub', conflict:'Active conflict zone', energy:'Energy infrastructure', diplomatic:'Diplomatic capital', city:'Major city' };
+    const typeLbl = { capital:'Capital city', financial:'Financial hub', tech:'Technology hub', tourism:'Tourism destination', megacity:'Megacity', military:'Military installation', naval:'Naval base', port:'Port/maritime hub', conflict:'Active conflict zone', energy:'Energy infrastructure', diplomatic:'Diplomatic capital', city:'Major city' };
     summary = `${typeLbl[obj.icon_type]||'Strategic location'} in ${obj.country||'unknown'}. Coordinates: ${(obj.lat||0).toFixed(2)}°N ${(obj.lng||0).toFixed(2)}°E. Strategic tier: ${obj.strategic_tier||'—'}.`;
     if (obj.notes) summary += ` ${obj.notes}`;
   } else if (geoType === 'country') {
@@ -947,7 +948,11 @@ function buildMapKey() {
   }
   if (typeof CITY_DATA !== 'undefined' && CITY_DATA.length && citiesVisible) {
     liveRows.push({ s: 'CITY LAYER (LIVE)' });
-    [...new Set(CITY_DATA.map(c => c.icon_type))].forEach(t => liveRows.push({ dot: '#6674CC', lbl: t.charAt(0).toUpperCase() + t.slice(1) }));
+    const _cityCols = (typeof _CITY_COLORS !== 'undefined') ? _CITY_COLORS : {};
+    const _typePop = {}; CITY_DATA.forEach(c => { _typePop[c.icon_type] = (_typePop[c.icon_type] || 0) + 1; });
+    // Order legend by prevalence so the dominant types lead.
+    Object.keys(_typePop).sort((a, b) => _typePop[b] - _typePop[a]).forEach(t =>
+      liveRows.push({ cityType: t, color: _cityCols[t] || '#8FA0E8', lbl: t.charAt(0).toUpperCase() + t.slice(1) }));
   }
   rows.unshift(...liveRows);
   const shapeClip = { diamond:'polygon(50% 0%,100% 50%,50% 100%,0% 50%)', triangle:'polygon(50% 0%,100% 100%,0% 100%)', square:'none', hex:'polygon(25% 0%,75% 0%,100% 50%,75% 100%,25% 100%,0% 50%)', star:'polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)' };

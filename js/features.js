@@ -425,7 +425,7 @@ const _CITY_TYPE_SVG = {
   diplomatic: `<svg viewBox="0 0 12 12" width="100%" height="100%"><circle cx="6" cy="6" r="5" stroke="currentColor" stroke-width="1" fill="none"/><ellipse cx="6" cy="6" rx="2.5" ry="5" stroke="currentColor" stroke-width="0.8" fill="none"/><line x1="1" y1="6" x2="11" y2="6" stroke="currentColor" stroke-width="0.8"/></svg>`,
   city:       `<svg viewBox="0 0 12 12" width="100%" height="100%"><rect x="1.5" y="5.5" width="9" height="6" fill="currentColor" opacity=".75"/><rect x="3.5" y="2.5" width="5" height="3" fill="currentColor"/></svg>`,
 };
-const _CITY_COL = { capital:'#E8D5A3', financial:'#FFD60A', military:'#FF6D00', naval:'#2979FF', port:'#00BCD4', conflict:'#FF2D55', energy:'#FF9F0A', diplomatic:'#30D158', city:'#6674CC' };
+const _CITY_COL = { capital:'#E8D5A3', financial:'#FFD60A', tech:'#9D8CFF', tourism:'#FF8FA3', megacity:'#9FB3C8', military:'#FF6D00', naval:'#2979FF', port:'#2DD4BF', conflict:'#FF2D55', energy:'#FFB02E', diplomatic:'#30D158', city:'#8FA0E8' };
 const _CITY_TYPE_LBL = { capital:'CAPITAL CITY', financial:'FINANCIAL CENTRE', military:'MILITARY BASE', naval:'NAVAL BASE', port:'PORT / MARITIME HUB', conflict:'CONFLICT ZONE', energy:'ENERGY HUB', diplomatic:'DIPLOMATIC CAPITAL', city:'MAJOR CITY' };
 
 // Refresh the city panel's Pin-to-RELIEF button to reflect its pinned state.

@@ -245,20 +245,39 @@ const _WORLD_COUNTRIES = [
 // CITY MARKER — icon-based, Supabase-backed
 // ═══════════════════════════════════════════
 const _CITY_ICONS = {
-  capital:    `<svg viewBox="0 0 12 12" width="100%" height="100%"><polygon points="6,0.5 7.4,4.2 11.3,4.2 8.2,6.5 9.4,10.3 6,8 2.6,10.3 3.8,6.5 0.7,4.2 4.6,4.2" fill="currentColor"/></svg>`,
-  financial:  `<svg viewBox="0 0 12 12" width="100%" height="100%"><rect x="0.5" y="7.5" width="2.2" height="4" fill="currentColor"/><rect x="3.5" y="5" width="2.2" height="6.5" fill="currentColor"/><rect x="6.5" y="2.5" width="2.2" height="9" fill="currentColor"/><rect x="9.5" y="4.5" width="2" height="7" fill="currentColor"/></svg>`,
+  // Capital — the gold star (kept; user favourite), tightened points for clean small render.
+  capital:    `<svg viewBox="0 0 12 12" width="100%" height="100%"><polygon points="6,0.6 7.36,4.18 11.2,4.3 8.15,6.66 9.25,10.4 6,8.2 2.75,10.4 3.85,6.66 0.8,4.3 4.64,4.18" fill="currentColor"/></svg>`,
+  // Financial — a tidy bar-chart with a baseline, reads as markets/exchange.
+  financial:  `<svg viewBox="0 0 12 12" width="100%" height="100%"><line x1="1" y1="10.4" x2="11" y2="10.4" stroke="currentColor" stroke-width="0.9" opacity=".55"/><rect x="1.7" y="6.6" width="1.7" height="3.6" rx="0.4" fill="currentColor"/><rect x="4.4" y="4.4" width="1.7" height="5.8" rx="0.4" fill="currentColor"/><rect x="7.1" y="2.2" width="1.7" height="8" rx="0.4" fill="currentColor"/><path d="M2.4 6 L5 4 L7.8 5 L10.4 1.8" stroke="currentColor" stroke-width="0.85" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity=".9"/></svg>`,
+  // Tech — a crisp CPU / microchip with pins.
+  tech:       `<svg viewBox="0 0 12 12" width="100%" height="100%"><rect x="3" y="3" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1" fill="none"/><rect x="4.9" y="4.9" width="2.2" height="2.2" rx="0.4" fill="currentColor"/><g stroke="currentColor" stroke-width="0.95" stroke-linecap="round"><line x1="4.5" y1="3" x2="4.5" y2="1.4"/><line x1="6" y1="3" x2="6" y2="1.4"/><line x1="7.5" y1="3" x2="7.5" y2="1.4"/><line x1="4.5" y1="9" x2="4.5" y2="10.6"/><line x1="6" y1="9" x2="6" y2="10.6"/><line x1="7.5" y1="9" x2="7.5" y2="10.6"/><line x1="3" y1="4.5" x2="1.4" y2="4.5"/><line x1="3" y1="6" x2="1.4" y2="6"/><line x1="3" y1="7.5" x2="1.4" y2="7.5"/><line x1="9" y1="4.5" x2="10.6" y2="4.5"/><line x1="9" y1="6" x2="10.6" y2="6"/><line x1="9" y1="7.5" x2="10.6" y2="7.5"/></g></svg>`,
+  // Tourism — a classical monument / landmark column, clearly "place to see".
+  tourism:    `<svg viewBox="0 0 12 12" width="100%" height="100%"><path d="M6 0.8 L10.3 3.6 H1.7 Z" fill="currentColor"/><rect x="2.2" y="3.9" width="7.6" height="0.9" rx="0.3" fill="currentColor"/><g fill="currentColor"><rect x="2.9" y="5" width="1.1" height="4.2"/><rect x="5.45" y="5" width="1.1" height="4.2"/><rect x="8" y="5" width="1.1" height="4.2"/></g><rect x="1.7" y="9.4" width="8.6" height="1" rx="0.3" fill="currentColor"/></svg>`,
+  // Port — anchor (refined, even strokes for small sizes).
+  port:       `<svg viewBox="0 0 12 12" width="100%" height="100%"><circle cx="6" cy="2.4" r="1.3" stroke="currentColor" stroke-width="1.05" fill="none"/><line x1="6" y1="3.7" x2="6" y2="10.1" stroke="currentColor" stroke-width="1.15" stroke-linecap="round"/><line x1="3.7" y1="5.2" x2="8.3" y2="5.2" stroke="currentColor" stroke-width="1.05" stroke-linecap="round"/><path d="M2.3 7.3 c0.5 2.2 2.1 3.1 3.7 3.1 s3.2-0.9 3.7-3.1" stroke="currentColor" stroke-width="1.15" fill="none" stroke-linecap="round"/><line x1="1.9" y1="7.3" x2="3" y2="6.9" stroke="currentColor" stroke-width="1.05" stroke-linecap="round"/><line x1="10.1" y1="7.3" x2="9" y2="6.9" stroke="currentColor" stroke-width="1.05" stroke-linecap="round"/></svg>`,
+  // Energy — lightning bolt (kept concept, balanced for small sizes).
+  energy:     `<svg viewBox="0 0 12 12" width="100%" height="100%"><polygon points="6.9,0.8 2.8,6.7 5.7,6.7 4.7,11.2 9.3,4.9 6.2,4.9" fill="currentColor"/></svg>`,
+  // Megacity — a refined skyline cluster of towers.
+  megacity:   `<svg viewBox="0 0 12 12" width="100%" height="100%"><g fill="currentColor"><rect x="1.2" y="6.2" width="2" height="4.6" rx="0.3"/><rect x="3.6" y="3.6" width="2.1" height="7.2" rx="0.3"/><rect x="6.2" y="1.6" width="2.2" height="9.2" rx="0.3"/><rect x="8.9" y="4.8" width="1.9" height="6" rx="0.3"/></g><path d="M7.3 1.6 V0.6" stroke="currentColor" stroke-width="0.8" stroke-linecap="round"/><g fill="#0a0c1e" opacity=".55"><rect x="6.8" y="3" width="0.6" height="0.8"/><rect x="7.7" y="3" width="0.6" height="0.8"/><rect x="6.8" y="4.6" width="0.6" height="0.8"/><rect x="7.7" y="4.6" width="0.6" height="0.8"/></g></svg>`,
+  // City (generic default) — a crisp ringed dot, NOT the heavy lavender square.
+  city:       `<svg viewBox="0 0 12 12" width="100%" height="100%"><circle cx="6" cy="6" r="4.4" stroke="currentColor" stroke-width="1.1" fill="none" opacity=".7"/><circle cx="6" cy="6" r="1.9" fill="currentColor"/></svg>`,
+  // ── Legacy event-marker types kept for backwards-compat ──
   military:   `<svg viewBox="0 0 12 12" width="100%" height="100%"><path d="M6 1L1.5 3.5V7c0 2.2 2 4 4.5 4.5C10 11 10.5 9.2 10.5 7V3.5Z" fill="currentColor"/><path d="M4 6.2l1.5 1.5L8.5 4.5" stroke="#0a0c18" stroke-width="1.2" fill="none" stroke-linecap="round"/></svg>`,
   naval:      `<svg viewBox="0 0 12 12" width="100%" height="100%"><path d="M6 1v3M4.5 4h3M2.5 6.5l1 3.5h5l1-3.5C8.5 6 7 5.5 6 5.5S3.5 6 2.5 6.5z" stroke="currentColor" stroke-width="1.1" fill="none" stroke-linecap="round"/><path d="M1.5 10c1 .8 2 1 4.5 1s3.5-.2 4.5-1" stroke="currentColor" stroke-width="1" fill="none"/></svg>`,
-  port:       `<svg viewBox="0 0 12 12" width="100%" height="100%"><circle cx="6" cy="2.5" r="1.5" stroke="currentColor" stroke-width="1" fill="none"/><line x1="6" y1="4" x2="6" y2="10" stroke="currentColor" stroke-width="1.1"/><path d="M2.5 7.5c1 2 6 2 7 0" stroke="currentColor" stroke-width="1.1" fill="none"/><line x1="3" y1="5.5" x2="9" y2="5.5" stroke="currentColor" stroke-width="1"/></svg>`,
   conflict:   `<svg viewBox="0 0 12 12" width="100%" height="100%"><polygon points="6,1 11.5,11 0.5,11" fill="currentColor"/><text x="5.1" y="10.2" font-size="5.5" font-weight="bold" fill="#0a0c18" font-family="monospace">!</text></svg>`,
-  energy:     `<svg viewBox="0 0 12 12" width="100%" height="100%"><polygon points="7,0.5 3,6.5 6,6.5 5,11.5 9.5,5 6.5,5" fill="currentColor"/></svg>`,
   diplomatic: `<svg viewBox="0 0 12 12" width="100%" height="100%"><circle cx="6" cy="6" r="5" stroke="currentColor" stroke-width="1" fill="none"/><ellipse cx="6" cy="6" rx="2.5" ry="5" stroke="currentColor" stroke-width="0.8" fill="none"/><line x1="1" y1="6" x2="11" y2="6" stroke="currentColor" stroke-width="0.8"/><line x1="1.8" y1="3.5" x2="10.2" y2="3.5" stroke="currentColor" stroke-width="0.6" opacity=".6"/><line x1="1.8" y1="8.5" x2="10.2" y2="8.5" stroke="currentColor" stroke-width="0.6" opacity=".6"/></svg>`,
-  city:       `<svg viewBox="0 0 12 12" width="100%" height="100%"><rect x="1.5" y="5.5" width="9" height="6" fill="currentColor" opacity=".75"/><rect x="3.5" y="2.5" width="5" height="3" fill="currentColor"/><rect x="4.5" y="7" width="1.5" height="2.5" fill="#0a0c1e"/><rect x="6" y="7" width="1.5" height="2.5" fill="#0a0c1e"/></svg>`,
 };
 const _CITY_COLORS = {
-  capital:'#E8D5A3', financial:'#FFD60A', military:'#FF6D00',
-  naval:'#2979FF',   port:'#00BCD4',      conflict:'#FF2D55',
-  energy:'#FF9F0A',  diplomatic:'#30D158', city:'#6674CC',
+  capital:'#E8D5A3',  // warm gold star (kept)
+  financial:'#FFD60A',// gold — markets
+  tech:'#9D8CFF',     // cool cyan-violet — silicon
+  tourism:'#FF8FA3',  // warm coral/pink — landmarks
+  port:'#2DD4BF',     // teal — water/trade
+  energy:'#FFB02E',   // amber — power
+  megacity:'#9FB3C8', // soft slate — dense urban
+  city:'#8FA0E8',     // calm periwinkle dot (lighter, not the heavy square)
+  // legacy event types
+  military:'#FF6D00', naval:'#2979FF', conflict:'#FF2D55', diplomatic:'#30D158',
 };
 function makeCityMarker(city) {
   const type   = city.icon_type || 'city';

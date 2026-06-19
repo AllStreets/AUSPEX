@@ -81,8 +81,9 @@ function pinToRelief(geoType, obj) {
     _reliefAfterPinChange();
     return;
   }
-  const typeColors = { city:'#E8D5A3', capital:'#E8D5A3', financial:'#FFD60A', military:'#FF6D00',
-    naval:'#2979FF', port:'#00BCD4', conflict:'#FF2D55', energy:'#FF9F0A',
+  const typeColors = { city:'#8FA0E8', capital:'#E8D5A3', financial:'#FFD60A', tech:'#9D8CFF',
+    tourism:'#FF8FA3', megacity:'#9FB3C8', military:'#FF6D00',
+    naval:'#2979FF', port:'#2DD4BF', conflict:'#FF2D55', energy:'#FFB02E',
     diplomatic:'#30D158', country:'#B163E0', region:'#34D399', event:'#FB923C', base:'#FF6D00' };
   const color = typeColors[obj.icon_type] || typeColors[geoType] || '#34D399';
 
