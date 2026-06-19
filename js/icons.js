@@ -48,3 +48,42 @@ const AUSPEX_EVENT_ICONS = {
 function auspexEventIcon(key) {
   return (key && AUSPEX_EVENT_ICONS[key]) || AUSPEX_EVENT_ICONS.default;
 }
+
+// ═══════════════════════════════════════════
+// AUSPEX EVENT COLORS
+// Per-type hues so every event reads distinctly on the dark globe — color
+// encodes TYPE, while severity encodes SIZE/glow elsewhere. A high-severity
+// peril override keeps "red = genuinely dangerous" legible. Single source of
+// truth for event color across globe markers, map key and the event card.
+// ═══════════════════════════════════════════
+const AUSPEX_EVENT_COLORS = {
+  // ── PERILS ──────────────────────────────
+  earthquake: '#E0903A',
+  volcano:    '#FF5A36',
+  flood:      '#3B9EFF',
+  cyclone:    '#5EEAD4',
+  fire:       '#FF7A1A',
+  drought:    '#D6B24A',
+  disaster:   '#FF8C66', // generic peril fallback
+
+  // ── BREAKTHROUGHS ───────────────────────
+  launch:       '#8BA0FF',
+  space:        '#8BA0FF',
+  medical:      '#FF74A8',
+  physics:      '#A78BFA',
+  science:      '#67E8F9',
+  financial:    '#FACC4D',
+  tech:         '#93A4FF',
+  breakthrough: '#5AC8FA', // generic breakthrough fallback
+};
+
+// Resolve an event's display color. Genuinely severe perils always read red;
+// otherwise color is determined by the event's type/icon, with a per-polarity
+// fallback for anything unmatched.
+function auspexEventColor(event) {
+  if (!event) return AUSPEX_EVENT_COLORS.breakthrough;
+  if (event.polarity === 'peril' && (event.severity ?? 0) >= 0.7) return '#FF4D5E';
+  const byType = AUSPEX_EVENT_COLORS[event.icon || event.type];
+  if (byType) return byType;
+  return event.polarity === 'peril' ? AUSPEX_EVENT_COLORS.disaster : AUSPEX_EVENT_COLORS.breakthrough;
+}

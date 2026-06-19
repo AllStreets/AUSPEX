@@ -306,9 +306,11 @@ function makeMarker(story) {
 // ═══════════════════════════════════════════
 function makeAuspexEventMarker(event) {
   const sev = event.severity ?? 0;
-  const color = event.polarity === 'breakthrough'
-    ? (sev > 0.7 ? '#5AC8FA' : '#007AFF')
-    : (sev > 0.7 ? '#FF2D55' : sev > 0.4 ? '#FF9F0A' : '#FFD60A');
+  // Color encodes TYPE (single source: auspexEventColor); severity still drives
+  // SIZE and glow intensity below, so both dimensions stay legible at a glance.
+  const color = (typeof auspexEventColor === 'function')
+    ? auspexEventColor(event)
+    : (event.polarity === 'breakthrough' ? '#5AC8FA' : '#FF8C66');
   const size = 8 + sev * 14;
   const glyph = size + 6; // glyph slightly larger than the legacy core dot
   const unconfirmed = event.confidence === 'unconfirmed';
@@ -823,9 +825,11 @@ function openAuspexEventCard(event) {
   const panel = document.getElementById('art-panel');
   if (!panel) return;
   const sev = event.severity ?? 0;
-  const sevColor = event.polarity === 'breakthrough'
-    ? (sev > 0.7 ? '#5AC8FA' : '#007AFF')
-    : (sev > 0.7 ? '#FF2D55' : sev > 0.4 ? '#FF9F0A' : '#FFD60A');
+  // Type-distinct color (with high-severity peril red override) — matches the
+  // globe marker and the live map key.
+  const sevColor = (typeof auspexEventColor === 'function')
+    ? auspexEventColor(event)
+    : (event.polarity === 'breakthrough' ? '#5AC8FA' : '#FF8C66');
   const confirmed = event.confidence === 'confirmed';
   const set = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
   if (G && event.lat != null && event.lng != null && !isNaN(event.lat) && !isNaN(event.lng)) {
