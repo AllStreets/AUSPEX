@@ -5,7 +5,7 @@
 // dedupes by normalized title, and returns a unified array.
 // ═══════════════════════════════════════════
 
-import { isJunk } from '../src/newsjunk.js';
+import { isJunk, isLowQualitySource } from '../src/newsjunk.js';
 
 // Normalized article shape the frontend pipeline expects:
 // { title, description, url, source, publishedAt, urlToImage, origin, sourcecountry? }
@@ -128,6 +128,9 @@ export async function fetchAllNews() {
   for (const a of all) {
     if (!a.title || !a.url) continue;
     if (a.title === '[Removed]') continue;
+    // Drop non-news / low-quality SOURCE domains (auction listings, package
+    // registries, PR wires, tabloids) by domain, regardless of headline.
+    if (isLowQualitySource(a.url, a.source)) continue;
     // Drop advertisements, PR/marketing fluff, and pop-culture/celebrity noise
     // before they ever reach the client. PRIORITY signals override junk so
     // legitimate geopolitics/economy/disaster/science/health is never dropped.

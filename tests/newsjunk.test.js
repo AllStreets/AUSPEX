@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isJunk, filterJunkArticles, PRIORITY_RE, JUNK_RE } from '../src/newsjunk.js';
+import { isJunk, filterJunkArticles, isLowQualitySource, SOURCE_DENYLIST, PRIORITY_RE, JUNK_RE } from '../src/newsjunk.js';
 
 describe('isJunk — drops advertisements / commerce', () => {
   const ads = [
@@ -77,5 +77,62 @@ describe('filterJunkArticles', () => {
     expect(filterJunkArticles(arts).map((a) => a.title)).toEqual([
       'NATO summit addresses escalating conflict',
     ]);
+  });
+
+  it('also drops low-quality SOURCE domains regardless of headline', () => {
+    const arts = [
+      // Legit-sounding geopolitical headline but from a denylisted PR wire.
+      { title: 'Company announces nuclear plant deal in escalating crisis', description: '', source: 'GlobeNewswire', url: 'https://www.globenewswire.com/x' },
+      // Auction listing.
+      { title: '38k-Mile 2011 Mercedes-Benz CL63 AMG', description: '', source: 'Bring a Trailer', url: 'https://bringatrailer.com/listing/x' },
+      // Real outlet, kept.
+      { title: 'NATO summit addresses escalating conflict', description: '', source: 'Reuters', url: 'https://www.reuters.com/world/x' },
+    ];
+    expect(filterJunkArticles(arts).map((a) => a.title)).toEqual([
+      'NATO summit addresses escalating conflict',
+    ]);
+  });
+});
+
+describe('isLowQualitySource — drops non-news / low-quality SOURCE domains', () => {
+  const denied = [
+    ['https://bringatrailer.com/listing/2011-mercedes', 'Bring a Trailer'],
+    ['https://pypi.org/project/uxarray/', 'PyPI'],
+    ['https://www.dailymail.co.uk/news/article-123', 'Daily Mail'],
+    ['https://www.globenewswire.com/news-release/x', 'GlobeNewswire'],
+    ['https://www.prnewswire.com/news-releases/x', 'PR Newswire'],
+    ['https://github.com/org/repo/releases', 'GitHub'],
+    ['https://nypost.com/2026/06/16/x', 'New York Post'],
+    ['https://bitcoinist.com/x', 'Bitcoinist'],
+  ];
+  denied.forEach(([url, src]) =>
+    it(`drops ${src}`, () => expect(isLowQualitySource(url, src)).toBe(true)));
+
+  // Matches by source label when the label itself contains the domain.
+  it('matches by source label when url is missing', () => {
+    expect(isLowQualitySource(null, 'dailymail.com')).toBe(true);
+    expect(isLowQualitySource('', 'bringatrailer.com')).toBe(true);
+  });
+});
+
+describe('isLowQualitySource — KEEPS real outlets / wire services', () => {
+  const kept = [
+    ['https://www.reuters.com/world/middle-east/x', 'Reuters'],
+    ['https://apnews.com/article/x', 'AP'],
+    ['https://www.bbc.com/news/x', 'BBC'],
+    ['https://www.theguardian.com/world/x', 'The Guardian'],
+    ['https://www.nytimes.com/2026/06/16/world/x', 'New York Times'],
+    ['https://www.aljazeera.com/news/x', 'Al Jazeera'],
+    ['https://www.ft.com/content/x', 'Financial Times'],
+    ['https://www.bloomberg.com/news/x', 'Bloomberg'],
+    // gcaptain — maritime trade news — must be KEPT.
+    ['https://gcaptain.com/x', 'gCaptain'],
+  ];
+  kept.forEach(([url, src]) =>
+    it(`keeps ${src}`, () => expect(isLowQualitySource(url, src)).toBe(false)));
+
+  it('SOURCE_DENYLIST is a non-empty Set', () => {
+    expect(SOURCE_DENYLIST instanceof Set).toBe(true);
+    expect(SOURCE_DENYLIST.size).toBeGreaterThan(20);
   });
 });
