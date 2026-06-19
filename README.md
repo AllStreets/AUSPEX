@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src=".github/assets/auspex-banner.svg" alt="AUSPEX — a living instrument for watching over the world" width="100%"/>
+<img src=".github/assets/banner.png" alt="AUSPEX — a living instrument for watching over the world" width="100%"/>
 
 &nbsp;
 
@@ -64,6 +64,9 @@ The heavy work runs **once per event in the worker**, not once per visitor. That
   the instrument
   ├─ living globe ......... NASA day/night marble, breathing green aura that
   │                         shifts with world state — red only on real peril
+  ├─ 1,000 cities ......... typed + readable — capitals (a gold star), finance, tech,
+  │                         ports, tourism, energy, megacities — each its own icon
+  ├─ orbiting moon ........ a real-textured Moon on a normal orbit, for depth and life
   ├─ typed event icons .... quake · volcano · flood · cyclone · fire · drought ·
   │                         launch · medical · physics · science · financial
   ├─ connections .......... real links between events close in space + time,
