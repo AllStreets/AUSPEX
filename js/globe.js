@@ -696,6 +696,10 @@ function updateAllGlobeElements() {
 
 function _updateAllGlobeElementsNow() {
   if (!G) return;
+  // While scrubbing the timeline (not live), the snapshot owns the globe layers.
+  // A background news/poll update must not overwrite the displayed snapshot —
+  // that race caused a flicker where live markers briefly replaced past ones.
+  if (typeof scrubLive !== 'undefined' && !scrubLive) return;
   const allStories = activeCat === 'all' ? NEWS : NEWS.filter(s => s.cat === activeCat);
   // Show the N most recent stories as markers; the full pool is still searchable
   const stories = allStories.slice(0, GLOBE_STORY_LIMIT);
