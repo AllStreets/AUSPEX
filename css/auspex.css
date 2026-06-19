@@ -1321,6 +1321,31 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 .rl-access-marker .rla-bar2{transform:translate(-50%,-50%) rotate(-45deg)}
 .rl-access-sealed .rla-ring{animation:rl-pulse 1.6s ease-in-out infinite}
 
+/* ── RELIEF Tool 9 · Health/Outbreak globe marker (distinct medical-cross style) ── */
+.rl-health-marker .rlh-glow{position:absolute;top:50%;left:50%;width:30px;height:30px;border-radius:50%;background:radial-gradient(circle,var(--rhc) 0%,transparent 70%);opacity:.4;transform:translate(-50%,-50%);animation:rl-pulse 1.9s ease-in-out infinite}
+.rl-health-marker .rlh-badge{position:relative;width:18px;height:18px;border-radius:5px;background:rgba(5,8,9,.9);border:1.5px solid var(--rhc);box-shadow:0 0 10px var(--rhc);display:flex;align-items:center;justify-content:center}
+.rl-health-marker .rlh-cross-v{position:absolute;width:3px;height:11px;background:var(--rhc);border-radius:1px}
+.rl-health-marker .rlh-cross-h{position:absolute;width:11px;height:3px;background:var(--rhc);border-radius:1px}
+.rl-health-marker .rlh-tip{position:absolute;top:120%;left:50%;transform:translateX(-50%);white-space:nowrap;font-family:var(--f-mono);font-size:7.5px;letter-spacing:.08em;color:#dffaee;background:rgba(5,8,9,.92);border:1px solid rgba(255,255,255,.12);padding:3px 6px;border-radius:3px;opacity:0;pointer-events:none;transition:opacity .15s}
+.rl-health-marker:hover .rlh-tip{opacity:1}
+
+/* ── RELIEF Tool 9 · Health list disease tag ── */
+.rl-health-dz{font-family:var(--f-mono);font-size:8px;letter-spacing:.05em;color:#bfe9d6;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.2);padding:1px 6px;border-radius:3px;text-transform:uppercase;vertical-align:middle}
+
+/* ── RELIEF Tool 10 · Civilian Protection ── */
+.rl-prot{display:flex;flex-direction:column;gap:12px;max-width:880px}
+.rl-prot-backdrop{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:6px;padding:8px 12px;border:1px solid rgba(251,146,60,.22);border-radius:6px;background:rgba(251,146,60,.05)}
+.rl-prot-backdrop-lbl{font-family:var(--f-mono);font-size:8px;letter-spacing:.16em;color:#FB923C;margin-right:4px}
+.rl-prot-area{font-family:var(--f-mono);font-size:9px;letter-spacing:.04em;color:#ffd9b8;background:rgba(251,146,60,.1);border:1px solid rgba(251,146,60,.2);padding:2px 7px;border-radius:3px}
+.rl-prot-row{border:1px solid rgba(255,255,255,.08);border-left:3px solid #FB923C;border-radius:6px;padding:12px 14px;background:rgba(255,255,255,.015)}
+.rl-prot-hd{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:8px}
+.rl-prot-concern{font-family:var(--f-ui);font-size:14px;font-weight:700;color:#ffe0cc;letter-spacing:.02em}
+.rl-prot-count{font-family:var(--f-mono);font-size:8px;letter-spacing:.12em;color:#FB923C;flex-shrink:0}
+.rl-prot-stories{display:flex;flex-direction:column;gap:4px;margin-bottom:8px}
+.rl-prot-story{font-family:var(--f-mono);font-size:10px;line-height:1.5;color:#a8c4b6}
+.rl-prot-src{color:#6f8a7d;font-size:8px;letter-spacing:.04em}
+.rl-prot-assess{font-family:var(--f-ui);font-size:12px;line-height:1.7;color:#dffaee;padding-top:7px;border-top:1px solid rgba(255,255,255,.06)}
+
 /* ── RELIEF Tool 7 · Recovery Timeline ── */
 .rl-rec{max-width:840px}
 .rl-rec-summary{font-family:var(--f-ui);font-size:13px;line-height:1.85;color:#dffaee;border-left:3px solid #34D399;padding:6px 0 6px 16px;margin-bottom:24px}

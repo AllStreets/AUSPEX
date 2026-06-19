@@ -467,6 +467,27 @@ function makeReliefAccessMarker(item) {
   return d;
 }
 
+// RELIEF health/outbreak marker (Tool 9) — distinct medical-cross style, phase-coloured.
+const _RELIEF_HEALTH_COL = { 1:'#34D399', 2:'#FACC15', 3:'#FB923C', 4:'#FF4D5E' };
+const _RELIEF_HEALTH_LBL = { 1:'WATCH', 2:'CONCERN', 3:'OUTBREAK', 4:'EMERGENCY' };
+function makeReliefHealthMarker(item) {
+  const phase = Math.max(1, Math.min(4, item.phase || 1));
+  const col = _RELIEF_HEALTH_COL[phase] || '#FACC15';
+  const d = document.createElement('div');
+  d.className = 'rl-health-marker';
+  d.style.cssText = `position:relative;transform:translate(-50%,-50%);pointer-events:auto;cursor:pointer;--rhc:${col}`;
+  d.title = `${item.name || 'Area'} — HEALTH ${_RELIEF_HEALTH_LBL[phase]} (phase ${phase})`;
+  d.innerHTML =
+    `<div class="rlh-glow"></div>` +
+    `<div class="rlh-badge"><span class="rlh-cross-v"></span><span class="rlh-cross-h"></span></div>` +
+    `<div class="rlh-tip">${(item.name || 'AREA').toUpperCase()} · ${_RELIEF_HEALTH_LBL[phase]}</div>`;
+  d.addEventListener('click', e => {
+    e.stopPropagation();
+    if (typeof reliefSelectTool === 'function') { if (typeof openRelief === 'function') openRelief(); reliefSelectTool('health'); }
+  });
+  return d;
+}
+
 // ═══════════════════════════════════════════
 // GLOBE INIT
 // ═══════════════════════════════════════════
@@ -652,6 +673,11 @@ function _updateAllGlobeElementsNow() {
     if (typeof reliefAccessMarkers !== 'undefined' && reliefAccessMarkers.length)
       reliefAccessMarkers.forEach(m => visual.push({ ...m, _type: 'relief_access' }));
   } catch (e) {}
+  // RELIEF health/outbreak markers (Tool 9) — gated to the Health & Outbreak Watch tool.
+  try {
+    if (typeof reliefHealthMarkers !== 'undefined' && reliefHealthMarkers.length)
+      reliefHealthMarkers.forEach(m => visual.push({ ...m, _type: 'relief_health' }));
+  } catch (e) {}
 
   G.htmlElementsData(visual).htmlElement(item => {
     if (item._type === 'earthquake') return makeEqMarker(item);
@@ -684,6 +710,7 @@ function _updateAllGlobeElementsNow() {
     }
     if (item._type === 'relief_famine') return makeReliefFamineMarker(item);
     if (item._type === 'relief_access') return makeReliefAccessMarker(item);
+    if (item._type === 'relief_health') return makeReliefHealthMarker(item);
     if (item._type === 'city') return makeCityMarker(item);
     if (item._type === 'auspex_event') return makeAuspexEventMarker(item);
     if (item._type === 'country') return makeCountryMarker(item);

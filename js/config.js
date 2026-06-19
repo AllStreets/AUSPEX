@@ -36,7 +36,7 @@ const WORKER_BASE =
 // ═══════════════════════════════════════════
 // API KEYS — defined in js/keys.js (gitignored)
 // ═══════════════════════════════════════════
-const NEWS_CACHE_KEY = 'auspex_news_cache_v1';
+const NEWS_CACHE_KEY = 'auspex_news_cache_v2';
 const NEWS_CACHE_TTL = 20 * 60 * 1000; // 20 minutes
 const NEWS_MAX_AGE_MS = 7 * 24 * 3600 * 1000; // 7 days — wider window for dataset accumulation
 
@@ -188,3 +188,4 @@ let _snapshotFetchedAt = 0;
 let reliefArcs = [];            // displacement arcs (Tool 4) — { slat,slng,elat,elng,c1,c2,_relief }
 let reliefFamineMarkers = [];   // food-security zones (Tool 5) — { lat,lng,_relief_famine,... }
 let reliefAccessMarkers = [];   // access/blackout zones (Tool 6) — { lat,lng,_relief_access,... }
+let reliefHealthMarkers = [];   // health/outbreak zones (Tool 9) — { lat,lng,_relief_health,phase,... }
