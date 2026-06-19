@@ -1,8 +1,23 @@
 import { describe, it, expect } from 'vitest';
 import {
   healthScoreToPhase, hasHealthSignal, healthStoryPoints,
-  classifyProtection, PROTECTION_SIGNALS,
+  classifyProtection, PROTECTION_SIGNALS, isPlaceName,
 } from '../src/relief-signals.js';
+
+describe('isPlaceName', () => {
+  it('accepts real place names', () => {
+    expect(isPlaceName('Eastern Ukraine / Donbas'.split('/')[0].trim())).toBe(true);
+    expect(isPlaceName('Sudan')).toBe(true);
+    expect(isPlaceName('Gaza')).toBe(true);
+  });
+  it('rejects source domains and urls', () => {
+    expect(isPlaceName('Abcnews.com')).toBe(false);
+    expect(isPlaceName('The-independent.com')).toBe(false);
+    expect(isPlaceName('plos.org')).toBe(false);
+    expect(isPlaceName('https://x.y/z')).toBe(false);
+    expect(isPlaceName('')).toBe(false);
+  });
+});
 
 describe('healthScoreToPhase', () => {
   it('maps low scores to WATCH (1)', () => {
@@ -56,8 +71,14 @@ describe('classifyProtection', () => {
     expect(classifyProtection('weather is mild today')).toEqual([]);
   });
   it('can match multiple concerns at once', () => {
-    const ids = classifyProtection('war crime alleged as civilians killed and detained');
+    const ids = classifyProtection('war crime alleged as civilians killed and arbitrarily detained');
     expect(ids).toEqual(expect.arrayContaining(['casualties', 'rights', 'detention']));
+  });
+  it('does NOT false-positive on non-humanitarian uses of loose words', () => {
+    // These tripped the old broad keyword list; the tightened taxonomy must ignore them.
+    expect(classifyProtection('US lifts naval blockade on the strait')).toEqual([]);
+    expect(classifyProtection("Entry-level work didn't disappear, PwC finds")).toEqual([]);
+    expect(classifyProtection('refugee stars play in the cup final')).toEqual([]);
   });
   it('every taxonomy entry has id, label and keywords', () => {
     for (const s of PROTECTION_SIGNALS) {

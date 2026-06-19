@@ -297,13 +297,17 @@ function _reliefFocusTokens(f) {
 // Higher is better. Used to rank the (now deeper) relevant-news set.
 function _reliefStoryRelevance(s, f, tokens, hasCoords, radiusKm) {
   const txt = `${s.title || ''} ${s.summary || ''} ${s.region || ''}`.toLowerCase();
-  let score = 0;
-  for (const t of tokens) { if (txt.includes(t)) score += 3; }
+  // Base relevance MUST come from topical (token) or geographic match — a story
+  // with neither is not relevant to the focus, no matter how recent.
+  let base = 0;
+  for (const t of tokens) { if (txt.includes(t)) base += 3; }
   if (hasCoords && typeof s.lat === 'number' && typeof s.lng === 'number') {
     const d = _haversineKm(f.lat, f.lng, s.lat, s.lng);
-    if (d < radiusKm) score += Math.max(0, 4 * (1 - d / radiusKm));
+    if (d < radiusKm) base += Math.max(0, 4 * (1 - d / radiusKm));
   }
-  // Recency nudge — fresher stories rank a little higher within equal relevance.
+  if (base <= 0) return 0;   // no topical/geo link → not focus-relevant
+  // Recency + breaking only BOOST an already-relevant story (rank within set).
+  let score = base;
   const pub = s._pub || 0;
   if (pub) { const ageH = (Date.now() - pub) / 3600000; if (ageH < 72) score += Math.max(0, 1.5 * (1 - ageH / 72)); }
   if (s.brk) score += 0.5;
@@ -325,22 +329,38 @@ async function reliefBuildContext(f) {
   const NEWS_CAP = 30;     // deeper: up to ~30 focus-relevant stories
 
   // News relevant to the focus — ranked by relevance/recency, deeper cap.
-  let news;
+  // We track how many items are genuinely focus-relevant vs ambient filler so
+  // the context text can honestly label the latter (prevents the AI treating
+  // unrelated wider-feed stories as if they were about the focus).
+  let news, focusRelevantCount;
   if (f.kind === 'global') {
     news = [...NEWS_]
       .sort((a, b) => (b._pub || 0) - (a._pub || 0))
       .slice(0, NEWS_CAP);
+    focusRelevantCount = news.length;   // global: all are in-scope
   } else {
     const scored = NEWS_
       .map(s => ({ s, score: _reliefStoryRelevance(s, f, tokens, hasCoords, radiusKm) }))
       .filter(x => x.score > 0)
       .sort((a, b) => b.score - a.score);
     news = scored.map(x => x.s);
+    focusRelevantCount = news.length;
     if (news.length < 6) {
-      // Broaden — keep relevance but ensure the model has material (most recent first)
       const have = new Set(news);
-      const extra = [...NEWS_].filter(s => !have.has(s)).sort((a, b) => (b._pub || 0) - (a._pub || 0)).slice(0, 8 - news.length);
-      news = [...news, ...extra];
+      // Tier 1 broaden — stories geographically near the focus (wider radius)
+      // are far better filler than global noise.
+      let extra = [];
+      if (hasCoords) {
+        extra = NEWS_
+          .filter(s => !have.has(s) && typeof s.lat === 'number' && _haversineKm(f.lat, f.lng, s.lat, s.lng) < radiusKm * 2.6)
+          .sort((a, b) => (b._pub || 0) - (a._pub || 0));
+      }
+      // Tier 2 broaden — most-recent global stories only if still short.
+      if (news.length + extra.length < 6) {
+        const haveAll = new Set([...have, ...extra]);
+        extra = [...extra, ...[...NEWS_].filter(s => !haveAll.has(s)).sort((a, b) => (b._pub || 0) - (a._pub || 0))];
+      }
+      news = [...news, ...extra.slice(0, 8 - news.length)];
     }
     news = news.slice(0, NEWS_CAP);
   }
@@ -378,7 +398,12 @@ async function reliefBuildContext(f) {
         if (!b) continue;
         const k = a.id < bId ? `${a.id}|${bId}` : `${bId}|${a.id}`;
         if (seenLink.has(k)) continue; seenLink.add(k);
-        links.push({ a: a.title || a.brief || a.id, b: b.title || b.brief || bId });
+        const la = a.title || a.brief || a.id;
+        const lb = b.title || b.brief || bId;
+        // Skip pairs whose display labels are identical (duplicate-title events)
+        // so the context never shows a meaningless "A <-> A" connection.
+        if (String(la).trim().toLowerCase() === String(lb).trim().toLowerCase()) continue;
+        links.push({ a: la, b: lb });
       }
     }
   } catch (e) {}
@@ -408,30 +433,68 @@ async function reliefBuildContext(f) {
 
   // HISTORICAL context from Supabase (~2000-row stories table). Pull stories
   // related to the focus so tools see how the situation developed over time.
-  // Best-effort: never blocks the tool — empty on any failure.
+  // The archive title-search matches on `title`, so a compound region name
+  // (e.g. "Eastern Ukraine / Donbas") rarely matches — we instead try a ranked
+  // list of distinctive single-word query candidates (country name, focus
+  // tokens) and take the first that returns material. Best-effort, never blocks.
   let history = [];
+  history = await _reliefFetchHistory(f, tokens, countryRec, regionRec, news);
+
+  return { news, events, links, regionRec, countryRec, history, tokens, radiusKm, focusRelevantCount };
+}
+
+// Stopwords that make poor archive queries (too generic / structural).
+const _RL_HIST_STOP = new Set(['region', 'zone', 'east', 'eastern', 'west', 'western', 'north',
+  'northern', 'south', 'southern', 'central', 'strait', 'sea', 'gulf', 'coast', 'border',
+  'peninsula', 'crisis', 'conflict', 'global', 'area', 'province', 'city', 'state']);
+
+// Resolve focus → ranked archive query candidates, then fetch + geo/relevance-
+// filter historical stories. Pulled out of reliefBuildContext for clarity + test.
+async function _reliefFetchHistory(f, tokens, countryRec, regionRec, liveNews) {
+  if (typeof sbSearchHistory !== 'function') return [];
+  const hasCoords = typeof f.lat === 'number' && !isNaN(f.lat);
+  const liveTitles = new Set((liveNews || []).map(s => (s.title || '').toLowerCase().slice(0, 70)));
+
+  // Build ranked, de-duplicated query candidates.
+  const cands = [];
+  const add = q => { const v = (q || '').trim(); if (v && v.length > 3 && !cands.includes(v)) cands.push(v); };
+  if (countryRec && countryRec.name) add(countryRec.name);   // most reliable (e.g. "Ukraine")
+  if (regionRec && regionRec.name) {
+    // Split a compound region name into distinctive single tokens.
+    regionRec.name.split(/[\s,\/]+/).filter(w => w.length > 3 && !_RL_HIST_STOP.has(w.toLowerCase())).forEach(add);
+  }
+  (tokens || []).filter(t => !_RL_HIST_STOP.has(t)).forEach(add);
+
+  const isGlobalLike = f.kind === 'global' || !cands.length;
   try {
-    if (typeof sbSearchHistory === 'function') {
-      // Seed query from the strongest focus token / region name.
-      const query = (f.region || f.name || '').trim();
-      const isGlobalLike = !query || /^global$/i.test(query);
-      if (!isGlobalLike) {
-        const remote = await sbSearchHistory({ query, days: 120, limit: 24 });
-        // Drop anything already present in the live relevant-news set (by title).
-        const liveTitles = new Set(news.map(s => (s.title || '').toLowerCase().slice(0, 70)));
-        history = (remote || [])
-          .filter(s => !liveTitles.has((s.title || '').toLowerCase().slice(0, 70)))
-          .sort((a, b) => (b._pub || 0) - (a._pub || 0))
-          .slice(0, 14);
-      } else if (typeof sbFetchRelatedHistory === 'function' && news.length) {
-        // Global focus — pull related history off the dominant categories in view.
-        const remote = await sbFetchRelatedHistory(news.slice(0, 8), 14);
-        history = (remote || []).slice(0, 14);
+    if (isGlobalLike) {
+      if (typeof sbFetchRelatedHistory === 'function' && (liveNews || []).length) {
+        const remote = await sbFetchRelatedHistory(liveNews.slice(0, 8), 14);
+        return (remote || []).filter(s => !liveTitles.has((s.title || '').toLowerCase().slice(0, 70))).slice(0, 14);
+      }
+      return [];
+    }
+    // Try candidates in order; accumulate until we have enough, dedupe by title.
+    const seen = new Set(liveTitles);
+    const out = [];
+    for (const q of cands.slice(0, 4)) {
+      if (out.length >= 14) break;
+      let remote;
+      try { remote = await sbSearchHistory({ query: q, days: 180, limit: 24 }); }
+      catch (e) { continue; }
+      for (const s of (remote || [])) {
+        const k = (s.title || '').toLowerCase().slice(0, 70);
+        if (!k || seen.has(k)) continue;
+        // If we have focus coords and the story is geo-tagged, keep it loosely near.
+        if (hasCoords && typeof s.lat === 'number' && !isNaN(s.lat)) {
+          if (_haversineKm(f.lat, f.lng, s.lat, s.lng) > 3000) continue;
+        }
+        seen.add(k);
+        out.push(s);
       }
     }
-  } catch (e) { history = []; }
-
-  return { news, events, links, regionRec, countryRec, history, tokens, radiusKm };
+    return out.sort((a, b) => (b._pub || 0) - (a._pub || 0)).slice(0, 14);
+  } catch (e) { return []; }
 }
 
 // Render context as a compact text block for the model. Grounds AI tools in the
@@ -475,10 +538,21 @@ function _reliefContextText(f, ctx) {
     ctx.links.slice(0, 10).forEach(l => lines.push(`- ${l.a} <-> ${l.b}`));
   }
   if (ctx.news && ctx.news.length) {
-    lines.push('\nRELEVANT NEWS (live feed):');
-    ctx.news.forEach(s => {
-      lines.push(`- [${(s.cat || 'geo').toUpperCase()}] ${s.title}${s.summary ? ' — ' + s.summary : ''} (${s.src || 'src'})`);
-    });
+    const frc = (typeof ctx.focusRelevantCount === 'number') ? ctx.focusRelevantCount : ctx.news.length;
+    const relevant = ctx.news.slice(0, frc);
+    const ambient = ctx.news.slice(frc);
+    if (relevant.length) {
+      lines.push('\nFOCUS-RELEVANT NEWS (live feed):');
+      relevant.forEach(s => {
+        lines.push(`- [${(s.cat || 'geo').toUpperCase()}] ${s.title}${s.summary ? ' — ' + s.summary : ''} (${s.src || 'src'})`);
+      });
+    }
+    if (ambient.length) {
+      lines.push('\nWIDER FEED (ambient context — NOT confirmed specific to this focus; do not treat as local facts):');
+      ambient.forEach(s => {
+        lines.push(`- [${(s.cat || 'geo').toUpperCase()}] ${s.title}${s.summary ? ' — ' + s.summary : ''} (${s.src || 'src'})`);
+      });
+    }
   }
   if (ctx.history && ctx.history.length) {
     lines.push('\nHISTORICAL CONTEXT (archive — how this developed over time):');
@@ -765,8 +839,11 @@ async function reliefNeedsMatrix() {
   const threatMul = { critical: 1.0, high: 0.8, elevated: 0.55 };
   const baseThreat = ctx.regionRec ? (threatMul[ctx.regionRec.threat_level] || 0.4) : 0.3;
 
-  // Combined live + archive news pool for sector scoring (history deepens the signal).
-  const newsPool = [...(ctx.news || []), ...(ctx.history || [])];
+  // Combined live + archive news pool for sector scoring (history deepens the
+  // signal). Use only FOCUS-RELEVANT live news (exclude ambient broadened filler)
+  // so sector scores trace to real focus signals, not unrelated wider-feed noise.
+  const frc = (typeof ctx.focusRelevantCount === 'number') ? ctx.focusRelevantCount : (ctx.news || []).length;
+  const newsPool = [...(ctx.news || []).slice(0, frc), ...(ctx.history || [])];
 
   // Per-sector raw signals
   const rows = _RL_MX_SECTORS.map(sec => {
@@ -1713,6 +1790,18 @@ function _rlHealthScoreToPhase(score) {
   return s >= 3.2 ? 4 : s >= 2.0 ? 3 : s >= 1.0 ? 2 : 1;
 }
 
+// A region string is a usable PLACE label only if it does not look like a
+// source domain / URL (some archived stories carry the publisher domain in the
+// region field, e.g. "Abcnews.com"). Surfacing a website as an affected area
+// would be a data mismatch, so we reject those and fall back to the focus.
+function _rlValidPlace(name) {
+  const n = String(name || '').trim();
+  if (n.length < 2) return false;
+  if (/\.(com|org|net|co|io|gov|edu|news|tv|info|uk|us)\b/i.test(n)) return false; // domain-like
+  if (/https?:|www\.|@|\//.test(n)) return false;                                  // url-like
+  return true;
+}
+
 // Map a disease keyword found in text → a short disease label for display.
 function _rlHealthDisease(txt) {
   const named = ['cholera', 'measles', 'ebola', 'marburg', 'dengue', 'malaria', 'polio', 'mpox',
@@ -1758,11 +1847,15 @@ function _rlBuildHealth(f) {
         || (hasCoords && typeof s.lat === 'number' && _haversineKm(f.lat, f.lng, s.lat, s.lng) < radiusKm);
       if (!rel) return;
     }
-    const areaName = s.region || (focused ? f.name : 'Global signal');
+    // Truthful area label: a real place if the region is one, else the focus
+    // (focused) or the disease itself (global) — never a source domain.
+    const disease = _rlHealthDisease(txt);
+    const areaName = (_rlValidPlace(s.region) ? s.region : null)
+      || (focused ? f.name : (disease.charAt(0).toUpperCase() + disease.slice(1) + ' — reported'));
     const a = pushArea(areaName, s.lat, s.lng);
     if (!a) return;
     a.newsHits.push(s);
-    a.diseases.add(_rlHealthDisease(txt));
+    a.diseases.add(disease);
     a.drivers.add('Disease/health news signals');
     let pts = 1.0;
     if (_RL_HEALTH_ACUTE.some(k => txt.includes(k))) pts += 0.8;
@@ -1904,14 +1997,18 @@ async function reliefHealth() {
 // Produces a ranked list of protection concerns, each with an honest AI
 // assessment — grounded, sourced, no sensationalism. No globe layer (analytic).
 // Taxonomy mirrors src/relief-signals.js PROTECTION_SIGNALS (the tested source).
+// Keywords are deliberately specific to humanitarian protection: bare words like
+// "blockade" (matches a naval blockade), "disappear" ("jobs disappear"), "fled"
+// or "refugee" (matches sports/business copy) caused false positives in live
+// testing, so each entry requires a civilian-harm phrasing.
 const _RL_PROT_SIGNALS = [
-  { id: 'casualties',   label: 'Civilian casualties',       kw: ['civilian casualt', 'civilians killed', 'civilian deaths', 'civilians dead', 'killed civilians'] },
-  { id: 'health_ed',    label: 'Attacks on hospitals/schools', kw: ['hospital hit', 'attack on hospital', 'hospital struck', 'school hit', 'attack on school', 'clinic struck', 'medical facility'] },
-  { id: 'siege',        label: 'Siege / blockade of aid',   kw: ['siege', 'blockade', 'aid blocked', 'starvation as weapon', 'besieged', 'aid denied', 'humanitarian blockade'] },
-  { id: 'displacement', label: 'Forced displacement',       kw: ['forcibly displaced', 'mass displacement', 'fled', 'forced to flee', 'expelled', 'ethnic cleansing'] },
-  { id: 'detention',    label: 'Detention / disappearance', kw: ['detained', 'detention', 'disappear', 'abduct', 'arbitrary arrest', 'hostage'] },
-  { id: 'rights',       label: 'Human-rights violations',   kw: ['human rights', 'war crime', 'atrocit', 'torture', 'extrajudicial', 'crimes against humanity', 'genocide'] },
-  { id: 'gbv_child',    label: 'GBV / child protection',    kw: ['gender-based violence', 'sexual violence', 'rape as', 'child soldier', 'children recruited', 'trafficking'] },
+  { id: 'casualties',   label: 'Civilian casualties',          kw: ['civilian casualt', 'civilians killed', 'civilian deaths', 'civilians dead', 'killed civilians', 'civilian toll'] },
+  { id: 'health_ed',    label: 'Attacks on hospitals/schools', kw: ['hospital hit', 'attack on hospital', 'hospital struck', 'hospital bombed', 'school hit', 'attack on school', 'school struck', 'clinic struck', 'medical facility hit', 'attack on medical'] },
+  { id: 'siege',        label: 'Siege / blockade of aid',      kw: ['under siege', 'besieged', 'aid blocked', 'aid denied', 'aid convoy blocked', 'humanitarian blockade', 'starvation as a weapon', 'blockade of aid', 'denied humanitarian access'] },
+  { id: 'displacement', label: 'Forced displacement',          kw: ['forcibly displaced', 'forced displacement', 'mass displacement', 'forced to flee', 'expelled from their', 'ethnic cleansing', 'driven from their homes'] },
+  { id: 'detention',    label: 'Detention / disappearance',    kw: ['arbitrary detention', 'arbitrarily detained', 'mass detention', 'forced disappearance', 'forcibly disappeared', 'enforced disappearance', 'abducted civilians', 'hostages held', 'taken hostage'] },
+  { id: 'rights',       label: 'Human-rights violations',      kw: ['human rights violation', 'human rights abuse', 'war crime', 'atrocit', 'torture', 'extrajudicial', 'crimes against humanity', 'genocide', 'summary execution'] },
+  { id: 'gbv_child',    label: 'GBV / child protection',       kw: ['gender-based violence', 'sexual violence', 'rape as a weapon', 'child soldier', 'children recruited', 'human trafficking', 'child abduction'] },
 ];
 
 // Build ranked protection concerns from live data. Pure data — no randomness.
