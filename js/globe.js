@@ -714,7 +714,6 @@ function _updateAllGlobeElementsNow() {
   }
 
   const visual = stories.map(s => ({...s, _type:'story'}));
-  if (eqVisible) EQ_DATA.forEach(e => visual.push(e));
   if (typeof flightsVisible !== 'undefined' && flightsVisible && typeof flightData !== 'undefined')
     flightData.forEach(f => visual.push({...f, _type:'flight'}));
   if (typeof silenceVisible !== 'undefined' && silenceVisible && typeof _silenceAnomalies !== 'undefined')
@@ -774,7 +773,6 @@ function _updateAllGlobeElementsNow() {
   } catch (e) {}
 
   G.htmlElementsData(visual).htmlElement(item => {
-    if (item._type === 'earthquake') return makeEqMarker(item);
     if (item._type === 'flight') return makeFlightMarker(item);
     if (item._type === 'broadcaster') {
       const d = document.createElement('div');
@@ -823,14 +821,12 @@ function _updateAllGlobeElementsNow() {
   });
 
   const clickTargets = [...stories];
-  if (eqVisible) EQ_DATA.forEach(e => clickTargets.push(e));
   G.pointsData(clickTargets)
     .pointLat('lat').pointLng('lng')
     .pointAltitude(0.025).pointRadius(0.55)
     .pointColor(() => 'rgba(0,0,0,0)')
     .onPointClick(item => {
-      if (item._type === 'earthquake') showEqInfo(item);
-      else handleLocationClick(item);
+      handleLocationClick(item);
     })
     .onPointHover(item => { document.body.style.cursor = item ? 'pointer' : ''; });
 
@@ -848,7 +844,7 @@ function _updateAllGlobeElementsNow() {
   const _auspexRings = snapshotVisible
     ? SNAPSHOT_EVENTS.filter(e => (e.severity ?? 0) >= 0.5).map(e => ({ ...e, _auspex: true }))
     : [];
-  G.ringsData([..._brkRings, ...EQ_DATA.filter(e => e.mag >= 6.5), ..._conflictRings, ..._auspexRings])
+  G.ringsData([..._brkRings, ..._conflictRings, ..._auspexRings])
     .ringColor(r => {
       if (r._auspex) return _auspexSevColor(r.severity ?? 0, r.polarity) + '44';
       if (r._region) return (_regionColors[r.threat_level] || '#FF9F0A') + '30';
@@ -878,66 +874,6 @@ function _updateAllGlobeElementsNow() {
   // whenever events change — e.g. after the snapshot loads asynchronously. This
   // merges with the existing meaningful/overlay arcs; it does not replace them.
   if (typeof refreshArcs === 'function') refreshArcs();
-}
-
-function showEqInfo(eq) {
-  // Group nearby quakes within 3° and show picker if multiple
-  const nearby = EQ_DATA.filter(e =>
-    Math.abs(e.lat - eq.lat) < 3 && Math.abs(e.lng - eq.lng) < 3
-  ).sort((a, b) => b.mag - a.mag);
-
-  if (nearby.length > 1) {
-    // Reuse picker panel with earthquake data
-    if (G) { G.controls().autoRotate = false; G.pointOfView({ lat: eq.lat, lng: eq.lng, altitude: 2.0 }, 1000); }
-    document.getElementById('pk-loc').textContent = `SEISMIC CLUSTER`;
-    document.getElementById('pk-count').textContent = `${nearby.length} EVENTS IN AREA`;
-    document.getElementById('pk-list').innerHTML = nearby.map(e => `
-      <div class="pk-item" data-eq-id="${e.id}">
-        <div class="pk-accent" style="background:${e.color}"></div>
-        <div class="pk-info">
-          <div class="pk-cat" style="color:${e.color}">M${e.mag.toFixed(1)} EARTHQUAKE${e.mag >= 6.0 ? ' · <span style="color:var(--brk)">SIGNIFICANT</span>' : ''}</div>
-          <div class="pk-title">${e.place}</div>
-          <div class="pk-src">USGS · Depth ${e.depth}km · ${e.time}</div>
-        </div>
-        <span class="pk-arrow">›</span>
-      </div>`).join('');
-    document.getElementById('pk-list').querySelectorAll('.pk-item').forEach(el => {
-      const e = EQ_DATA.find(eq => eq.id === el.dataset.eqId);
-      if (e) el.addEventListener('click', () => { closePicker(); openSingleEq(e); });
-    });
-    document.getElementById('art-bd').classList.add('on');
-    document.getElementById('picker').classList.add('on');
-    return;
-  }
-  openSingleEq(eq);
-}
-
-function openSingleEq(eq) {
-  if (G) {
-    G.controls().autoRotate = false;
-    G.pointOfView({ lat: eq.lat, lng: eq.lng, altitude: 1.8 }, 1200);
-  }
-  document.getElementById('ap-cat').textContent = `M${eq.mag.toFixed(1)}`;
-  document.getElementById('ap-cat').style.cssText = `color:${eq.color};background:${eq.color}20`;
-  const eqBrk = document.getElementById('ap-brk');
-  eqBrk.textContent = 'BREAKING';
-  eqBrk.style.color = '';
-  eqBrk.style.display = eq.mag >= 6 ? 'inline-flex' : 'none';
-  document.getElementById('ap-title').textContent = eq.place;
-  document.getElementById('ap-src').textContent = 'USGS';
-  document.getElementById('ap-time').textContent = eq.time;
-  document.getElementById('ap-region').textContent = `Depth: ${eq.depth}km`;
-  document.getElementById('ap-lead').textContent = `Magnitude ${eq.mag.toFixed(1)} earthquake detected. Focal depth: ${eq.depth}km.`;
-  document.getElementById('ap-text').textContent = `This seismic event was recorded by the USGS National Earthquake Information Center. Events above M6.0 have potential for significant shaking at the epicenter.`;
-  document.getElementById('ap-link').style.display = 'inline-flex';
-  document.getElementById('ap-link').href = `https://earthquake.usgs.gov/earthquakes/eventpage/${eq.id}/executive`;
-  document.getElementById('ap-cdot').style.background = eq.color;
-  const la = eq.lat >= 0 ? eq.lat.toFixed(3)+'°N' : Math.abs(eq.lat).toFixed(3)+'°S';
-  const ln = eq.lng >= 0 ? eq.lng.toFixed(3)+'°E' : Math.abs(eq.lng).toFixed(3)+'°W';
-  document.getElementById('ap-coords').textContent = `${la}, ${ln}`;
-  document.getElementById('art-panel').classList.remove('art-panel--event');
-  document.getElementById('art-panel').classList.add('on');
-  document.getElementById('art-bd').classList.add('on');
 }
 
 // ═══════════════════════════════════════════

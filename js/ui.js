@@ -341,49 +341,6 @@ function tick() {
   updateScrubberLiveLabel();
 }
 setInterval(tick, 1000);
-async function fetchEarthquakes() {
-  try {
-    const r = await fetch('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_day.geojson');
-    const d = await r.json();
-    EQ_DATA = d.features.map(f => ({
-      id: f.id,
-      lat: f.geometry.coordinates[1],
-      lng: f.geometry.coordinates[0],
-      mag: f.properties.mag,
-      place: f.properties.place,
-      depth: Math.round(f.geometry.coordinates[2]),
-      time: new Date(f.properties.time).toLocaleString(),
-      color: f.properties.mag >= 7 ? '#FF2D55' : f.properties.mag >= 6 ? '#FF9F0A' : f.properties.mag >= 5 ? '#FFD60A' : '#30D158',
-      _type: 'earthquake',
-    }));
-    if (eqVisible) updateAllGlobeElements();
-  } catch(e) { console.warn('USGS fetch failed', e); }
-}
-
-function makeEqMarker(eq) {
-  const d = document.createElement('div');
-  d.className = 'eq-m';
-  d.style.color = eq.color;
-  const size = 8 + (eq.mag - 4.5) * 3;
-  d.innerHTML = `
-    <div class="eq-wave" style="border-color:${eq.color};width:${size*2}px;height:${size*2}px"></div>
-    <div class="eq-wave eq-w2" style="border-color:${eq.color};width:${size*2}px;height:${size*2}px"></div>
-    <div class="eq-wave eq-w3" style="border-color:${eq.color};width:${size*2}px;height:${size*2}px"></div>
-    <div class="eq-core" style="width:${size}px;height:${size}px;background:${eq.color};box-shadow:0 0 ${eq.mag>=6?12:6}px ${eq.color}bb"></div>
-    <div class="eq-tip"><span style="color:${eq.color}" class="eq-mag">M${eq.mag.toFixed(1)}</span>  ${eq.place.length > 32 ? eq.place.slice(0,30)+'…' : eq.place}<br><span style="opacity:.5;font-size:9px">Depth: ${eq.depth}km · ${eq.time}</span></div>
-  `;
-  // Library wrapper sets pointer-events:none; opt the marker root back in so the
-  // glyph itself is clickable (the invisible points layer remains as a fallback).
-  d.addEventListener('click', e => { e.stopPropagation(); if (typeof showEqInfo === 'function') showEqInfo(eq); });
-  return d;
-}
-
-function toggleEQ() {
-  eqVisible = !eqVisible;
-  document.getElementById('lc-eq').classList.toggle('on', eqVisible);
-  if (eqVisible && EQ_DATA.length === 0) fetchEarthquakes();
-  else updateAllGlobeElements();
-}
 
 // ═══════════════════════════════════════════
 // HEAT MAP
@@ -391,7 +348,7 @@ function toggleEQ() {
 
 // (HEAT feature removed)
 
-// updateAllGlobeElements and showEqInfo live in globe.js
+// updateAllGlobeElements lives in globe.js
 // (duplicates removed)
 
 // ═══════════════════════════════════════════

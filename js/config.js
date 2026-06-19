@@ -109,10 +109,6 @@ let _lastFeedStories = [];
 let _apStoryId = null;
 let _tkrHash = '';
 
-// Earthquake overlay
-let EQ_DATA = [];
-let eqVisible = false;
-
 // Market data
 let marketVisible = false;
 let marketData = [];
