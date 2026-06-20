@@ -37,9 +37,17 @@ function gdeltDateToISO(s) {
 // plaintext "Please limit requests..." body (HTTP 200) when tripped. Retry a
 // couple of times with backoff so a transient throttle doesn't zero out GDELT.
 async function fetchGdeltOnce() {
-  const res = await fetch(GDELT_URL, {
-    headers: { 'User-Agent': 'AUSPEX/1.0 (news proxy)' },
-  });
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 6000);
+  let res;
+  try {
+    res = await fetch(GDELT_URL, {
+      signal: ctrl.signal,
+      headers: { 'User-Agent': 'AUSPEX/1.0 (news proxy)' },
+    });
+  } finally {
+    clearTimeout(timer);
+  }
   if (!res.ok) { if (process.env.NEWS_DEBUG) console.log('[gdelt] http', res.status); return null; }
   const text = await res.text();
   if (!text || text.trimStart()[0] !== '{') {
@@ -56,11 +64,13 @@ async function fetchGdeltOnce() {
 
 async function fetchGdelt() {
   try {
+    // RSS now carries the feed, so GDELT is a bonus source — keep its budget
+    // tight (2 tries) so a throttled GDELT can't stall the serverless cold start.
     let data = null;
-    for (let attempt = 0; attempt < 3; attempt++) {
+    for (let attempt = 0; attempt < 2; attempt++) {
       data = await fetchGdeltOnce();
       if (data) break;
-      await new Promise((r) => setTimeout(r, 6000)); // honor 5s spacing
+      if (attempt === 0) await new Promise((r) => setTimeout(r, 3000));
     }
     if (!data) return [];
     const articles = Array.isArray(data && data.articles) ? data.articles : [];
@@ -118,10 +128,112 @@ async function fetchNewsApi() {
   }
 }
 
-// --- Unified fetch: both sources, normalized, deduped ---------------
+// --- RSS: keyless, reliable from any server (incl. Vercel) ----------
+// GDELT rate-limits shared serverless IPs and NewsAPI's free tier is
+// localhost-only, so on the public deploy both can return nothing. A spread
+// of reputable global RSS feeds needs no key, isn't IP-throttled, and keeps
+// the live feed flowing for every public visitor — perils AND breakthroughs,
+// across multiple regions and editorial viewpoints.
+const RSS_FEEDS = [
+  { url: 'https://feeds.bbci.co.uk/news/world/rss.xml', source: 'BBC' },
+  { url: 'https://www.theguardian.com/world/rss', source: 'The Guardian' },
+  { url: 'https://www.aljazeera.com/xml/rss/all.xml', source: 'Al Jazeera' },
+  { url: 'https://feeds.npr.org/1004/rss.xml', source: 'NPR' },
+  { url: 'https://rss.dw.com/rdf/rss-en-all', source: 'DW' },
+  { url: 'https://www.france24.com/en/rss', source: 'France 24' },
+  { url: 'https://news.un.org/feed/subscribe/en/news/all/rss.xml', source: 'UN News' },
+  { url: 'https://reliefweb.int/updates/rss.xml', source: 'ReliefWeb' },
+  { url: 'https://www.sciencedaily.com/rss/top/science.xml', source: 'ScienceDaily' },
+  { url: 'https://feeds.arstechnica.com/arstechnica/science', source: 'Ars Technica' },
+];
+
+// Strip CDATA + tags and decode the handful of entities news feeds actually use.
+function rssDecode(s) {
+  if (!s) return '';
+  return s
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(+n))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, n) => String.fromCharCode(parseInt(n, 16)))
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&nbsp;/g, ' ')
+    .replace(/\s+/g, ' ').trim();
+}
+
+function rssTag(block, name) {
+  const m = block.match(new RegExp('<' + name + '(?:\\s[^>]*)?>([\\s\\S]*?)</' + name + '>', 'i'));
+  return m ? m[1] : '';
+}
+
+// RSS 2.0 <link>text</link>, Atom <link href="..."/>, RDF link variants.
+function rssLink(block) {
+  const plain = rssTag(block, 'link').trim();
+  if (plain && /^https?:/i.test(plain)) return plain;
+  const href = block.match(/<link\b[^>]*\bhref=["']([^"']+)["']/i);
+  return href ? href[1] : '';
+}
+
+// First image we can find: enclosure, media:content, or media:thumbnail.
+function rssImage(block) {
+  const m =
+    block.match(/<enclosure\b[^>]*\burl=["']([^"']+)["'][^>]*type=["']image/i) ||
+    block.match(/<media:content\b[^>]*\burl=["']([^"']+)["']/i) ||
+    block.match(/<media:thumbnail\b[^>]*\burl=["']([^"']+)["']/i);
+  return m ? m[1] : null;
+}
+
+async function fetchRssFeed(feed) {
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 8000);
+    let text;
+    try {
+      const res = await fetch(feed.url, {
+        signal: ctrl.signal,
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; AUSPEX/1.0; +https://github.com/AllStreets/AUSPEX)' },
+      });
+      if (!res.ok) { if (process.env.NEWS_DEBUG) console.log('[rss]', feed.source, 'http', res.status); return []; }
+      text = await res.text();
+    } finally {
+      clearTimeout(timer);
+    }
+    // Both <item> (RSS/RDF) and <entry> (Atom).
+    const blocks = text.match(/<(item|entry)\b[\s\S]*?<\/\1>/gi) || [];
+    return blocks.map((block) => {
+      const title = rssDecode(rssTag(block, 'title'));
+      const url = rssLink(block).trim();
+      const desc = rssDecode(rssTag(block, 'description') || rssTag(block, 'summary') || rssTag(block, 'content'));
+      const dateRaw = rssTag(block, 'pubDate') || rssTag(block, 'published') || rssTag(block, 'updated') || rssTag(block, 'dc:date');
+      const d = new Date(rssDecode(dateRaw));
+      return {
+        title,
+        description: desc.slice(0, 400),
+        url,
+        source: feed.source,
+        publishedAt: isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString(),
+        urlToImage: rssImage(block),
+        origin: 'rss',
+        sourcecountry: null,
+      };
+    }).filter((a) => a.title && a.url);
+  } catch {
+    return [];
+  }
+}
+
+async function fetchRss() {
+  try {
+    const results = await Promise.all(RSS_FEEDS.map(fetchRssFeed));
+    return results.flat();
+  } catch {
+    return [];
+  }
+}
+
+// --- Unified fetch: all sources, normalized, deduped ----------------
 export async function fetchAllNews() {
-  const [gdelt, newsapi] = await Promise.all([fetchGdelt(), fetchNewsApi()]);
-  const all = [...gdelt, ...newsapi];
+  const [gdelt, newsapi, rss] = await Promise.all([fetchGdelt(), fetchNewsApi(), fetchRss()]);
+  const all = [...gdelt, ...newsapi, ...rss];
 
   const seen = new Set();
   const out = [];
@@ -171,7 +283,8 @@ export async function refreshNews() {
       }
       const g = articles.filter((a) => a.origin === 'gdelt').length;
       const n = articles.filter((a) => a.origin === 'newsapi').length;
-      console.log(`[AUSPEX worker] news refreshed: ${articles.length} articles (gdelt ${g}, newsapi ${n})`);
+      const r = articles.filter((a) => a.origin === 'rss').length;
+      console.log(`[AUSPEX worker] news refreshed: ${articles.length} articles (gdelt ${g}, newsapi ${n}, rss ${r})`);
     } catch (e) {
       console.warn('[AUSPEX worker] news refresh failed:', e && e.message);
     } finally {

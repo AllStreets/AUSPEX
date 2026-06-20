@@ -10,7 +10,7 @@
 <img alt="tests" src="https://img.shields.io/badge/tests-104_passing-A3E635?style=for-the-badge&labelColor=04070b"/>
 <a href="LICENSE"><img alt="license" src="https://img.shields.io/badge/license-Apache--2.0-34D399?style=for-the-badge&labelColor=04070b"/></a>
 <br/>
-<img alt="news" src="https://img.shields.io/badge/news-GDELT_%2B_NewsAPI_(server--side)-6b7382?style=flat-square&labelColor=04070b"/>
+<img alt="news" src="https://img.shields.io/badge/news-RSS_%2B_GDELT_%2B_NewsAPI_(server--side)-6b7382?style=flat-square&labelColor=04070b"/>
 <img alt="globe" src="https://img.shields.io/badge/globe-three--globe_%2F_NASA_marble-6b7382?style=flat-square&labelColor=04070b"/>
 <img alt="data" src="https://img.shields.io/badge/data-USGS_%C2%B7_GDACS_%C2%B7_Launch_Library-6b7382?style=flat-square&labelColor=04070b"/>
 <img alt="backend" src="https://img.shields.io/badge/worker-node_%2F_express_%C2%B7_supabase-6b7382?style=flat-square&labelColor=04070b"/>
@@ -49,7 +49,7 @@ Two processes, one contract — so the public side ships **zero secrets** and a 
   │ frontend · static · :8800        │   reads    │ worker · node/express · :8801  │
   │   the living green globe         │ ◄───────── │   USGS + GDACS  (perils)       │
   │   1,000-city base layer          │  snapshot  │   Launch Library 2 (progress)  │
-  │   typed event icons + arcs       │   .json    │   GDELT + NewsAPI (server-side)│
+  │   typed event icons + arcs       │   .json    │  RSS + GDELT + NewsAPI (server) │
   │   honest cards · live map key    │  news.json │   honest reasoning (severity,  │
   │   Analyst + RELIEF tool boards   │            │   confidence, links, sources)  │
   └──────────────────────────────────┘            └────────────────────────────────┘
@@ -157,7 +157,7 @@ Pin a region, event, city, country, or story to either board (the green **PIN TO
 
 The news layer is the anti-social-media core, and it is deliberate:
 
-- **Server-side and broad.** GDELT (a free, global, no-key firehose) plus NewsAPI, fetched in the worker, deduped, cached — perils *and* progress, never rate-limited.
+- **Server-side and broad.** A spread of reputable global RSS feeds (BBC, Guardian, Al Jazeera, NPR, DW, France 24, UN News, ReliefWeb, science desks) as the keyless backbone, plus the GDELT firehose and optional NewsAPI — all fetched server-side, deduped, cached. Perils *and* progress, across regions and viewpoints, with no per-visitor rate limit.
 - **Filtered for signal.** A junk filter drops advertisements, PR fluff, and pop-culture/celebrity noise, while a priority allowlist guarantees real geopolitics, economy, disaster, science, and health are never wrongly dropped.
 - **Multi-source by design.** **Divergence** compares how Western, Chinese, and Russian outlets cover the same story; **Silence** detects information blackouts; ten global **broadcasters** span all six inhabited continents — North America, South America, Europe, Africa, Asia, and Oceania. You see the spread, not one outlet's frame.
 
