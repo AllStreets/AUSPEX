@@ -1021,8 +1021,10 @@ function buildMapKey() {
 
 function refreshArcs() {
   if (!G) return;
-  const base = computeMeaningfulArcs(NEWS);
-  // Honest connection arcs between AUSPEX events (nearby in space & time).
+  // Story-connection arcs ride the STORIES layer: hidden when it's toggled off.
+  const base = (typeof storiesVisible === 'undefined' || storiesVisible) ? computeMeaningfulArcs(NEWS) : [];
+  // Honest connection arcs between AUSPEX events — gated to the EVENTS layer
+  // inside computeAuspexLinkArcs (returns [] when snapshotVisible is false).
   const links = (typeof computeAuspexLinkArcs === 'function') ? computeAuspexLinkArcs() : [];
   // RELIEF humanitarian displacement arcs (amber, dashed) — gated to the
   // Displacement Tracker tool, populated/cleared by relief.js. Merged here so
