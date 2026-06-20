@@ -19,3 +19,10 @@ function toggleSnapshotEvents() {
   if (btn) btn.classList.toggle('on', snapshotVisible);
   updateAllGlobeElements();
 }
+// STORIES layer — show/hide the geolocated, category-colored news dots.
+function toggleStoriesLayer() {
+  storiesVisible = !storiesVisible;
+  const btn = document.getElementById('lc-stories');
+  if (btn) btn.classList.toggle('on', storiesVisible);
+  updateAllGlobeElements();
+}

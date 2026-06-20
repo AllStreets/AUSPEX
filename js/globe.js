@@ -316,7 +316,9 @@ function makeMarker(story) {
     <div class="gm-tip">${story.title.length > 72 ? story.title.slice(0,70)+'…' : story.title}</div>
   `;
   d.addEventListener('pointerdown', e => e.stopPropagation());
-  d.addEventListener('click', e => { e.stopPropagation(); openArticle(story); });
+  // Collect co-located stories: a single story opens its article directly,
+  // multiple at the same place open the scrollable picker list.
+  d.addEventListener('click', e => { e.stopPropagation(); handleLocationClick(story); });
   return d;
 }
 
@@ -713,7 +715,10 @@ function _updateAllGlobeElementsNow() {
     if (!_pulseCatSeen[s.cat]) { _pulseSet.add(s); _pulseCatSeen[s.cat] = true; }
   }
 
-  const visual = stories.map(s => ({...s, _type:'story'}));
+  // STORIES layer — geolocated, category-colored news dots (toggleable, on by default)
+  const visual = (typeof storiesVisible === 'undefined' || storiesVisible)
+    ? stories.map(s => ({...s, _type:'story'}))
+    : [];
   if (typeof flightsVisible !== 'undefined' && flightsVisible && typeof flightData !== 'undefined')
     flightData.forEach(f => visual.push({...f, _type:'flight'}));
   if (typeof silenceVisible !== 'undefined' && silenceVisible && typeof _silenceAnomalies !== 'undefined')
@@ -820,7 +825,9 @@ function _updateAllGlobeElementsNow() {
     return makeMarker(item);
   });
 
-  const clickTargets = [...stories];
+  // Invisible hit targets collect co-located stories on click — only when the
+  // STORIES layer is visible, so hidden dots aren't secretly clickable.
+  const clickTargets = (typeof storiesVisible === 'undefined' || storiesVisible) ? [...stories] : [];
   G.pointsData(clickTargets)
     .pointLat('lat').pointLng('lng')
     .pointAltitude(0.025).pointRadius(0.55)

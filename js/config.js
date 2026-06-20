@@ -197,15 +197,14 @@ let _lnpActive = false;
 let _lnpCurrentId = BROADCASTER_DEFAULT;
 let _lnpContextStory = null;
 
-// Feature: Webcam (F3)
-let _webcamVisible = false;
-let _webcamPanelEnabled = false;
-let _currentWebcams = [];
-
 // AUSPEX snapshot layer
 let SNAPSHOT_EVENTS = [];
 let snapshotVisible = true;
 let _snapshotFetchedAt = 0;
+
+// STORIES layer — geolocated news dots, colored by category. On by default
+// (like EVENTS); toggled via the STORIES filter / toggleStoriesLayer().
+let storiesVisible = true;
 
 // RELIEF board globe layers (populated/cleared by relief.js, merged into the
 // existing arc/marker pipelines in analyst.js refreshArcs + globe.js render).

@@ -40,19 +40,19 @@
       <input id="lc-search-input" type="text" placeholder="SEARCH LAYERS…" oninput="filterNavButtons(this.value)" autocomplete="off" spellcheck="false">
       <button class="lc-search-x" onclick="closeNavSearch()">✕</button>
     </div>
-    <button class="lc-btn" id="lc-silence"  onclick="toggleSilence()"    title="Silence anomaly">SILENCE</button>
-    <button class="lc-btn" id="lc-diverge"  onclick="toggleDivergence()" title="Narrative divergence">DIVERGE</button>
-    <button class="lc-btn" id="lc-cascade"  onclick="toggleCascade()"    title="Cascade predictor">CASCADE</button>
-    <button class="lc-btn" id="lc-threats"  onclick="toggleThreats()"    title="Orbital threat rings">THREATS</button>
-    <button class="lc-btn" id="lc-cities"   onclick="toggleCities()"     title="City intelligence layer">CITIES</button>
-    <button class="lc-btn on" id="lc-events" onclick="toggleSnapshotEvents()" title="Disaster events layer">EVENTS</button>
-    <button class="lc-btn" id="lc-countries" onclick="toggleCountries()" title="Country status layer">COUNTRIES</button>
-    <button class="lc-btn" id="lc-sanctions" onclick="toggleSanctions()" title="Sanctions mesh">SANCTIONS</button>
-    <button class="lc-btn" id="lc-cables"   onclick="toggleCables()"     title="Subsea cable pulse">CABLES</button>
-    <button class="lc-btn" id="lc-flights"  onclick="toggleFlights()"    title="Flight anomaly overlay">FLIGHTS</button>
-    <button class="lc-btn" id="lc-shipping" onclick="toggleShipping()"   title="Shipping chokepoints">SHIPPING</button>
     <button class="lc-btn" id="lc-livenews" onclick="toggleLiveNews()"   title="Live broadcast news panel">BROADCAST</button>
-    <button class="lc-btn" id="lc-webcams"  onclick="toggleWebcamPanel()" title="Windy live webcams near story">WEBCAMS</button>
+    <button class="lc-btn" id="lc-cables"   onclick="toggleCables()"     title="Subsea cable pulse">CABLES</button>
+    <button class="lc-btn" id="lc-cascade"  onclick="toggleCascade()"    title="Cascade predictor">CASCADE</button>
+    <button class="lc-btn" id="lc-cities"   onclick="toggleCities()"     title="City intelligence layer">CITIES</button>
+    <button class="lc-btn" id="lc-countries" onclick="toggleCountries()" title="Country status layer">COUNTRIES</button>
+    <button class="lc-btn" id="lc-diverge"  onclick="toggleDivergence()" title="Narrative divergence">DIVERGE</button>
+    <button class="lc-btn on" id="lc-events" onclick="toggleSnapshotEvents()" title="Disaster events layer">EVENTS</button>
+    <button class="lc-btn" id="lc-flights"  onclick="toggleFlights()"    title="Flight anomaly overlay">FLIGHTS</button>
+    <button class="lc-btn" id="lc-sanctions" onclick="toggleSanctions()" title="Sanctions mesh">SANCTIONS</button>
+    <button class="lc-btn" id="lc-shipping" onclick="toggleShipping()"   title="Shipping chokepoints">SHIPPING</button>
+    <button class="lc-btn" id="lc-silence"  onclick="toggleSilence()"    title="Silence anomaly">SILENCE</button>
+    <button class="lc-btn on" id="lc-stories" onclick="toggleStoriesLayer()" title="Geolocated news stories — colored by category">STORIES</button>
+    <button class="lc-btn" id="lc-threats"  onclick="toggleThreats()"    title="Orbital threat rings">THREATS</button>
   </div>
   <div class="hdr-sep"></div>
   <div class="hdr-stat"><span class="hs-v" id="story-count">20</span><span class="hs-l">Stories</span></div>
@@ -564,40 +564,5 @@
   </div>
 </div>
 
-<!-- ════════════════════════════════════════
-     WINDY WEBCAM PANEL
-     ═══════════════════════════════════════ -->
-<div id="webcam-panel">
-  <div class="wcp-hdr">
-    <span class="wcp-dot"></span>
-    <span class="wcp-wordmark">◉ LIVE CAMERAS</span>
-    <span class="wcp-loc" id="wcp-loc">—</span>
-    <button class="wcp-close" onclick="closeWebcamPanel()">×</button>
-  </div>
-  <!-- loading state -->
-  <div class="wcp-loading" id="wcp-loading" style="display:none">SCANNING NEARBY CAMERAS…</div>
-  <!-- empty state -->
-  <div class="wcp-empty" id="wcp-empty" style="display:none">
-    NO CAMERAS FOUND<br>WITHIN 50 KM
-  </div>
-  <!-- thumbnail grid -->
-  <div class="wcp-grid" id="wcp-grid"></div>
-  <!-- player -->
-  <div class="wcp-player" id="wcp-player">
-    <iframe id="wcp-iframe" allow="autoplay" allowfullscreen src="about:blank"></iframe>
-    <div class="wcp-player-bar">
-      <button class="wcp-back-btn" onclick="closeWebcamPlayer()">← CAMERAS</button>
-      <span class="wcp-cam-name" id="wcp-cam-name">—</span>
-    </div>
-  </div>
-</div>
-<!-- WEBCAM LIGHTBOX -->
-<div id="wcam-lightbox" onclick="if(event.target===this)closeWebcamLightbox()">
-  <div class="wcam-lb-box">
-    <button class="wcam-lb-close" onclick="closeWebcamLightbox()">×</button>
-    <span class="wcam-lb-title" id="wcam-lb-title">—</span>
-    <iframe id="wcam-lb-iframe" allow="autoplay" allowfullscreen src="about:blank"></iframe>
-  </div>
-</div>
 </body>
 </html>
