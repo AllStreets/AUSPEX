@@ -10,6 +10,9 @@
     { "source": "/news.json", "destination": "/api/news" },
     { "source": "/js/keys.local.js", "destination": "/js/keys.local.empty.js" }
   ],
+  "crons": [
+    { "path": "/api/refresh", "schedule": "0 7 * * *" }
+  ],
   "headers": [
     {
       "source": "/(.*)",
