@@ -869,23 +869,31 @@ function toggleMapKey() {
 }
 
 function buildMapKey() {
+  // STORY MARKERS + ARC COLOURS — the shape is fixed per category (CSS clip-path
+  // on .cat-core-*: diamond / hexagon / triangle / square / star), while the
+  // colour is pulled LIVE from CATS so the legend always matches the actual dots
+  // and arcs on the globe (makeMarker + computeMeaningfulArcs use CATS[cat].color).
+  // Order mirrors the COVERAGE filter.
+  const _STORY_CATS = [
+    { cat:'geo',      shape:'diamond',  shapeName:'diamond',  name:'Geopolitical' },
+    { cat:'tech',     shape:'hex',      shapeName:'hexagon',  name:'Technology' },
+    { cat:'military', shape:'triangle', shapeName:'triangle', name:'Military / conflict' },
+    { cat:'finance',  shape:'square',   shapeName:'square',   name:'Finance / economics' },
+    { cat:'climate',  shape:'star',     shapeName:'star',     name:'Climate / environment' },
+  ];
+  const _catColor = (c) => (typeof CATS !== 'undefined' && CATS[c] && CATS[c].color) || '#8FA0E8';
+  const _catLabel = (c) => (typeof CATS !== 'undefined' && CATS[c] && CATS[c].label) || c.toUpperCase();
+  const storyMarkerRows = _STORY_CATS.map(d => ({ shape:d.shape, color:_catColor(d.cat), lbl:`${_catLabel(d.cat)} — ${d.name} (${d.shapeName})` }));
+  const storyArcRows    = _STORY_CATS.map(d => ({ dash:_catColor(d.cat), lbl:`${_catLabel(d.cat)} — ${d.name} story link` }));
   const rows = [
-    { s:'STORY MARKERS — SHAPE BY CATEGORY' },
-    { shape:'diamond',  color:'#FF2D55', lbl:'GEO — Geopolitical event (diamond)' },
-    { shape:'hex',      color:'#0A84FF', lbl:'TECH — Technology (hexagon)' },
-    { shape:'triangle', color:'#FF9F0A', lbl:'MIL — Military / conflict (triangle)' },
-    { shape:'square',   color:'#FFD60A', lbl:'FIN — Finance / economics (square)' },
-    { shape:'star',     color:'#30D158', lbl:'CLM — Climate / environment (star)' },
+    { s:'STORY MARKERS — SHAPE + COLOUR BY CATEGORY' },
+    ...storyMarkerRows,
     { s:'ANIMATED EFFECTS' },
     { dot:'var(--brk)', lbl:'Breaking news — double pulse ring' },
-    { dash:'rgba(255,255,255,.35)', lbl:'Story arc — color = category (GEO red, TECH blue, etc.)' },
+    { dash:'rgba(255,255,255,.35)', lbl:"Story arc — line colour matches the story's category (see below)" },
     { dash:'#FF6D00', lbl:'Cascade predictor arc — orange' },
-    { s:'ARC COLORS — match story marker shape' },
-    { shape:'diamond',  color:'#FF2D55', lbl:'Red — Geopolitical / conflict story link' },
-    { shape:'hex',      color:'#0A84FF', lbl:'Blue — Technology / cyber story link' },
-    { shape:'triangle', color:'#FF9F0A', lbl:'Amber — Military story link' },
-    { shape:'square',   color:'#FFD60A', lbl:'Yellow — Finance / economics story link' },
-    { shape:'star',     color:'#30D158', lbl:'Green — Climate story link' },
+    { s:'STORY ARC COLOURS — by category' },
+    ...storyArcRows,
     { s:'COUNTRY BORDER LAYER' },
     { dash:'rgba(100,180,255,0.6)', lbl:'Ice blue border — country at peace (legal boundary)' },
     { dash:'#FF2D55', lbl:'Red border — country in active armed conflict' },
