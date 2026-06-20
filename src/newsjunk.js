@@ -85,6 +85,57 @@ export const JUNK_RE = new RegExp([
   '(concert|album|gig|residency|setlist) review|turned [a-z ]+ into a [a-z ]+: review)\\b',
 ].join(''), 'i');
 
+// ═══════════════════════════════════════════
+// SOURCE DENYLIST — domain-level filtering
+// Some feeds are not real journalism regardless of the headline: auction /
+// classifieds listings, code/package registries, PR/press-release wires, and
+// tabloid / content-farm spam. We drop a story if its source DOMAIN (taken from
+// the article URL host, or the `source` label) matches a denylisted substring.
+// This is intentionally domain-based (not title-based) and is applied IN
+// ADDITION to isJunk(). Wire services and real outlets (Reuters, AP, AFP, BBC,
+// Guardian, NYT, WaPo, FT, Bloomberg, Al Jazeera, gcaptain, …) are NOT listed.
+// ═══════════════════════════════════════════
+export const SOURCE_DENYLIST = new Set([
+  // ── Auctions / classifieds / shopping ──
+  'bringatrailer.com', 'carsandbids.com', 'ebay.', 'etsy.', 'gumtree',
+  'craigslist', 'autotrader', 'cars.com', 'cargurus', 'facebook marketplace',
+  'marketplace.facebook',
+  // ── Code / package registries / dev ──
+  'pypi.org', 'pypi.', 'github.com', 'gitlab.com', 'npmjs.com', 'sourceforge',
+  'readthedocs', 'news.ycombinator', 'producthunt.com', 'dev.to',
+  // ── PR / press-release wires ──
+  'globenewswire.com', 'prnewswire.com', 'businesswire.com', 'einpresswire.com',
+  'einnews.com', 'openpr.com', 'accesswire.com', 'newswire.com', 'prweb.com',
+  '24-7pressrelease', 'prlog', 'marketscreener',
+  // ── Tabloid / low-quality content farms ──
+  'dailymail.co.uk', 'dailymail.com', 'thesun.co.uk', 'nypost.com',
+  'mirror.co.uk', 'tmz.com', 'buzzfeed.com', 'distractify', 'boredpanda',
+  'msn.com/shopping',
+  // ── Crypto-shill / niche blogspam ──
+  'bitcoinist',
+]);
+
+// True when the article's SOURCE is a denylisted (non-news / low-quality)
+// domain. Checks the URL host and the source label against SOURCE_DENYLIST.
+export function isLowQualitySource(url, source) {
+  let host = '';
+  if (url) {
+    try {
+      host = new URL(url).hostname.toLowerCase();
+    } catch {
+      host = String(url).toLowerCase();
+    }
+  }
+  const srcLabel = (typeof source === 'string'
+    ? source
+    : (source && source.name) || '').toLowerCase();
+  const hay = `${host} ${srcLabel}`;
+  for (const bad of SOURCE_DENYLIST) {
+    if (hay.includes(bad)) return true;
+  }
+  return false;
+}
+
 // True when the story is junk (and not rescued by a priority signal).
 // Pass the combined title + description + source string.
 export function isJunk(text) {
@@ -93,10 +144,12 @@ export function isJunk(text) {
   return JUNK_RE.test(text);
 }
 
-// Convenience for arrays of { title, description, source } articles.
+// Convenience for arrays of { title, description, source, url } articles.
+// Drops both title-junk AND low-quality / non-news SOURCE domains.
 export function filterJunkArticles(articles) {
   return (articles || []).filter((a) => {
     const src = typeof a.source === 'string' ? a.source : (a.source && a.source.name) || '';
+    if (isLowQualitySource(a.url, a.source)) return false;
     return !isJunk(`${a.title || ''} ${a.description || ''} ${src}`);
   });
 }

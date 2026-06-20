@@ -11,9 +11,58 @@
 // IF YOU EDIT THIS, EDIT src/newsjunk.js TO MATCH (and re-run npm test).
 const JUNK_RE = /\b(celebrit(y|ies)|kardashian|taylor swift|beyonc[eé]|grammy|box office|movie review|film review|album review|netflix series|hulu|disney\+|spotify playlist|tiktok|viral video|social media trend|influencer|reality tv|reality show|bachelor|bachelorette|america['']?s got talent|dancing with the stars|the voice|american idol|survivor cast|big brother|drag race|met gala|golden globe|emmys|oscars ceremony|red carpet|celebrity couple|celebrity death|actor arrested|pop star|royal family|meghan markle|prince harry|kanye|kim kardashian|fans react|fan theory|first look|season finale|series finale|episode recap|show recap|streaming recap|horoscope|zodiac|astrology|premiere|reunites?|reunion special|tour dates|sold[ -]out tour|new album|new single|music video|voice of (lilo|[a-z]+ in)|disney('?s| movie| film| channel)|pixar|hbo (max|series)|sitcom|tv host|talk show host|sequel (in the works|with|to)|spin[ -]?off series|(show|series|season \d+) (renewed|cancell?ed|premiere|recap)|season \d+ (premiere|finale|recap|trailer|episode)|questions (and demands )?we have for|jim carrey|jelly roll)\b|\b(video game|game release|esport|fortnite|minecraft|roblox|playstation|xbox|nintendo|steam sale|gaming headset|twitch stream|call of duty|league of legends|overwatch|valorant|genshin|pokemon|zelda|mario|game review|gaming news|new game|rpg release|console launch|pc gaming|street fighter|dlc character|dlc pack|dlc release|game dlc|fighting game|jrpg|mmorpg|grand theft auto|gta online|gta vi|pre-?order date|cover art revealed|product review|unboxing|best buy|iphone 1[0-9]|macbook air|samsung galaxy s|new phone release|smartwatch review|gadget roundup|wearable tech review|home theater|soundbar|headphones review|earbuds|laptop review|tablet review|5g phone|best laptop|best phone|more color options)\b|nintendo|buzzfeed|\b(nba (game|trade|dunk|mvp|draft|coach|championship|parade|finals?)|nfl (game|draft|trade|touchdown|coach|week)|mlb (game|trade|batting)|nhl (game|trade|goal)|premier league (goal|match|result|transfer)|la liga|bundesliga match|serie a match|cricket match|golf round|tennis match|f1 race result|superbowl ad|super bowl commercial|march madness|ncaa bracket|fantasy football|fantasy sports|sports betting odds|monday night football|college world series|world cup( \d{4})? (match|win|loss|opener|group stage)|champions league (goal|match)|mock draft|(game|match) (analysis|recap|preview|highlights|report)|usmnt|uswnt|pochettino|pulisic|ronaldo|messi|lebron|transfer (rumou?r|window|news|deadline)|home run|touchdown|hat[ -]trick|playoff (win|loss|game))\b|\b(recipe|restaurant review|best restaurants|food trend|fashion week|beauty routine|skincare routine|home decor trend|interior design|travel tips|hotel review|vacation guide|celebrity diet|workout routine|fitness tips|meal prep|keto|intermittent fasting|abs workout|listicle|tier list|freakin|mind-blowing facts|cool facts|fun facts)\b|\b(deal of the day|deals? of the (week|year)|prime day|amazon sale|black friday|cyber monday|% off|\d+ percent off|coupon code|promo code|discount code|shop now|buy now|on sale now|save up to|gift guide|best (gifts|deals|products) of \d{4}|limited time offer|flash sale|clearance sale|affiliate link|sponsored content|sponsored post|advertorial|free shipping|lowest price|today['']?s best deals|earn special rewards|exclusive offer)\b|\b(is proud to announce|are proud to announce|proudly announces|announces (a )?(new )?partnership|announces? collaboration|press release|ribbon[ -]cutting|unveils new (gadget|phone|app|product|lineup|collection)|named (a )?(top|best) (workplace|employer)|wins (award|recognition)|award[ -]winning|recognized as|honored (with|for)|celebrates? milestone|launches new product|new product launch|now available for purchase|product roadmap unveiled|[a-z]+preneur|solopreneur|introduces? a [a-z ]+ operating system|webinar series|free webinar|register (now |today )?for (our|the) webinar|(concert|album|gig|residency|setlist) review|turned [a-z ]+ into a [a-z ]+: review)\b/i;
 
-// Convert the accumulated map to an array sorted newest-first
+// Source denylist — mirrors SOURCE_DENYLIST in src/newsjunk.js. Drops stories
+// whose SOURCE domain is non-news / low-quality (auction listings, package
+// registries, PR wires, tabloids) regardless of the headline. Applied IN
+// ADDITION to JUNK_RE, in both the live fetch and the Supabase bootstrap path.
+// IF YOU EDIT THIS, EDIT src/newsjunk.js TO MATCH (and re-run npm test).
+const SOURCE_DENYLIST = [
+  // Auctions / classifieds / shopping
+  'bringatrailer.com', 'carsandbids.com', 'ebay.', 'etsy.', 'gumtree',
+  'craigslist', 'autotrader', 'cars.com', 'cargurus', 'facebook marketplace',
+  'marketplace.facebook',
+  // Code / package registries / dev
+  'pypi.org', 'pypi.', 'github.com', 'gitlab.com', 'npmjs.com', 'sourceforge',
+  'readthedocs', 'news.ycombinator', 'producthunt.com', 'dev.to',
+  // PR / press-release wires
+  'globenewswire.com', 'prnewswire.com', 'businesswire.com', 'einpresswire.com',
+  'einnews.com', 'openpr.com', 'accesswire.com', 'newswire.com', 'prweb.com',
+  '24-7pressrelease', 'prlog', 'marketscreener',
+  // Tabloid / low-quality content farms
+  'dailymail.co.uk', 'dailymail.com', 'thesun.co.uk', 'nypost.com',
+  'mirror.co.uk', 'tmz.com', 'buzzfeed.com', 'distractify', 'boredpanda',
+  'msn.com/shopping',
+  // Crypto-shill / niche blogspam
+  'bitcoinist',
+];
+
+// True when the article's SOURCE is a denylisted (non-news / low-quality)
+// domain. Checks the URL host and the source label against SOURCE_DENYLIST.
+function isLowQualitySource(url, source) {
+  let host = '';
+  if (url) {
+    try { host = new URL(url).hostname.toLowerCase(); }
+    catch (e) { host = String(url).toLowerCase(); }
+  }
+  const srcLabel = (typeof source === 'string'
+    ? source
+    : (source && source.name) || '').toLowerCase();
+  const hay = `${host} ${srcLabel}`;
+  for (const bad of SOURCE_DENYLIST) {
+    if (hay.indexOf(bad) !== -1) return true;
+  }
+  return false;
+}
+
+// Convert the accumulated map to an array sorted newest-first.
+// Also drops any low-quality SOURCE domains that may already be sitting in the
+// persisted localStorage cache from before this filter existed — so existing
+// junk (auction listings, PR wires, tabloids) is purged on every read, not just
+// on fresh fetches. This is the single choke point all cached reads pass through.
 function _mapToSortedStories(map) {
-  return Object.values(map).sort((a, b) => (b._pub || 0) - (a._pub || 0));
+  return Object.values(map)
+    .filter((s) => !isLowQualitySource(s.url, s.src))
+    .sort((a, b) => (b._pub || 0) - (a._pub || 0));
 }
 
 // Load all accumulated stories from localStorage (survives refresh cycles)
@@ -86,6 +135,9 @@ async function fetchNews() {
       // Age filter — drop articles older than 48 hours
       const pubTime = a.publishedAt ? new Date(a.publishedAt).getTime() : Date.now();
       if (Date.now() - pubTime > NEWS_MAX_AGE_MS) continue;
+
+      // Source denylist — drop non-news / low-quality domains by domain.
+      if (isLowQualitySource(a.url, a.source)) continue;
 
       // Relevance filter — drop pop culture/gaming/consumer noise
       // BUT always pass through if it has geopolitical/military/crisis signals
@@ -208,6 +260,9 @@ async function bootstrapFromSupabase() {
     let added = 0;
     stories.forEach(s => {
       if (!s.lat || !s.lng) return; // skip stories with no coordinates
+      // Source denylist — drop non-news / low-quality domains by domain, so the
+      // bootstrapped archive never reintroduces auction/PR/tabloid sources.
+      if (isLowQualitySource(s.url, s.src)) return;
       // Apply the SAME junk filter the live fetch uses, so bootstrapped archive
       // stories never reintroduce ad/PR/pop-culture noise. PRIORITY_RE overrides
       // junk so legitimate geopolitical/crisis news is always kept.
