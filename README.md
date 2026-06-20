@@ -196,6 +196,8 @@ Open **http://localhost:8800**. The globe lights up with live events; toggle **C
 
 **Always fresh.** `/news.json` and `/snapshot.json` are fetched live server-side and edge-cached for ~10 minutes, so every visitor sees current data. To keep the Supabase corpus growing *independent of traffic*, `api/refresh` fetches the live feed, geolocates it, and archives fresh stories (duplicates ignored). It runs **several times a day** via `.github/workflows/refresh.yml` (GitHub Actions, plan-independent) plus a **once-a-day** Vercel cron in `vercel.json`. Optionally set `CRON_SECRET` (same value in the Vercel env and the repo's Actions secret) to lock the endpoint down.
 
+**Cost guard.** The AI tools run through `api/ai`, which caps each visitor (by hashed IP) at **1,000,000 OpenAI tokens per UTC day** so no single user can run up the bill. Usage is tracked in Supabase (`ai_usage`, an add-only RLS-locked counter — a visitor can't reset their own); over the cap returns `429`. It works out of the box (no extra keys) and fails open if the store is briefly unreachable. Change the ceiling with `AI_DAILY_TOKEN_LIMIT`.
+
 The public frontend ships no secrets — all keyed work lives in the worker. **AUSPEX does not go public until it is worthy of everyone in the world.** That is the bar.
 
 ---
