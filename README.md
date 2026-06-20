@@ -192,6 +192,9 @@ Open **http://localhost:8800**. The globe lights up with live events; toggle **C
 | frontend | static (Vercel) — `vercel.json` included | point `WORKER_BASE` at the worker URL |
 | worker | container (Railway / Render / Fly) — `worker/Dockerfile` included | env: `NEWS_API_KEY`, `AUSPEX_LLM_KEY`, `ALLOWED_ORIGIN` |
 | database | Supabase | schema in `sql/schema.sql`; anon key is publishable, RLS-protected |
+| refresh | `api/refresh` + cron | keeps the corpus fresh without traffic — see below |
+
+**Always fresh.** `/news.json` and `/snapshot.json` are fetched live server-side and edge-cached for ~10 minutes, so every visitor sees current data. To keep the Supabase corpus growing *independent of traffic*, `api/refresh` fetches the live feed, geolocates it, and archives fresh stories (duplicates ignored). It runs **several times a day** via `.github/workflows/refresh.yml` (GitHub Actions, plan-independent) plus a **once-a-day** Vercel cron in `vercel.json`. Optionally set `CRON_SECRET` (same value in the Vercel env and the repo's Actions secret) to lock the endpoint down.
 
 The public frontend ships no secrets — all keyed work lives in the worker. **AUSPEX does not go public until it is worthy of everyone in the world.** That is the bar.
 

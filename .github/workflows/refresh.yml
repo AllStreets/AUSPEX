@@ -1,0 +1,40 @@
+name: Refresh stories
+
+# Keeps the AUSPEX story corpus fresh independent of visitor traffic by pinging
+# the server-side refresh endpoint, which fetches live news, geolocates it, and
+# archives fresh stories to Supabase (duplicates ignored). Plan-independent:
+# GitHub Actions cron runs several times a day regardless of the Vercel plan,
+# while vercel.json keeps a once-a-day cron as a baseline.
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'   # 00:00 / 06:00 / 12:00 / 18:00 UTC — 4x daily
+  workflow_dispatch: {}      # allow manual runs from the Actions tab
+
+permissions:
+  contents: read
+
+concurrency:
+  group: refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger refresh + warm caches
+        env:
+          BASE: https://auspex-connor-evans-projects.vercel.app
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          AUTH=()
+          if [ -n "${CRON_SECRET}" ]; then AUTH=(-H "Authorization: Bearer ${CRON_SECRET}"); fi
+
+          echo "Archiving fresh stories…"
+          body="$(curl -sS --fail-with-body --max-time 120 "${AUTH[@]}" "${BASE}/api/refresh")"
+          echo "${body}"
+
+          # Warm the public live caches so the next visitor gets instant fresh data.
+          curl -sS -o /dev/null --max-time 90 "${BASE}/news.json?warm=1"     || true
+          curl -sS -o /dev/null --max-time 60 "${BASE}/snapshot.json?warm=1" || true
