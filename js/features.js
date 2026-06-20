@@ -1,7 +1,7 @@
 'use strict';
 
 // ═══════════════════════════════════════════
-// FEATURES — F2 LIVE BROADCAST, F3 WEBCAM
+// FEATURES — F2 LIVE BROADCAST
 //             DRAGGABLE PANELS
 // (F1 SATELLITE feature removed)
 // ═══════════════════════════════════════════
@@ -112,147 +112,6 @@ function toggleLiveNews() {
   } else {
     openLiveNews(null);
   }
-}
-function toggleWebcamPanel() {
-  _webcamPanelEnabled = !_webcamPanelEnabled;
-  document.getElementById('lc-webcams').classList.toggle('on', _webcamPanelEnabled);
-  if (!_webcamPanelEnabled) {
-    closeWebcamPanel();
-  } else {
-    // Always start fresh — user must click a story to load cameras
-    _showWebcamHint();
-  }
-}
-
-function _showWebcamHint() {
-  const panel = document.getElementById('webcam-panel');
-  document.getElementById('wcp-loading').style.display = 'none';
-  document.getElementById('wcp-empty').style.display = 'none';
-  const _hintGrid = document.getElementById('wcp-grid');
-  _hintGrid.style.display = 'block';
-  _hintGrid.innerHTML =
-    '<div style="padding:18px;font-family:var(--f-mono);font-size:8px;letter-spacing:.12em;color:var(--t3);text-align:center;line-height:1.9">◉ CLICK ANY STORY OR CITY<br>TO SCAN NEARBY LIVE CAMERAS</div>';
-  document.getElementById('wcp-loc').textContent = 'READY';
-  panel.classList.add('on');
-  _webcamVisible = true;
-  // Init drag now that panel is visible (getBoundingClientRect works correctly)
-  _makePanelDraggable(panel, panel.querySelector('.wcp-hdr'));
-}
-
-function closeWebcamPanel() {
-  _webcamVisible = false;
-  _webcamPanelEnabled = false;
-  _currentWebcams = [];
-  document.getElementById('webcam-panel').classList.remove('on');
-  document.getElementById('lc-webcams').classList.remove('on');
-  document.getElementById('wcp-grid').innerHTML = '';
-  document.getElementById('wcp-grid').style.display = 'none';
-  document.getElementById('wcp-loading').style.display = 'none';
-  document.getElementById('wcp-empty').style.display = 'none';
-  document.getElementById('wcp-loc').textContent = 'READY';
-  closeWebcamLightbox();
-}
-
-async function loadWebcams(story) {
-  if (!story || story.lat == null || !_webcamPanelEnabled) return;
-
-  const panel = document.getElementById('webcam-panel');
-  const grid = document.getElementById('wcp-grid');
-  const loading = document.getElementById('wcp-loading');
-  const empty = document.getElementById('wcp-empty');
-  const player = document.getElementById('wcp-player');
-
-  panel.classList.add('on');
-  _webcamVisible = true;
-  document.getElementById('wcp-loc').textContent = (story.region || 'NEARBY').toUpperCase();
-
-  // Reset state
-  grid.innerHTML = '';
-  grid.style.display = 'none';
-  empty.style.display = 'none';
-  player.classList.remove('on');
-  loading.style.display = 'flex';
-
-  if (WINDY_KEY === 'YOUR_WINDY_KEY_HERE') {
-    loading.style.display = 'none';
-    empty.style.display = 'flex';
-    empty.textContent = 'ADD WINDY API KEY\nTO ENABLE CAMERAS';
-    return;
-  }
-
-  try {
-    // Windy Webcams API v3 (v2 was deprecated and returns 404)
-    const url = `https://api.windy.com/webcams/api/v3/webcams?nearby=${story.lat.toFixed(4)},${story.lng.toFixed(4)},50&include=images,player,location&limit=9`;
-    const resp = await fetch(url, { headers: { 'x-windy-api-key': WINDY_KEY } });
-    if (!resp.ok) throw new Error(`${resp.status}`);
-    const data = await resp.json();
-    const webcams = data.webcams || [];
-    _currentWebcams = webcams;
-    loading.style.display = 'none';
-
-    if (webcams.length === 0) {
-      empty.style.display = 'flex';
-      empty.textContent = 'NO CAMERAS FOUND\nWITHIN 50 KM';
-      return;
-    }
-
-    grid.style.display = 'grid';
-    grid.innerHTML = webcams.slice(0, 9).map((cam, i) => {
-      const thumb = cam.images?.daylight?.preview || cam.images?.current?.preview || '';
-      const city = cam.location?.city || cam.location?.country || 'CAMERA';
-      return `
-        <div class="wcp-thumb" data-idx="${i}" onclick="openWebcamPlayer(${i})">
-          ${thumb ? `<img src="${thumb}" alt="" loading="lazy" onerror="this.style.display='none'">` : '<div style="height:66px;background:#0a0c18"></div>'}
-          <div class="wcp-play-ico">⛶</div>
-          <div class="wcp-thumb-lbl">${city.toUpperCase()}</div>
-        </div>`;
-    }).join('');
-  } catch(e) {
-    loading.style.display = 'none';
-    empty.style.display = 'flex';
-    empty.textContent = `CAMERA FEED ERROR\n${e.message}`;
-    console.warn('[MERIDIAN webcam]', e);
-  }
-}
-
-function openWebcamPlayer(idx) {
-  const cam = _currentWebcams[idx];
-  if (!cam) return;
-  const city = (cam.location?.city || cam.location?.country || 'CAMERA').toUpperCase();
-  document.getElementById('wcam-lb-title').textContent = city;
-  const lb = document.getElementById('wcam-lightbox');
-  const iframe = document.getElementById('wcam-lb-iframe');
-  const img = document.getElementById('wcam-lb-img');
-  // Prefer live stream → day player → image fallback
-  const embedUrl = cam.player?.streaming?.embed || cam.player?.day?.embed || cam.player?.current?.embed || '';
-  if (embedUrl) {
-    iframe.style.display = 'block';
-    if (img) img.style.display = 'none';
-    iframe.src = embedUrl;
-  } else {
-    // No embed — show full-resolution preview image instead
-    const imgUrl = cam.images?.daylight?.full || cam.images?.current?.full || cam.images?.daylight?.preview || cam.images?.current?.preview || '';
-    if (!imgUrl) return;
-    iframe.style.display = 'none';
-    if (!img) {
-      const el = document.createElement('img');
-      el.id = 'wcam-lb-img';
-      el.style.cssText = 'width:100%;height:100%;object-fit:contain;display:block';
-      document.querySelector('.wcam-lb-box').appendChild(el);
-    }
-    document.getElementById('wcam-lb-img').src = imgUrl;
-    document.getElementById('wcam-lb-img').style.display = 'block';
-  }
-  lb.classList.add('on');
-}
-
-function closeWebcamPlayer() {
-  closeWebcamLightbox();
-}
-
-function closeWebcamLightbox() {
-  document.getElementById('wcam-lightbox').classList.remove('on');
-  document.getElementById('wcam-lb-iframe').src = 'about:blank';
 }
 
 // ─── Resizable helper (edge/corner drag) ────────────
@@ -471,11 +330,6 @@ function openCityPanel(city) {
   panel.classList.add('on');
   _makePanelDraggable(panel, panel.querySelector('.cip-hdr'));
 
-  // Webcam auto-load
-  if (typeof _webcamPanelEnabled !== 'undefined' && _webcamPanelEnabled) {
-    loadWebcams({ lat: city.lat, lng: city.lng, region: city.name });
-  }
-
   // Gather relevant stories for context
   const cityLc    = city.name.toLowerCase();
   const countryLc = (city.country || '').toLowerCase();
@@ -537,14 +391,11 @@ function closeCityPanel() {
   document.getElementById('city-panel').classList.remove('on');
 }
 
-// Hook into openArticle to auto-load webcams when panel is enabled
+// Hook into openArticle to auto-select the best broadcaster when the panel is open
 (function patchOpenArticle() {
   const _origOpenArticle = openArticle;
   openArticle = function(story) {
     _origOpenArticle(story);
-    if (_webcamPanelEnabled && story && story.lat != null) {
-      loadWebcams(story);
-    }
     // Auto-select best broadcaster in live news panel if it's open
     if (_lnpActive && story) {
       const bestId = _selectBroadcaster(story);

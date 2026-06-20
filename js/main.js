@@ -120,7 +120,7 @@ setInterval(() => { if (marketVisible) fetchMarketData(); }, 5 * 60 * 1000);
             diverge:  'toggleDivergence',
             cascade:  'toggleCascade',
             livenews: 'toggleLiveNews',
-            webcams:  'toggleWebcamPanel',
+            stories:  'toggleStoriesLayer',
           };
           const tfn = toolMap[payload.tool];
           if (tfn && typeof window[tfn] === 'function') window[tfn]();

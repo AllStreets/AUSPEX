@@ -782,43 +782,6 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 .bcast-stem{width:1px;height:7px;background:var(--bc,#FF3030);opacity:.7}
 .bcast-tip{width:4px;height:4px;border-radius:50%;background:var(--bc,#FF3030);opacity:.9;flex-shrink:0}
 
-/* ── WEBCAM PANEL ────────────────────── */
-#webcam-panel{position:fixed;bottom:calc(var(--scrb-h) + 14px);left:208px;width:360px;z-index:300;background:rgba(4,6,18,.97);backdrop-filter:blur(28px) saturate(180%);border:1px solid rgba(255,255,255,.1);border-radius:5px;display:none;flex-direction:column;overflow:hidden;box-shadow:0 12px 48px rgba(0,0,0,.6);max-height:340px}
-#webcam-panel.on{display:flex}
-.wcp-hdr{padding:9px 14px;border-bottom:1px solid rgba(255,255,255,.07);display:flex;align-items:center;gap:9px;flex-shrink:0;background:rgba(255,255,255,.018);cursor:grab}
-.wcp-hdr:active{cursor:grabbing}
-.wcp-dot{width:5px;height:5px;border-radius:50%;background:#30D158;flex-shrink:0}
-.wcp-wordmark{font-family:var(--f-mono);font-size:7.5px;letter-spacing:.22em;color:#30D158;flex-shrink:0}
-.wcp-loc{font-family:var(--f-mono);font-size:8px;color:var(--t3);flex:1;letter-spacing:.1em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 8px;text-align:center}
-.wcp-close{width:22px;height:22px;border:1px solid rgba(255,255,255,.1);background:none;color:var(--t3);cursor:pointer;border-radius:2px;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all .15s;font-family:monospace;flex-shrink:0}
-.wcp-close:hover{border-color:rgba(255,255,255,.3);color:var(--t1)}
-.wcp-loading{flex:1;display:flex;align-items:center;justify-content:center;font-family:var(--f-mono);font-size:8.5px;letter-spacing:.16em;color:var(--t3);padding:28px;animation:blink-fade 1.4s ease-in-out infinite}
-.wcp-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--f-mono);font-size:8.5px;letter-spacing:.14em;color:var(--t3);padding:24px;text-align:center;line-height:2.2}
-.wcp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:10px;overflow-y:auto;flex:1;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.05) transparent}
-.wcp-grid::-webkit-scrollbar{width:3px}
-.wcp-grid::-webkit-scrollbar-thumb{background:rgba(255,255,255,.05)}
-.wcp-thumb{position:relative;cursor:pointer;border-radius:3px;overflow:hidden;border:1px solid rgba(255,255,255,.07);transition:border-color .18s,transform .18s;background:#0a0c14}
-.wcp-thumb:hover{border-color:rgba(48,209,88,.4);transform:scale(1.03)}
-.wcp-thumb img{width:100%;height:66px;object-fit:cover;display:block;opacity:.85;transition:opacity .18s}
-.wcp-thumb:hover img{opacity:1}
-.wcp-thumb-lbl{padding:4px 6px;font-family:var(--f-mono);font-size:7px;letter-spacing:.08em;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.wcp-play-ico{position:absolute;top:6px;right:6px;width:20px;height:20px;background:rgba(0,0,0,.7);border:1px solid rgba(255,255,255,.25);border-radius:3px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;opacity:0;transition:opacity .15s;pointer-events:none;line-height:1}
-.wcp-thumb:hover .wcp-play-ico{opacity:1}
-.wcp-player{flex:1;display:none;flex-direction:column}
-.wcp-player.on{display:flex}
-.wcp-player iframe{flex:1;width:100%;min-height:200px;border:none;display:block}
-.wcp-player-bar{padding:7px 12px;border-top:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:8px;flex-shrink:0;background:rgba(0,0,0,.25)}
-.wcp-back-btn{padding:4px 10px;border:1px solid rgba(48,209,88,.25);background:none;color:rgba(48,209,88,.7);font-family:var(--f-mono);font-size:7.5px;letter-spacing:.12em;cursor:pointer;border-radius:2px;transition:all .15s}
-.wcp-back-btn:hover{border-color:#30D158;color:#30D158}
-.wcp-cam-name{font-family:var(--f-mono);font-size:7.5px;color:var(--t3);letter-spacing:.1em;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 8px}
-/* ── WEBCAM LIGHTBOX ────────────────────── */
-#wcam-lightbox{position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,.82);backdrop-filter:blur(10px);display:none;align-items:center;justify-content:center}
-#wcam-lightbox.on{display:flex}
-.wcam-lb-box{position:relative;width:min(820px,90vw);aspect-ratio:16/9;background:#000;border:1px solid rgba(255,255,255,.14);border-radius:5px;overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,.8)}
-.wcam-lb-box iframe{width:100%;height:100%;border:none;display:block}
-.wcam-lb-close{position:absolute;top:10px;right:10px;z-index:1;width:28px;height:28px;background:rgba(0,0,0,.75);border:1px solid rgba(255,255,255,.2);color:#fff;font-size:17px;cursor:pointer;border-radius:3px;display:flex;align-items:center;justify-content:center;transition:all .15s;font-family:monospace;line-height:1}
-.wcam-lb-close:hover{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.4)}
-.wcam-lb-title{position:absolute;bottom:10px;left:12px;font-family:var(--f-mono);font-size:9px;letter-spacing:.14em;color:rgba(255,255,255,.55);pointer-events:none;z-index:1}
 
 /* ══════════════════════════════════════════
    ANALYST TOOLS — button colour disambiguation
@@ -1116,7 +1079,6 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
   #refresh-ind.refreshing .ri-dot,
   .cip-loading,
   .bm-loading,
-  .wcp-loading,
   .pb-loading-anim,
   .rt-loading-anim {
     animation: none !important;
