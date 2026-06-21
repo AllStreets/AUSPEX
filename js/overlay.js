@@ -437,7 +437,7 @@ async function fetchAndBuildCablePaths() {
       if (cablesVisible) refreshCablePaths();
     }
   } catch(e) {
-    console.warn('[MERIDIAN cables] TeleGeography fetch failed:', e.message);
+    console.warn('[AUSPEX cables] TeleGeography fetch failed:', e.message);
   }
   document.getElementById('lc-cables').innerHTML = '<span class="lc-pip"></span>CABLES';
 }
