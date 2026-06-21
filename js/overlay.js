@@ -18,8 +18,46 @@ function classifyFlight(f) {
   return 'passenger';
 }
 
-// SVG top-down aircraft silhouette — clean commercial airliner shape pointing north (0°)
-const PLANE_SVG = `<svg class="fl-plane" viewBox="0 0 100 100" fill="currentColor"><path d="M50 4 C48 4 46 5 45 7 L40 30 L8 42 C6 43 5 44 5 46 L5 50 C5 52 7 53 9 52 L40 44 L42 62 L34 67 C33 68 32 69 32 71 L32 74 C32 76 34 77 36 76 L50 70 L64 76 C66 77 68 76 68 74 L68 71 C68 69 67 68 66 67 L58 62 L60 44 L91 52 C93 53 95 52 95 50 L95 46 C95 44 94 43 92 42 L60 30 L55 7 C54 5 52 4 50 4 Z"/></svg>`;
+// Flexport-style top-down aircraft glyph — fuselage + swept wings + tail,
+// nose pointing north (0°); makeFlightMarker rotates it to the live heading.
+const PLANE_SVG = `<svg class="fl-plane" viewBox="0 0 56 56" fill="currentColor"><ellipse cx="28" cy="28" rx="3.6" ry="19"/><path d="M28 19 L7 34 L9 38 L28 30 L47 38 L49 34 Z"/><path d="M28 42 L18 51 L20 53 L28 46 L36 53 L38 51 Z"/></svg>`;
+
+// How many live aircraft to render as markers, and how many to draw trails for
+// (trails are dashed/animated arcs — capped lower to keep the globe smooth).
+const FLIGHT_LIMIT = 1000;
+const FLIGHT_ARC_LIMIT = 300;
+
+// Major air hubs — a live ADS-B fix has no origin, so each plane's trail is
+// drawn from its nearest hub (Flexport's approach) to its current position.
+const FLIGHT_HUBS = [
+  {lat:33.94,lng:-118.41},{lat:40.64,lng:-73.78},{lat:41.98,lng:-87.90},{lat:32.90,lng:-97.04},
+  {lat:33.64,lng:-84.43},{lat:37.62,lng:-122.38},{lat:25.79,lng:-80.29},{lat:35.04,lng:-89.98},
+  {lat:51.47,lng:-0.46},{lat:49.01,lng:2.55},{lat:50.04,lng:8.56},{lat:52.31,lng:4.76},
+  {lat:40.49,lng:-3.57},{lat:41.80,lng:12.25},{lat:55.62,lng:37.41},{lat:41.28,lng:28.75},
+  {lat:25.25,lng:55.36},{lat:24.43,lng:54.65},{lat:1.36,lng:103.99},{lat:22.31,lng:113.92},
+  {lat:31.14,lng:121.81},{lat:40.08,lng:116.58},{lat:35.55,lng:139.78},{lat:37.46,lng:126.44},
+  {lat:19.09,lng:72.87},{lat:28.56,lng:77.10},{lat:-33.95,lng:151.18},{lat:-23.43,lng:-46.47},
+  {lat:-34.82,lng:-58.54},{lat:19.44,lng:-99.07},{lat:43.68,lng:-79.63},{lat:9.01,lng:38.80},
+  {lat:-1.32,lng:36.93},{lat:6.58,lng:3.32},{lat:30.12,lng:31.41},{lat:-26.13,lng:28.24},
+];
+function _nearestHub(lat, lng) {
+  let best = FLIGHT_HUBS[0], bd = Infinity;
+  for (const h of FLIGHT_HUBS) {
+    const d = (h.lat - lat) ** 2 + (h.lng - lng) ** 2;
+    if (d < bd) { bd = d; best = h; }
+  }
+  return best;
+}
+// Flight trail arcs (nearest hub → plane), coloured by category. Drawn only
+// while the FLIGHTS layer is on; merged into the globe arc pipeline by refreshArcs.
+function computeFlightArcs() {
+  if (typeof flightsVisible === 'undefined' || !flightsVisible || !flightData.length) return [];
+  return flightData.slice(0, FLIGHT_ARC_LIMIT).map(f => {
+    const col = f.flightType === 'military' ? '#30D158' : f.flightType === 'cargo' ? '#A78BFA' : '#0A84FF';
+    const h = _nearestHub(f.lat, f.lng);
+    return { slat: h.lat, slng: h.lng, elat: f.lat, elng: f.lng, c1: col + '08', c2: col + 'cc', _flight: true };
+  });
+}
 
 function showFlightInfo(f) {
   if (_flightInfoPanel) _flightInfoPanel.remove();
@@ -98,28 +136,25 @@ function makeFlightMarker(f) {
 
 async function fetchFlights() {
   try {
-    const creds = btoa(`${OPENSKY_ID}:${OPENSKY_SEC}`);
+    // Real live ADS-B via the server-side proxy (OpenSky bulk + adsb.lol
+    // fallback), already classified military/cargo/passenger with the right
+    // units. Allow a long timeout — OpenSky bulk is fast but a cold serverless
+    // fetch can take a few seconds.
     const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 10000);
-    const r = await fetch('https://opensky-network.org/api/states/all', {
-      signal: ctrl.signal,
-      headers: { 'Authorization':`Basic ${creds}` },
-    });
+    const t = setTimeout(() => ctrl.abort(), 20000);
+    const r = await fetch(`${WORKER_BASE || ''}/flights.json`, { signal: ctrl.signal });
     clearTimeout(t);
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const d = await r.json();
-    flightData = (d.states||[])
-      .filter(s => s[5]&&s[6]&&!s[8]&&(s[7]||0)>100)
-      .map(s => {
-        const f = { icao:s[0], callsign:(s[1]||'').trim(), country:s[2]||'',
-          lng:s[5], lat:s[6], alt:+(s[7]||0), vel:+(s[9]||0), heading:+(s[10]||0),
-          onGround:s[8], _type:'flight' };
-        f.flightType = classifyFlight(f);
-        return f;
-      }).slice(0, 300);
+    const fl = (d.flights || [])
+      .filter(f => f.lat != null && f.lng != null)
+      .map(f => ({ ...f, flightType: f.flightType || 'passenger', _type: 'flight' }))
+      .slice(0, FLIGHT_LIMIT);
+    if (fl.length < 5) throw new Error('too few flights');
+    flightData = fl;
     _setFlightBadge(true);
   } catch(e) {
-    console.warn('OpenSky failed, using mock data:', e.message);
+    console.warn('Live flights failed, using seed:', e.message);
     _setFlightBadge(false);
     flightData = [
       // Military — global spread
@@ -256,7 +291,7 @@ function _setFlightBadge(isLive) {
   const lbl   = document.getElementById('fdb-label');
   if (!badge) return;
   badge.className = isLive ? 'live' : 'sim';
-  lbl.textContent = isLive ? 'LIVE DATA' : 'SIM DATA';
+  lbl.textContent = isLive ? 'LIVE ADS-B' : 'SIM DATA';
 }
 
 function _showFlightBadge(show) {

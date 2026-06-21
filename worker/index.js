@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 import path from 'path';
 import { pollAll } from './poller.js';
 import { refreshNews, getNewsPayload, NEWS_REFRESH_INTERVAL_MS } from './news.js';
+import { fetchFlights } from './flights.js';
 
 // Load server-side secrets (NEWS_API_KEY) from worker/.env if present.
 // Node 20.12+ API; the try means it's fine if the file is absent.
@@ -55,6 +56,20 @@ app.get('/snapshot.json', (req, res) => {
 // Unified, CORS-clean news feed (GDELT + NewsAPI). 12-minute in-memory cache.
 app.get('/news.json', async (req, res) => {
   res.json(await getNewsPayload());
+});
+
+// Live ADS-B flights (adsb.lol). 20s in-memory cache so adsb.lol isn't hammered.
+let _flightsCache = { at: 0, payload: null };
+app.get('/flights.json', async (req, res) => {
+  if (!_flightsCache.payload || Date.now() - _flightsCache.at > 20000) {
+    try {
+      const flights = await fetchFlights(1000);
+      _flightsCache = { at: Date.now(), payload: { generatedAt: new Date().toISOString(), source: flights.length ? 'live' : 'empty', count: flights.length, flights } };
+    } catch (e) {
+      _flightsCache = { at: Date.now(), payload: { generatedAt: new Date().toISOString(), source: 'error', count: 0, flights: [] } };
+    }
+  }
+  res.json(_flightsCache.payload);
 });
 
 app.listen(8801, () => console.log('[AUSPEX worker] listening on :8801'));
