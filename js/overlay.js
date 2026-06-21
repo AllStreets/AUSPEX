@@ -141,7 +141,7 @@ async function fetchFlights() {
     // units. Allow a long timeout — OpenSky bulk is fast but a cold serverless
     // fetch can take a few seconds.
     const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 20000);
+    const t = setTimeout(() => ctrl.abort(), 30000);
     const r = await fetch(`${WORKER_BASE || ''}/flights.json`, { signal: ctrl.signal });
     clearTimeout(t);
     if (!r.ok) throw new Error(`HTTP ${r.status}`);

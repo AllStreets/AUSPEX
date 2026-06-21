@@ -32,7 +32,9 @@ async function fetchOpenSky(limit) {
   if (id && sec) headers.Authorization = 'Basic ' + Buffer.from(`${id}:${sec}`).toString('base64');
 
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 12000);
+  // Short timeout — OpenSky is fast when it works (local / with creds) and 429s
+  // quickly from rate-limited cloud IPs, so don't let it stall the adsb.lol path.
+  const timer = setTimeout(() => ctrl.abort(), 6000);
   let data;
   try {
     const r = await fetch('https://opensky-network.org/api/states/all', { signal: ctrl.signal, headers });
@@ -102,7 +104,7 @@ async function fetchAdsbLol(limit) {
   // Sequential, one query at a time, so each lands before adsb.lol throttles the
   // burst. Stop on a ~13s budget so the function always returns promptly.
   for (const s of ADSB_SOURCES) {
-    if (Date.now() - start > 13000 || seen.size >= limit) break;
+    if (Date.now() - start > 11000 || seen.size >= limit) break;
     const url = s.mil ? 'https://api.adsb.lol/v2/mil' : `https://api.adsb.lol/v2/type/${s.type}`;
     const ac = await fetchAdsbType(url);
     for (const a of ac) {
