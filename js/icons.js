@@ -14,8 +14,8 @@ const AUSPEX_EVENT_ICONS = {
   volcano: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18l-5.5-9h-5L3 20Z"/><path d="M10.5 11l1.5-3 1.5 3"/><path d="M12 5V3M9.5 5.5 8 4M14.5 5.5 16 4"/></svg>`,
   // Stacked water waves
   flood: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8c2 0 2.5 1.5 5 1.5S14 8 14 8s2 1.5 4.5 1.5S22 8 22 8"/><path d="M2 13c2 0 2.5 1.5 5 1.5S14 13 14 13s2 1.5 4.5 1.5S22 13 22 13"/><path d="M2 18c2 0 2.5 1.5 5 1.5S14 18 14 18s2 1.5 4.5 1.5S22 18 22 18"/></svg>`,
-  // Inward spiral
-  cyclone: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12a3 3 0 1 0-2.5-1.4"/><path d="M12 12a6.5 6.5 0 1 1 6-9"/><path d="M12 12a6.5 6.5 0 0 0-6 9"/></svg>`,
+  // Tornado funnel — narrowing wind bands with a swirling debris tail
+  cyclone: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16"/><path d="M6 9h12"/><path d="M8.5 13h8"/><path d="M11 16.5h5"/><path d="M13.5 16.5c.3 2.3-1.4 4.1-3.7 4.4"/></svg>`,
   // Flame
   fire: `<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2c.6 2.8-1.2 4.3-2.4 5.7C8.2 9.3 7 10.7 7 13a5 5 0 0 0 10 0c0-1.7-.8-3-1.6-4-.3.9-1 1.6-1.9 1.6 1-2.3-.2-5.6-1.5-8.6Z"/></svg>`,
   // Cracked, parched earth under a low sun
