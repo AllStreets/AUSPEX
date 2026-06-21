@@ -65,17 +65,20 @@ async function fetchOpenSky(limit) {
 }
 
 // ── Fallback: adsb.lol type fan-out (keyless) ───────────────────
-// Interleaved + high-yield-first: A320 alone is ~600 aircraft, so front-loading
-// it (plus military) means the most valuable queries land BEFORE adsb.lol starts
-// throttling the burst. Later queries add depth when they get through.
+// adsb.lol burst-throttles unpredictably (one of any concurrent pair comes back
+// empty), so we query SEQUENTIALLY on a time budget with the three classes
+// ordered first — military, a cargo type, then A320 (~600 aircraft) all land
+// before throttling kicks in, guaranteeing a real mix. Remaining types add depth
+// until the budget is spent.
 const ADSB_SOURCES = [
-  { type: 'A320', cls: 'passenger' }, { mil: true },
-  { type: 'A321', cls: 'passenger' }, { type: 'B748', cargo: true },
-  { type: 'B738', cls: 'passenger' }, { type: 'B77F', cargo: true },
-  { type: 'A319', cls: 'passenger' }, { type: 'B744', cargo: true },
-  { type: 'A20N', cls: 'passenger' }, { type: 'MD11', cargo: true },
-  { type: 'B739', cls: 'passenger' }, { type: 'IL76', cargo: true },
-  { type: 'A21N', cls: 'passenger' }, { type: 'C17', cargo: true },
+  { mil: true },               // military feed first
+  { type: 'B748', cargo: true }, // a cargo type second
+  { type: 'A320', cls: 'passenger' }, // the big passenger query third (~600)
+  { type: 'C17', cargo: true }, { type: 'A321', cls: 'passenger' },
+  { type: 'B77F', cargo: true }, { type: 'B738', cls: 'passenger' },
+  { type: 'IL76', cargo: true }, { type: 'A319', cls: 'passenger' },
+  { type: 'MD11', cargo: true }, { type: 'A20N', cls: 'passenger' },
+  { type: 'B744', cargo: true }, { type: 'B739', cls: 'passenger' },
 ];
 const FEET_TO_M = 0.3048, KNOT_TO_MS = 0.514444;
 
@@ -94,19 +97,14 @@ async function fetchAdsbType(url) {
 }
 
 async function fetchAdsbLol(limit) {
-  const sources = ADSB_SOURCES.map(s => ({
-    ...s,
-    url: s.mil ? 'https://api.adsb.lol/v2/mil' : `https://api.adsb.lol/v2/type/${s.type}`,
-  }));
-  // Low concurrency — adsb.lol empties responses under burst.
-  const results = [];
-  for (let i = 0; i < sources.length; i += 2) {
-    const batch = sources.slice(i, i + 2);
-    results.push(...await Promise.all(batch.map(s => fetchAdsbType(s.url).then(ac => ({ ac, s })))));
-    if (i + 2 < sources.length) await new Promise(r => setTimeout(r, 300));
-  }
   const seen = new Map();
-  for (const { ac, s } of results) {
+  const start = Date.now();
+  // Sequential, one query at a time, so each lands before adsb.lol throttles the
+  // burst. Stop on a ~13s budget so the function always returns promptly.
+  for (const s of ADSB_SOURCES) {
+    if (Date.now() - start > 13000 || seen.size >= limit) break;
+    const url = s.mil ? 'https://api.adsb.lol/v2/mil' : `https://api.adsb.lol/v2/type/${s.type}`;
+    const ac = await fetchAdsbType(url);
     for (const a of ac) {
       if (!a || !a.hex || a.lat == null || a.lon == null) continue;
       if (typeof a.alt_baro !== 'number' || a.alt_baro < 500) continue;
@@ -118,6 +116,7 @@ async function fetchAdsbLol(limit) {
         heading: a.track || 0, flightType: ft, _type: 'flight',
       });
     }
+    await new Promise(r => setTimeout(r, 150));
   }
   return Array.from(seen.values()).slice(0, limit);
 }
