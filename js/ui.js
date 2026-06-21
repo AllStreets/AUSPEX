@@ -15,13 +15,13 @@ function _cardHtml(s) {
       ${s.brk ? '<span class="brk">BREAKING</span>' : ''}
       <span class="nc-time">${s.time}</span>
       <div class="nc-actions" onclick="event.stopPropagation()">
-        <button class="nc-star ${watchlist.includes(s.id)?'saved':''}" data-wl-id="${s.id}" onclick="toggleWatchlist(${s.id})" title="Save to watchlist">
+        <button class="nc-star ${watchlist.includes(s.id)?'saved':''}" data-wl-id="${s.id}" title="Save to watchlist">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="${watchlist.includes(s.id)?'currentColor':'none'}" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
         </button>
-        <button class="nc-star ${analystAssets.includes(s.id)?'saved':''} nc-pin-btn" data-pin-id="${s.id}" onclick="pinStory(${s.id})" title="Pin to Analyst Mode" style="color:${analystAssets.includes(s.id)?'#4ADE80':''}">
+        <button class="nc-star ${analystAssets.includes(s.id)?'saved':''} nc-pin-btn" data-pin-id="${s.id}" title="Pin to Analyst Mode" style="color:${analystAssets.includes(s.id)?'#4ADE80':''}">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
         </button>
-        <button class="nc-star ${reliefAssets.includes(s.id)?'saved':''} nc-relief-btn" data-relief-id="${s.id}" onclick="pinStoryToRelief(NEWS.find(n=>n.id===${s.id})||{id:${s.id}});_ncRefreshReliefBtn(${s.id})" title="Pin to RELIEF Board" style="color:${reliefAssets.includes(s.id)?'#34D399':''}">
+        <button class="nc-star ${reliefAssets.includes(s.id)?'saved':''} nc-relief-btn" data-relief-id="${s.id}" title="Pin to RELIEF Board" style="color:${reliefAssets.includes(s.id)?'#34D399':''}">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
         </button>
       </div>
@@ -42,9 +42,24 @@ function _ncRefreshReliefBtn(id) {
 
 function _bindFeedCards(container) {
   container.querySelectorAll('.ncard').forEach(card => {
-    const sid = +card.dataset.id;
-    const story = NEWS.find(s => s.id === sid) || FALLBACK_NEWS.find(s => s.id === sid);
-    if (story) card.addEventListener('click', () => openArticle(story));
+    const sid = card.dataset.id;
+    // Story ids are integers (live fetch) OR Supabase UUID strings (archived).
+    // Resolve by string-equality and bind every action to the REAL story object
+    // and its actual id, so cards work for both id types (the old `+id` coercion
+    // turned UUIDs into NaN, silently dropping the click + the pin handlers).
+    const story = (typeof NEWS !== 'undefined' && NEWS.find(s => String(s.id) === sid))
+               || (typeof FALLBACK_NEWS !== 'undefined' && FALLBACK_NEWS.find(s => String(s.id) === sid));
+    if (!story) return;
+    card.addEventListener('click', () => openArticle(story));
+    const wlBtn = card.querySelector('[data-wl-id]');
+    if (wlBtn) wlBtn.addEventListener('click', () => toggleWatchlist(story.id));
+    const pinBtn = card.querySelector('[data-pin-id]');
+    if (pinBtn) pinBtn.addEventListener('click', () => pinStory(story.id));
+    const rlBtn = card.querySelector('[data-relief-id]');
+    if (rlBtn) rlBtn.addEventListener('click', () => {
+      if (typeof pinStoryToRelief === 'function') pinStoryToRelief(story);
+      _ncRefreshReliefBtn(story.id);
+    });
   });
 }
 
@@ -177,7 +192,7 @@ function openPicker(stories) {
     </div>`).join('');
 
   document.getElementById('pk-list').querySelectorAll('.pk-item').forEach(el => {
-    const s = NEWS.find(n => n.id === +el.dataset.id);
+    const s = NEWS.find(n => String(n.id) === el.dataset.id);
     el.addEventListener('click', () => { closePicker(); openArticle(s); });
   });
 
