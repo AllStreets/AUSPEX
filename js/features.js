@@ -54,11 +54,11 @@ function switchBroadcaster(id) {
 
   // live_stream?channel=CHANNEL_ID always loads whatever is currently live on the channel
   // This is the correct YouTube approach — no stale video ID issues
-  // Autoplay must be MUTED — every browser blocks autoplay-with-sound, which is
-  // why the stream showed a play button instead of starting. Muted autoplay is
-  // always allowed, so the live feed starts the moment a channel is selected;
-  // the viewer can unmute the one they want to hear via the player controls.
-  const embedSrc = `https://www.youtube-nocookie.com/embed/live_stream?channel=${b.channelId}&autoplay=1&mute=1&playsinline=1&rel=0&modestbranding=1`;
+  // Load the stream ready-but-PAUSED, with SOUND (not muted). Browsers block
+  // autoplay-with-audio, and muted playback isn't wanted — so the player shows
+  // its play button and starts WITH AUDIO on a single click (that click is the
+  // user gesture the browser needs to allow sound).
+  const embedSrc = `https://www.youtube-nocookie.com/embed/live_stream?channel=${b.channelId}&autoplay=0&mute=0&playsinline=1&rel=0&modestbranding=1`;
   iframe.src = embedSrc;
 
   document.getElementById('lnp-station-name').textContent = b.name + ' · ' + b.desc;
