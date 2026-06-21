@@ -65,8 +65,18 @@ async function fetchOpenSky(limit) {
 }
 
 // ── Fallback: adsb.lol type fan-out (keyless) ───────────────────
-const ADSB_CARGO = ['B748', 'B77F', 'B744', 'MD11', 'IL76', 'C17'];
-const ADSB_PAX = ['A320', 'A321', 'A319', 'A20N', 'B738', 'B739'];
+// Interleaved + high-yield-first: A320 alone is ~600 aircraft, so front-loading
+// it (plus military) means the most valuable queries land BEFORE adsb.lol starts
+// throttling the burst. Later queries add depth when they get through.
+const ADSB_SOURCES = [
+  { type: 'A320', cls: 'passenger' }, { mil: true },
+  { type: 'A321', cls: 'passenger' }, { type: 'B748', cargo: true },
+  { type: 'B738', cls: 'passenger' }, { type: 'B77F', cargo: true },
+  { type: 'A319', cls: 'passenger' }, { type: 'B744', cargo: true },
+  { type: 'A20N', cls: 'passenger' }, { type: 'MD11', cargo: true },
+  { type: 'B739', cls: 'passenger' }, { type: 'IL76', cargo: true },
+  { type: 'A21N', cls: 'passenger' }, { type: 'C17', cargo: true },
+];
 const FEET_TO_M = 0.3048, KNOT_TO_MS = 0.514444;
 
 async function fetchAdsbType(url) {
@@ -84,11 +94,10 @@ async function fetchAdsbType(url) {
 }
 
 async function fetchAdsbLol(limit) {
-  const sources = [
-    { url: 'https://api.adsb.lol/v2/mil', mil: true },
-    ...ADSB_CARGO.map(t => ({ url: `https://api.adsb.lol/v2/type/${t}`, mil: false, cargo: true })),
-    ...ADSB_PAX.map(t => ({ url: `https://api.adsb.lol/v2/type/${t}`, mil: false })),
-  ];
+  const sources = ADSB_SOURCES.map(s => ({
+    ...s,
+    url: s.mil ? 'https://api.adsb.lol/v2/mil' : `https://api.adsb.lol/v2/type/${s.type}`,
+  }));
   // Low concurrency — adsb.lol empties responses under burst.
   const results = [];
   for (let i = 0; i < sources.length; i += 2) {
