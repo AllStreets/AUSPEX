@@ -78,11 +78,16 @@ setInterval(() => { if (marketVisible) fetchMarketData(); }, 5 * 60 * 1000);
 // never spams the console with failed-fetch errors.
 // ═══════════════════════════════════════════
 (function startCommandBus() {
-  const BRIDGE_ENABLED = (localStorage.getItem('auspex_bridge') === '1');
-  if (!BRIDGE_ENABLED) return;
+  // AUSPEX is a normal public site AND routes commands from AgentZeus by default.
+  // Disable with localStorage.auspex_bridge = '0'.
+  if (localStorage.getItem('auspex_bridge') === '0') return;
 
-  const BRIDGE_URL = 'http://localhost:3000/api/auspex-bridge';
-  let _lastTs = 0;
+  // Poll the DEPLOYED AgentZeus bridge over HTTPS — a public HTTPS page cannot
+  // fetch http://localhost (mixed content). Override via window.AUSPEX_BRIDGE_URL
+  // (set it to http://localhost:3000/api/auspex-bridge when running AUSPEX locally).
+  const BRIDGE_URL = (typeof window !== 'undefined' && window.AUSPEX_BRIDGE_URL)
+    || 'https://agent-zeus-git-main-connor-evans-projects.vercel.app/api/auspex-bridge';
+  let _lastTs = Date.now(); // ignore any backlog from before this page loaded
 
   async function pollBridge() {
     try {
@@ -130,6 +135,7 @@ setInterval(() => { if (marketVisible) fetchMarketData(); }, 5 * 60 * 1000);
         if (payload.page) {
           const pageMap = {
             analyst: 'openAnalystMode',
+            relief:  'openRelief',
             brief:   'openDailyBrief',
             mapkey:  'toggleMapKey',
           };
