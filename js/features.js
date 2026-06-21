@@ -54,11 +54,11 @@ function switchBroadcaster(id) {
 
   // live_stream?channel=CHANNEL_ID always loads whatever is currently live on the channel
   // This is the correct YouTube approach — no stale video ID issues
-  // Load the stream ready-but-PAUSED, with SOUND (not muted). Browsers block
-  // autoplay-with-audio, and muted playback isn't wanted — so the player shows
-  // its play button and starts WITH AUDIO on a single click (that click is the
-  // user gesture the browser needs to allow sound).
-  const embedSrc = `https://www.youtube-nocookie.com/embed/live_stream?channel=${b.channelId}&autoplay=0&mute=0&playsinline=1&rel=0&modestbranding=1`;
+  // Autoplay WITH SOUND. Browsers only allow audio autoplay inside an active
+  // user gesture, so switchBroadcaster() is invoked synchronously from the
+  // BROADCAST toggle / tab click (no setTimeout) to keep that gesture alive —
+  // the stream then starts playing the moment the panel opens, like Meridian.
+  const embedSrc = `https://www.youtube-nocookie.com/embed/live_stream?channel=${b.channelId}&autoplay=1&mute=0&playsinline=1&rel=0&modestbranding=1`;
   iframe.src = embedSrc;
 
   document.getElementById('lnp-station-name').textContent = b.name + ' · ' + b.desc;
@@ -88,8 +88,10 @@ function openLiveNews(story) {
   const loc = story ? (story.region || 'GLOBAL FEED').toUpperCase() : 'GLOBAL FEED';
   document.getElementById('lnp-loc').textContent = loc;
 
-  // Build tabs then load the selected broadcaster
-  setTimeout(() => switchBroadcaster(bestId), 60);
+  // Build tabs + load the stream SYNCHRONOUSLY (no setTimeout) so the user
+  // gesture from the BROADCAST toggle is still active — that's what lets the
+  // browser autoplay the live stream with sound on open.
+  switchBroadcaster(bestId);
 
   _makePanelDraggable(document.getElementById('live-news-panel'), document.getElementById('lnp-drag-handle'));
   makeResizable(document.getElementById('live-news-panel'));
