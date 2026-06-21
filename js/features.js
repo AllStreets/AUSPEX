@@ -28,35 +28,6 @@ function _buildBroadcasterTabs(activeId) {
   ).join('');
 }
 
-// The live player starts MUTED so it can autoplay instantly on first visit
-// (browsers block unmuted autoplay until they trust the domain, which is why a
-// fresh Vercel link stalls on a play button). We unmute on the viewer's first
-// interaction with the page; from then on, channel switches load with sound.
-let _lnpAudioUnlocked = false;
-let _lnpUnlockFn = null;
-
-function _lnpDisarmAudioUnlock() {
-  if (!_lnpUnlockFn) return;
-  ['pointerdown', 'keydown', 'touchstart'].forEach(ev => window.removeEventListener(ev, _lnpUnlockFn, true));
-  _lnpUnlockFn = null;
-}
-
-function _lnpArmAudioUnlock(iframe) {
-  _lnpDisarmAudioUnlock();
-  _lnpUnlockFn = () => {
-    _lnpAudioUnlocked = true;
-    _lnpDisarmAudioUnlock();
-    // The current iframe is already playing muted; unmute it in place via the
-    // YouTube IFrame API (this runs inside a real user gesture, so audio is OK).
-    try {
-      const w = iframe.contentWindow;
-      w.postMessage('{"event":"command","func":"unMute","args":[]}', '*');
-      w.postMessage('{"event":"command","func":"playVideo","args":[]}', '*');
-    } catch (e) {}
-  };
-  ['pointerdown', 'keydown', 'touchstart'].forEach(ev => window.addEventListener(ev, _lnpUnlockFn, true));
-}
-
 function switchBroadcaster(id) {
   _lnpCurrentId = id;
   const b = BROADCASTERS.find(x => x.id === id) || BROADCASTERS[0];
@@ -83,13 +54,12 @@ function switchBroadcaster(id) {
 
   // live_stream?channel=CHANNEL_ID always loads whatever is currently live on the channel
   // This is the correct YouTube approach — no stale video ID issues
-  // ALWAYS autoplay: start muted (muted autoplay is always permitted, so the
-  // feed plays instantly with no play button), then unmute on the viewer's first
-  // interaction. Once unlocked, every channel switch loads with sound directly.
-  const muteParam = _lnpAudioUnlocked ? 0 : 1;
-  const embedSrc = `https://www.youtube-nocookie.com/embed/live_stream?channel=${b.channelId}&autoplay=1&mute=${muteParam}&enablejsapi=1&playsinline=1&rel=0&modestbranding=1`;
+  // Autoplay the live stream WITH SOUND (never muted). Loaded synchronously from
+  // the toggle/tab click so the user gesture is still active — browsers that
+  // trust the site play it immediately; otherwise it's a single tap to start,
+  // always with audio.
+  const embedSrc = `https://www.youtube-nocookie.com/embed/live_stream?channel=${b.channelId}&autoplay=1&mute=0&playsinline=1&rel=0&modestbranding=1`;
   iframe.src = embedSrc;
-  if (!_lnpAudioUnlocked) _lnpArmAudioUnlock(iframe);
 
   document.getElementById('lnp-station-name').textContent = b.name + ' · ' + b.desc;
 
@@ -137,7 +107,6 @@ function closeLiveNews() {
   // Stop video to free resources
   const iframe = document.getElementById('lnp-iframe');
   if (iframe._ytErrHandler) window.removeEventListener('message', iframe._ytErrHandler);
-  _lnpDisarmAudioUnlock();
   iframe.src = 'about:blank';
   // Remove broadcaster city markers from globe
   if (G) updateAllGlobeElements();
