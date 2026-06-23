@@ -87,16 +87,32 @@ setInterval(() => { if (marketVisible) fetchMarketData(); }, 5 * 60 * 1000);
   // (set it to http://localhost:3000/api/auspex-bridge when running AUSPEX locally).
   const BRIDGE_URL = (typeof window !== 'undefined' && window.AUSPEX_BRIDGE_URL)
     || 'https://agent-zeus-git-main-connor-evans-projects.vercel.app/api/auspex-bridge';
-  let _lastTs = Date.now(); // ignore any backlog from before this page loaded
+  // Look back a few seconds at load so a window opened by "open AUSPEX with cities
+  // and cables" still applies the overlay commands the agent enqueued a beat
+  // before this page finished loading — i.e. it all lands flush, in any word order.
+  let _lastTs = Date.now() - 20000;
 
   async function pollBridge() {
     try {
       const res = await fetch(`${BRIDGE_URL}?after=${_lastTs}`, { signal: AbortSignal.timeout(3000) });
       if (!res.ok) return;
       const data = await res.json();
-      if (!data || !data.command) return;
-      _lastTs = data.command.ts || Date.now();
-      executeCmd(data.command.cmd, data.command.payload || {});
+      if (!data) return;
+      // Drain the whole batch this tick so a multi-step request (cities + cables +
+      // open) applies together, not one toggle every poll. Fall back to the single
+      // {command} field for older bridge builds.
+      const batch = Array.isArray(data.commands) && data.commands.length
+        ? data.commands
+        : (data.command ? [data.command] : []);
+      if (!batch.length) return;
+      for (const c of batch) {
+        // Globe not ready yet — leave the rest of the batch for the next poll so
+        // nothing is consumed-but-dropped (the cursor only advances past commands
+        // we actually executed).
+        if (!G) break;
+        executeCmd(c.cmd, c.payload || {});
+        _lastTs = Math.max(_lastTs, c.ts || Date.now());
+      }
     } catch { /* bridge not running — silent */ }
   }
 
@@ -163,6 +179,8 @@ setInterval(() => { if (marketVisible) fetchMarketData(); }, 5 * 60 * 1000);
     }
   }
 
-  // Poll every 2 seconds
+  // Poll immediately on load (catch the just-enqueued open-with-overlays batch),
+  // then every 2 seconds.
+  pollBridge();
   setInterval(pollBridge, 2000);
 })();
