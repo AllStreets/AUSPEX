@@ -333,17 +333,23 @@ function makeAuspexEventMarker(event) {
     ? auspexEventColor(event)
     : (event.polarity === 'breakthrough' ? '#5AC8FA' : '#FF8C66');
   const size = 8 + sev * 14;
-  const glyph = size + 6; // glyph slightly larger than the legacy core dot
+  const glyph = size + 10; // glyph sits above the ring; large enough to read the shape
   const unconfirmed = event.confidence === 'unconfirmed';
-  const svg = (typeof AUSPEX_EVENT_ICONS !== 'undefined')
-    ? (AUSPEX_EVENT_ICONS[event.icon] || AUSPEX_EVENT_ICONS[event.type] || AUSPEX_EVENT_ICONS.default)
-    : '';
+  // Glyph fluid for any event kind (icon → type → sense → polarity fallback).
+  const svg = (typeof auspexEventGlyph === 'function')
+    ? auspexEventGlyph(event)
+    : (typeof AUSPEX_EVENT_ICONS !== 'undefined')
+      ? (AUSPEX_EVENT_ICONS[event.icon] || AUSPEX_EVENT_ICONS[event.type] || AUSPEX_EVENT_ICONS.default)
+      : '';
+  // Stroke is a brightened tint of the type color so the glyph reads against its
+  // own colored halo (the bug that made launches look like a featureless orb).
+  const glyphColor = (typeof auspexLiftColor === 'function') ? auspexLiftColor(color, 0.6) : color;
   const d = document.createElement('div');
   d.className = `auspex-m auspex-${event.type}${unconfirmed ? ' auspex-unconfirmed' : ''}`;
   d.style.cssText = `color:${color};position:relative;transform:translate(-50%,-50%)`;
   d.innerHTML =
     `<div class="auspex-ring" style="width:${size*2}px;height:${size*2}px;border:1px ${unconfirmed?'dashed':'solid'} ${color}${unconfirmed?'66':'99'};border-radius:50%;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);animation:auspex-pulse 2.4s ease-out infinite"></div>` +
-    `<div class="auspex-glyph" style="width:${glyph}px;height:${glyph}px;display:flex;align-items:center;justify-content:center;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle,${color}33 0%,${color}11 60%,transparent 75%);filter:drop-shadow(0 0 ${Math.round(sev*10)+2}px ${color}aa);opacity:${unconfirmed?0.65:1}">${svg}</div>` +
+    `<div class="auspex-glyph" style="width:${glyph}px;height:${glyph}px;color:${glyphColor};display:flex;align-items:center;justify-content:center;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle, rgba(5,9,18,0.7) 0%, rgba(5,9,18,0.42) 50%, ${color}22 70%, transparent 82%);filter:drop-shadow(0 0 ${Math.round(sev*5)+2}px ${color}cc);opacity:${unconfirmed?0.7:1}">${svg}</div>` +
     `<div class="auspex-tip">${event.title}</div>`;
   d.addEventListener('click', e => { e.stopPropagation(); openAuspexEventCard(event); });
   return d;

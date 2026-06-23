@@ -49,6 +49,34 @@ function auspexEventIcon(key) {
   return (key && AUSPEX_EVENT_ICONS[key]) || AUSPEX_EVENT_ICONS.default;
 }
 
+// Resolve the best glyph for a whole event — stays fluid for brand-new event
+// kinds the snapshot may invent. Tries explicit icon, then type, then sense;
+// finally falls back by POLARITY (peril → warning triangle, breakthrough →
+// science flask) so an unknown type never collapses to a meaningless diamond.
+function auspexEventGlyph(event) {
+  if (!event) return AUSPEX_EVENT_ICONS.default;
+  const direct = AUSPEX_EVENT_ICONS[event.icon]
+    || AUSPEX_EVENT_ICONS[event.type]
+    || AUSPEX_EVENT_ICONS[event.sense];
+  if (direct) return direct;
+  if (event.polarity === 'peril') return AUSPEX_EVENT_ICONS.disaster;
+  if (event.polarity === 'breakthrough') return AUSPEX_EVENT_ICONS.science;
+  return AUSPEX_EVENT_ICONS.default;
+}
+
+// Lift a hex color toward white by amount t (0..1). Glyph strokes are drawn in a
+// lifted tint of the event's type color so they stay legible against their own
+// same-hued halo — without this a launch's blue rocket vanished into its blue
+// glow and read as a featureless orb. Hue still encodes type; only luminance lifts.
+function auspexLiftColor(hex, t) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
+  if (!m) return hex || '#FFFFFF';
+  const n = parseInt(m[1], 16);
+  const lift = (c) => Math.round(c + (255 - c) * t);
+  const r = lift((n >> 16) & 255), g = lift((n >> 8) & 255), b = lift(n & 255);
+  return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
+}
+
 // ═══════════════════════════════════════════
 // AUSPEX EVENT COLORS
 // Per-type hues so every event reads distinctly on the dark globe — color
