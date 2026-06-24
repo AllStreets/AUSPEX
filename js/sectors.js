@@ -312,25 +312,20 @@ function scSectorMetrics() {
   return raw;
 }
 
-// Signals × sectors heatmap (cross-domain coverage of the live feed).
-// Primary tile number = TRUE live signal count (uncapped → varies, never 99).
-// Sub-label = the live composite sector score (0-100).
+// Signals × sectors coverage — proper HTML tiles (Bloomberg-grade, matching the
+// KPI boxes). Big number = live composite SCORE (0-100, varies). Sub = the TRUE
+// uncapped live signal count. Tile tint tracks the score.
 function svgHeatmap() {
   const cols = scSectorMetrics();
-  const maxN = Math.max(1, ...cols.map(c => c.volume));
-  const cw = 70, ch = 50, top = 22, left = 4;
-  const w = left + cols.length * cw, h = top + ch + 6;
-  const cells = cols.map((c, i) => {
-    const x = left + i * cw;
-    // intensity driven by the live composite score so colour tracks the metric
-    const intensity = c.score / 100;
-    const op = 0.12 + intensity * 0.78;
-    return `<rect class="sc-heat-cell" x="${x+2}" y="${top}" width="${cw-4}" height="${ch}" rx="3" fill="${c.accent}" fill-opacity="${op.toFixed(2)}"/>
-      <text x="${x+cw/2}" y="${top+ch/2-2}" text-anchor="middle" class="sc-heat-val">${c.score}</text>
-      <text x="${x+cw/2}" y="${top+ch/2+12}" text-anchor="middle" class="sc-heat-sub">${c.volume} sig</text>
-      <text x="${x+cw/2}" y="${top-7}" text-anchor="middle" class="sc-heat-lbl">${c.abbr}</text>`;
+  const tiles = cols.map((c) => {
+    const gl = (0.06 + (c.score / 100) * 0.24).toFixed(2);
+    return `<div class="sc-heat-tile" style="--ac:${c.accent};--gl:${gl}">
+      <div class="sc-heat-tlbl">${c.abbr}</div>
+      <div class="sc-heat-tval">${c.score}</div>
+      <div class="sc-heat-tsub">${c.volume.toLocaleString()} sig</div>
+    </div>`;
   }).join('');
-  return `<svg width="100%" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet">${cells}</svg>`;
+  return `<div class="sc-heat-grid">${tiles}</div>`;
 }
 
 // ═══════════════════════════════════════════════════════════════════════
