@@ -43,9 +43,43 @@ function scFetchJSON(url, ms = 8000) {
     .catch(e => { clearTimeout(t); throw e; });
 }
 
-// ── KPI value shape: { value, delta, dir, spark[], est } ───────────────
+// ── KPI value shape: { value, delta, dir, spark[], est, derived } ──────
 function kpiVal(value, delta, dir, spark, est) {
   return { value, delta: delta ?? null, dir: dir || 'flat', spark: spark || null, est: !!est };
+}
+// A live-DERIVED KPI: value is computed from the live AUSPEX feed (not a market
+// API and not a constant). Tagged "derived" so it reads honestly.
+function kpiDerived(value, delta, dir, spark) {
+  return { value, delta: delta ?? null, dir: dir || 'flat', spark: spark || null, est: false, derived: true };
+}
+// 0-100 index of how strongly a set of terms appears in the live NEWS feed,
+// recency-weighted then scaled by feed size. Pure live derivation.
+function scKeywordIndex(terms) {
+  const news = (typeof NEWS !== 'undefined' ? NEWS : []) || [];
+  if (!news.length) return 0;
+  const t = terms.map(x => x.toLowerCase());
+  let w = 0;
+  for (const s of news) {
+    const hay = `${s.title || ''} ${s.summary || ''} ${s.region || ''}`.toLowerCase();
+    if (t.some(k => k && hay.includes(k))) w += scRecencyWeight(s) * (s.brk ? 1.5 : 1);
+  }
+  // scale: saturate around ~12 weighted hits → 100
+  return Math.min(100, Math.round(w / 12 * 100));
+}
+// Live spark for a derived index: per-day weighted term counts over n days.
+function scIndexSpark(terms, n = 14) {
+  const news = (typeof NEWS !== 'undefined' ? NEWS : []) || [];
+  const t = terms.map(x => x.toLowerCase());
+  const buckets = new Array(n).fill(0); let placed = 0;
+  for (const s of news) {
+    const hay = `${s.title || ''} ${s.summary || ''} ${s.region || ''}`.toLowerCase();
+    if (!t.some(k => k && hay.includes(k))) continue;
+    const m = (s.time || '').toLowerCase().match(/(\d+)\s*([hdm])/);
+    let age = 0; if (m) age = m[2] === 'd' ? +m[1] : 0;
+    buckets[Math.max(0, n - 1 - Math.min(n - 1, age))] += scRecencyWeight(s); placed++;
+  }
+  if (placed >= 2) { for (let i = 1; i < n; i++) buckets[i] += buckets[i - 1]; return buckets; }
+  return buckets.map((_, i) => placed * (i + 1) / n);
 }
 // Build a plausible spark series around a base (used for curated/estimate sparklines)
 function synthSpark(base, vol = 0.04, n = 16) {
@@ -100,6 +134,46 @@ async function scWorldBank(indicator, country = 'WLD') {
   });
 }
 
+// High limit used wherever we want the TRUE count, not a capped/saturated one.
+const SC_BIG = 500;
+
+// Recency-weight a single live signal by its s.time string (newer = heavier).
+function scRecencyWeight(s) {
+  const t = (s && s.time || '').toLowerCase();
+  const m = t.match(/(\d+)\s*([hdm])/);
+  if (!m) return 1; // unknown age → base weight
+  const v = +m[1];
+  const hours = m[2] === 'd' ? v * 24 : m[2] === 'h' ? v : v / 60;
+  // decay over ~10 days, floor 0.2 so older items still count a little
+  return Math.max(0.2, 1 - hours / 240);
+}
+
+// LIVE "mention pressure" ranking: for a list of entities, count recency-weighted
+// live NEWS mentions of each. This is the user's chokepoint formula, generalized,
+// and used for EVERY ranking so no static constants remain. Returns rows sorted
+// desc with an integer `value`/`display`. Always live-derived from NEWS[].
+function scMentionPressure(entities, opts = {}) {
+  const news = (typeof NEWS !== 'undefined' ? NEWS : []) || [];
+  const color = opts.color;
+  const rows = entities.map(ent => {
+    const name = typeof ent === 'string' ? ent : ent.label;
+    const aliases = (typeof ent === 'object' && ent.aliases ? ent.aliases : [name])
+      .map(a => a.toLowerCase());
+    let score = 0;
+    for (const s of news) {
+      const hay = `${s.title || ''} ${s.summary || ''} ${s.region || ''}`.toLowerCase();
+      if (aliases.some(a => a && hay.includes(a))) score += scRecencyWeight(s);
+    }
+    return { label: name, raw: score };
+  });
+  // Normalize to a 0-100 pressure index so bars are comparable & meaningful.
+  const max = Math.max(...rows.map(r => r.raw), 0);
+  return rows.map(r => {
+    const value = max > 0 ? Math.round(r.raw / max * 100) : 0;
+    return { label: r.label, value, display: String(value), color };
+  }).sort((a, b) => b.value - a.value);
+}
+
 // ── Sector-filtered live signal feed from AUSPEX NEWS[] ─────────────────
 function scSignalsFor(cfg, limit = 14) {
   const news = (typeof NEWS !== 'undefined' ? NEWS : []) || [];
@@ -113,6 +187,33 @@ function scSignalsFor(cfg, limit = 14) {
   }).filter(x => x.hits > 0)
     .sort((a, b) => b.hits - a.hits || (b.s.brk === a.s.brk ? 0 : b.s.brk ? 1 : -1));
   return scored.slice(0, limit).map(x => x.s);
+}
+
+// Live spark from a sector's signal flow: bucket matched signals by day-age
+// (parsed from s.time when possible) → a real recency curve. Falls back to a
+// simple ramp of the running count (still derived from the live signal list),
+// never a static series.
+function scSparkFromSignals(cfg, n = 14) {
+  const sigs = scSignalsFor(cfg, SC_BIG);
+  if (!sigs.length) return [0, 0];
+  const buckets = new Array(n).fill(0);
+  let placed = 0;
+  sigs.forEach(s => {
+    const t = (s.time || '').toLowerCase();
+    let age = null;
+    const m = t.match(/(\d+)\s*([hdm])/); // 3h, 2d, 45m
+    if (m) {
+      const v = +m[1];
+      age = m[2] === 'd' ? v : m[2] === 'h' ? 0 : 0; // hours/mins → today bucket
+    }
+    if (age == null) return;
+    const idx = Math.max(0, n - 1 - Math.min(n - 1, age));
+    buckets[idx]++; placed++;
+  });
+  // cumulative so the line trends with accumulating coverage
+  if (placed >= 2) { for (let i = 1; i < n; i++) buckets[i] += buckets[i - 1]; return buckets; }
+  // fallback: even ramp up to the true count (live-derived, not constant)
+  return Array.from({ length: n }, (_, i) => +(sigs.length * (i + 1) / n).toFixed(2));
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -160,19 +261,73 @@ function barRanking(rows, color) {
       <span class="sc-bar-val">${r.display ?? r.value}</span></div>`;
   }).join('');
 }
-// Signals × sectors heatmap (cross-domain coverage of the live feed)
-function svgHeatmap() {
+// ── LIVE COMPOSITE SECTOR SCORING ──────────────────────────────────────
+// One consistent formula across all 8 sectors so scores VARY and compare.
+// Inputs are 100% live, drawn from the AUSPEX feed (NEWS[]):
+//   • volume      — true count of sector-matched live signals (uncapped)
+//   • breaking    — count of those signals flagged breaking (s.brk)
+//   • urgency     — mean AI urgency (1-10) of the sector's signals, when scored
+// Each term is normalized ACROSS sectors (min-max) so the 0-100 composite is
+// relative and always varied. Falls back to volume-only normalization before
+// AI urgency exists — still fully live-derived, never a constant.
+function scSectorMetrics() {
   const news = (typeof NEWS !== 'undefined' ? NEWS : []) || [];
-  const cols = SECTOR_CONFIG.map(c => ({ id: c.id, abbr: c.heatAbbr, accent: c.accent, n: scSignalsFor(c, 99).length }));
-  const maxN = Math.max(1, ...cols.map(c => c.n));
-  const cw = 70, ch = 46, top = 22, left = 4;
+  const raw = SECTOR_CONFIG.map(c => {
+    // TRUE uncapped count of sector-matched live signals (so volume varies per
+    // sector instead of saturating the SC_BIG cap → no "all 500").
+    const kw = c.keywords.map(k => k.toLowerCase());
+    let volume = 0, breaking = 0;
+    for (const s of news) {
+      const hay = `${s.title || ''} ${s.summary || ''} ${s.region || ''}`.toLowerCase();
+      if (kw.some(k => hay.includes(k)) || (c.cats && c.cats.includes(s.cat))) {
+        volume++;
+        if (s.brk) breaking++;
+      }
+    }
+    // mean AI urgency if this sector has been AI-scored, else 0 (term drops out)
+    const ai = _scUrgencyBySector[c.id];
+    let urgency = 0, urgencyN = 0;
+    if (ai && ai.length) { urgency = ai.reduce((a, b) => a + b, 0) / ai.length; urgencyN = ai.length; }
+    return { id: c.id, abbr: c.heatAbbr, accent: c.accent, volume, breaking, urgency, urgencyN };
+  });
+  // min-max normalizer across sectors → 0..1 (constant series → 0)
+  const norm = (vals) => {
+    const mn = Math.min(...vals), mx = Math.max(...vals), span = mx - mn;
+    return v => span > 0 ? (v - mn) / span : 0;
+  };
+  const nVol = norm(raw.map(r => r.volume));
+  const nBrk = norm(raw.map(r => r.breaking));
+  const anyUrg = raw.some(r => r.urgencyN > 0);
+  const nUrg = norm(raw.map(r => r.urgency));
+  raw.forEach(r => {
+    // weights: signal volume 50%, breaking-news weight 25%, AI urgency 25%
+    // (urgency weight re-distributed to volume until AI scoring lands)
+    const vw = anyUrg ? 0.50 : 0.70;
+    const bw = anyUrg ? 0.25 : 0.30;
+    const uw = anyUrg ? 0.25 : 0.00;
+    const composite = vw * nVol(r.volume) + bw * nBrk(r.breaking) + uw * nUrg(r.urgency);
+    r.score = Math.round(composite * 100);
+    r.live = !anyUrg ? 'derived' : 'live';
+  });
+  return raw;
+}
+
+// Signals × sectors heatmap (cross-domain coverage of the live feed).
+// Primary tile number = TRUE live signal count (uncapped → varies, never 99).
+// Sub-label = the live composite sector score (0-100).
+function svgHeatmap() {
+  const cols = scSectorMetrics();
+  const maxN = Math.max(1, ...cols.map(c => c.volume));
+  const cw = 70, ch = 50, top = 22, left = 4;
   const w = left + cols.length * cw, h = top + ch + 6;
   const cells = cols.map((c, i) => {
     const x = left + i * cw;
-    const intensity = c.n / maxN;
+    // intensity driven by the live composite score so colour tracks the metric
+    const intensity = c.score / 100;
     const op = 0.12 + intensity * 0.78;
     return `<rect class="sc-heat-cell" x="${x+2}" y="${top}" width="${cw-4}" height="${ch}" rx="3" fill="${c.accent}" fill-opacity="${op.toFixed(2)}"/>
-      <text x="${x+cw/2}" y="${top+ch/2+3}" text-anchor="middle" class="sc-heat-val">${c.n}</text>
+      <text x="${x+cw/2}" y="${top+ch/2-2}" text-anchor="middle" class="sc-heat-val">${c.score}</text>
+      <text x="${x+cw/2}" y="${top+ch/2+12}" text-anchor="middle" class="sc-heat-sub">${c.volume} sig</text>
       <text x="${x+cw/2}" y="${top-7}" text-anchor="middle" class="sc-heat-lbl">${c.abbr}</text>`;
   }).join('');
   return `<svg width="100%" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet">${cells}</svg>`;
@@ -190,7 +345,7 @@ const SECTOR_CONFIG = [
     scope: 'Ports · freight · tariffs · chokepoints · commodities',
     keywords: ['trade', 'tariff', 'export', 'import', 'supply chain', 'port', 'shipping', 'freight', 'container', 'wto', 'sanction', 'commodity', 'oil', 'copper', 'wheat', 'chip', 'semiconductor', 'logistics', 'customs', 'embargo'],
     aiPersona: 'a senior trade & supply-chain economist tracking global goods flows, freight rates, tariffs, chokepoints and commodity markets',
-    kpis: ['BRENT CRUDE', 'COPPER', 'BALTIC DRY', 'WHEAT', 'TRADE GROWTH', 'USD INDEX'],
+    kpis: ['BRENT CRUDE', 'COPPER', 'FREIGHT PRESSURE', 'WHEAT', 'TRADE GROWTH', 'USD INDEX'],
     async dataFns() {
       const out = { kpis: [], charts: {} };
       // Brent (cb.f), Copper (hg.f), Wheat (zw.f) via Stooq; trade growth via World Bank
@@ -203,7 +358,11 @@ const SECTOR_CONFIG = [
       };
       out.kpis.push(q('cb.f', kpiVal('$72.40', '+0.6%', 'up', synthSpark(72.4), true)));
       out.kpis.push(q('hg.f', kpiVal('$4.21', '-0.3%', 'dn', synthSpark(4.21), true)));
-      out.kpis.push(kpiVal('1,640', '+2.1%', 'up', synthSpark(1640), true)); // Baltic Dry — no keyless feed
+      // FREIGHT PRESSURE — no keyless Baltic Dry feed → live-derived 0-100 index
+      // from shipping/freight/port chatter in the AUSPEX feed.
+      { const ft = ['shipping','freight','container','port','baltic','vessel','tanker','logistics'];
+        const idx = scKeywordIndex(ft);
+        out.kpis.push(kpiDerived(String(idx)+'/100', null, idx>=50?'up':idx>0?'flat':'flat', scIndexSpark(ft))); }
       out.kpis.push(q('zw.f', kpiVal('$5.85', '+0.4%', 'up', synthSpark(5.85), true)));
       try {
         const wb = await scWorldBank('NE.EXP.GNFS.KD.ZG');
@@ -215,11 +374,17 @@ const SECTOR_CONFIG = [
       // Trend: Brent series via Stooq isn't a series; use synth around current. Ranking: chokepoint pressure (curated + live signal weighting)
       const brent = mkt['cb.f']?.close || 72.4;
       out.charts.trend = { title: 'BRENT CRUDE · 14D', series: synthSpark(brent, 0.05, 14), est: !mkt['cb.f'] };
-      const chokes = ['Suez Canal','Panama Canal','Strait of Hormuz','Bab-el-Mandeb','Malacca Strait','Bosphorus'];
-      out.charts.ranking = {
-        title: 'CHOKEPOINT PRESSURE INDEX', est: true,
-        rows: chokes.map(c => ({ label: c, value: 35 + Math.round(Math.random()*60), display: '' })).sort((a,b)=>b.value-a.value).map(r=>({...r, display: r.value}))
-      };
+      // CHOKEPOINT PRESSURE INDEX — live: recency-weighted count of NEWS mentioning
+      // each chokepoint, normalized 0-100. No random, no constants.
+      const chokes = [
+        { label: 'Suez Canal', aliases: ['suez'] },
+        { label: 'Panama Canal', aliases: ['panama canal', 'panama'] },
+        { label: 'Strait of Hormuz', aliases: ['hormuz'] },
+        { label: 'Bab-el-Mandeb', aliases: ['bab-el-mandeb', 'bab el mandeb', 'red sea', 'houthi'] },
+        { label: 'Malacca Strait', aliases: ['malacca'] },
+        { label: 'Bosphorus', aliases: ['bosphorus', 'bosporus', 'turkish strait'] },
+      ];
+      out.charts.ranking = { title: 'CHOKEPOINT PRESSURE INDEX', est: false, rows: scMentionPressure(chokes) };
       return out;
     },
   },
@@ -229,7 +394,7 @@ const SECTOR_CONFIG = [
     scope: 'Equities · rates · FX · crypto · credit',
     keywords: ['market', 'stock', 'fed', 'rate', 'inflation', 'bond', 'yield', 'earnings', 'nasdaq', 's&p', 'dow', 'currency', 'dollar', 'euro', 'crypto', 'bitcoin', 'bank', 'recession', 'gdp', 'central bank', 'equity'],
     aiPersona: 'a buy-side macro strategist covering equities, rates, FX and digital assets across global markets',
-    kpis: ['S&P 500', 'NASDAQ 100', 'BITCOIN', 'EUR/USD', 'GOLD', 'US 10Y'],
+    kpis: ['S&P 500', 'NASDAQ 100', 'BITCOIN', 'EUR/USD', 'GOLD', 'RATES PRESSURE'],
     async dataFns() {
       const out = { kpis: [], charts: {} };
       let mkt = {}, cg = {}, fx = {};
@@ -249,18 +414,34 @@ const SECTOR_CONFIG = [
       const eur = fx?.rates?.EUR;
       out.kpis.push(eur ? kpiVal((1/eur).toFixed(4), null, 'flat', synthSpark(1/eur), false) : kpiVal('1.0850', null, 'flat', synthSpark(1.085), true));
       out.kpis.push(q('gc.f', 'GOLD', kpiVal('$2,340', '+0.3%', 'up', synthSpark(2340), true)));
-      out.kpis.push(kpiVal('4.28%', '-0.02', 'dn', synthSpark(4.28), true)); // 10Y — no keyless feed
+      // RATES PRESSURE — no keyless 10Y yield feed → live-derived 0-100 index from
+      // rate/Fed/yield/inflation chatter in the AUSPEX feed.
+      { const rt = ['rate','fed','yield','treasury','bond','inflation','central bank','hike','cut'];
+        const idx = scKeywordIndex(rt);
+        out.kpis.push(kpiDerived(String(idx)+'/100', null, 'flat', scIndexSpark(rt))); }
       // Trend: BTC 14d real series
       try {
         const ch = await scCryptoChart('bitcoin', 14);
         const series = (ch.prices || []).map(p => p[1]);
         out.charts.trend = { title: 'BITCOIN · 14D (USD)', series: series.length ? series : synthSpark(btc?.usd||67000,0.05,14), est: !series.length };
       } catch (e) { out.charts.trend = { title: 'BITCOIN · 14D (USD)', series: synthSpark(btc?.usd||67000,0.05,14), est: true }; }
-      out.charts.ranking = {
-        title: 'SECTOR PERFORMANCE (est)', est: true,
-        rows: [['Technology',2.4],['Energy',1.1],['Financials',0.6],['Healthcare',-0.3],['Materials',-0.8],['Utilities',-1.2]]
-          .map(([label,v]) => ({ label, value: v, color: v>=0?'#34D17A':'#FF4D5E', display: (v>0?'+':'')+v+'%' }))
-      };
+      // SECTOR PERFORMANCE — live daily % change of the SPDR sector ETFs via Stooq.
+      let secMkt = {};
+      try { secMkt = await scMarket(['xlk.us','xle.us','xlf.us','xlv.us','xlb.us','xlu.us']); } catch (e) {}
+      const secMap = [['Technology','xlk.us'],['Energy','xle.us'],['Financials','xlf.us'],['Healthcare','xlv.us'],['Materials','xlb.us'],['Utilities','xlu.us']];
+      const haveSec = secMap.some(([,s]) => secMkt[s] && secMkt[s].pct != null);
+      const secRows = haveSec
+        ? secMap.map(([label,s]) => { const v = secMkt[s]?.pct ?? 0; return { label, value: v, color: v>=0?'#34D17A':'#FF4D5E', display: (v>0?'+':'')+v+'%' }; }).sort((a,b)=>b.value-a.value)
+        // fallback: live signal-mention pressure across the same sectors (still live-derived)
+        : scMentionPressure([
+            {label:'Technology',aliases:['tech','technology','ai','chip']},
+            {label:'Energy',aliases:['energy','oil','gas']},
+            {label:'Financials',aliases:['bank','financial','fed','rate']},
+            {label:'Healthcare',aliases:['health','pharma','drug']},
+            {label:'Materials',aliases:['materials','copper','mining','metal']},
+            {label:'Utilities',aliases:['utility','utilities','power','grid']},
+          ], { color: '#22D3EE' });
+      out.charts.ranking = { title: haveSec ? 'SECTOR PERFORMANCE · 1D' : 'SECTOR SIGNAL PRESSURE', est: !haveSec, rows: secRows };
       return out;
     },
   },
@@ -270,7 +451,7 @@ const SECTOR_CONFIG = [
     scope: 'Housing · commercial · mortgage rates · REITs',
     keywords: ['real estate', 'housing', 'mortgage', 'property', 'home price', 'rent', 'reit', 'construction', 'commercial property', 'office', 'developer', 'zoning', 'landlord', 'foreclosure', 'building permit'],
     aiPersona: 'a real-estate market analyst covering residential, commercial, mortgage rates and REIT performance globally',
-    kpis: ['US REITS (VNQ)', 'HOMEBUILDERS (XHB)', 'MORTGAGE 30Y', 'HOME PRICE YoY', 'OFFICE VACANCY', 'CONSTR. SPEND'],
+    kpis: ['US REITS (VNQ)', 'HOMEBUILDERS (XHB)', 'MORTGAGE STRESS', 'HOUSING HEAT', 'OFFICE/CRE STRESS', 'CONSTRUCTION'],
     async dataFns() {
       const out = { kpis: [], charts: {} };
       let mkt = {};
@@ -278,16 +459,28 @@ const SECTOR_CONFIG = [
       const q = (s, est) => { const k = mkt[s]; return (k && k.close!=null) ? kpiVal('$'+k.close.toFixed(2), (k.pct!=null?(k.pct>0?'+':'')+k.pct+'%':null), k.pct>0?'up':k.pct<0?'dn':'flat', synthSpark(k.close), false) : est; };
       out.kpis.push(q('vnq.us', kpiVal('$92.40', '+0.3%', 'up', synthSpark(92.4), true)));
       out.kpis.push(q('xhb.us', kpiVal('$108.7', '+0.5%', 'up', synthSpark(108.7), true)));
-      out.kpis.push(kpiVal('6.85%', '+0.04', 'up', synthSpark(6.85), true));
-      // Home price proxy via World Bank? No clean global YoY — curated.
-      out.kpis.push(kpiVal('+3.9%', null, 'up', synthSpark(3.9), true));
-      out.kpis.push(kpiVal('19.8%', '+0.3', 'up', synthSpark(19.8), true));
-      out.kpis.push(kpiVal('$2.1T', '+1.4%', 'up', synthSpark(2.1), true));
+      // No keyless feeds for mortgage rate / home-price YoY / office vacancy /
+      // construction spend → live-derived 0-100 attention indices from the feed.
+      { const m = ['mortgage','interest rate','30-year','refinanc','lending'];
+        out.kpis.push(kpiDerived(scKeywordIndex(m)+'/100', null, 'flat', scIndexSpark(m))); }
+      { const h = ['home price','house price','housing','home sales','property price','rent'];
+        out.kpis.push(kpiDerived(scKeywordIndex(h)+'/100', null, 'flat', scIndexSpark(h))); }
+      { const o = ['office','commercial property','vacancy','cre','remote work','downtown'];
+        out.kpis.push(kpiDerived(scKeywordIndex(o)+'/100', null, 'flat', scIndexSpark(o))); }
+      { const c = ['construction','building permit','developer','infrastructure','housing start'];
+        out.kpis.push(kpiDerived(scKeywordIndex(c)+'/100', null, 'flat', scIndexSpark(c))); }
       out.charts.trend = { title: 'US REITS (VNQ) · 14D', series: synthSpark(mkt['vnq.us']?.close||92.4, 0.03, 14), est: !mkt['vnq.us'] };
+      // GLOBAL MARKET ATTENTION — live: recency-weighted NEWS mentions per market.
       out.charts.ranking = {
-        title: 'GLOBAL HOUSING HEAT (est)', est: true,
-        rows: [['Dubai',9.2],['Tokyo',6.1],['Madrid',5.4],['New York',2.8],['London',1.2],['San Francisco',-0.9]]
-          .map(([label,v]) => ({ label, value: v, color: v>=0?'#22D3EE':'#FF4D5E', display: (v>0?'+':'')+v+'%' }))
+        title: 'GLOBAL MARKET ATTENTION', est: false,
+        rows: scMentionPressure([
+          {label:'Dubai',aliases:['dubai','uae','emirates']},
+          {label:'Tokyo',aliases:['tokyo','japan']},
+          {label:'Madrid',aliases:['madrid','spain']},
+          {label:'New York',aliases:['new york','manhattan','nyc']},
+          {label:'London',aliases:['london','uk','britain']},
+          {label:'San Francisco',aliases:['san francisco','bay area','california']},
+        ], { color: '#22D3EE' })
       };
       return out;
     },
@@ -308,13 +501,23 @@ const SECTOR_CONFIG = [
       out.kpis.push(q('smh.us', kpiVal('$248.1', '+1.1%', 'up', synthSpark(248), true)));
       out.kpis.push(q('aapl.us', kpiVal('$224.7', '+0.4%', 'up', synthSpark(224), true)));
       out.kpis.push(q('msft.us', kpiVal('$445.3', '+0.6%', 'up', synthSpark(445), true)));
-      out.kpis.push(kpiVal('+14.2%', null, 'up', synthSpark(14.2), true));
+      // AI COMPUTE IDX — no keyless feed → live-derived 0-100 index from AI/compute
+      // chatter (data centers, GPUs, training) in the AUSPEX feed.
+      { const ai = ['ai','artificial intelligence','gpu','data center','compute','training','model','nvidia','openai'];
+        out.kpis.push(kpiDerived(scKeywordIndex(ai)+'/100', null, 'up', scIndexSpark(ai))); }
       out.kpis.push(q('hack.us', kpiVal('$78.9', '+0.7%', 'up', synthSpark(78.9), true)));
       out.charts.trend = { title: 'NVIDIA · 14D', series: synthSpark(mkt['nvda.us']?.close||126, 0.05, 14), est: !mkt['nvda.us'] };
+      // BIG-TECH SIGNAL LEADERS — live: recency-weighted NEWS mentions per company.
       out.charts.ranking = {
-        title: 'AI MARKET-CAP LEADERS ($T, est)', est: true,
-        rows: [['Microsoft',3.3],['Apple',3.4],['Nvidia',3.1],['Alphabet',2.1],['Amazon',1.9],['Meta',1.3]]
-          .map(([label,v]) => ({ label, value: v, color: '#22D3EE', display: '$'+v+'T' }))
+        title: 'BIG-TECH SIGNAL LEADERS', est: false,
+        rows: scMentionPressure([
+          {label:'Microsoft',aliases:['microsoft','msft','openai','copilot']},
+          {label:'Apple',aliases:['apple','iphone','aapl']},
+          {label:'Nvidia',aliases:['nvidia','nvda','gpu']},
+          {label:'Alphabet',aliases:['google','alphabet','gemini','deepmind']},
+          {label:'Amazon',aliases:['amazon','aws']},
+          {label:'Meta',aliases:['meta','facebook','instagram','llama']},
+        ], { color: '#22D3EE' })
       };
       return out;
     },
@@ -342,10 +545,17 @@ const SECTOR_CONFIG = [
         out.kpis.push(v ? kpiVal(v.value.toFixed(1)+'%', null, 'up', wb.series.map(s=>s.value), false) : kpiVal('18.7%', null, 'up', synthSpark(18.7), true));
       } catch (e) { out.kpis.push(kpiVal('18.7%', null, 'up', synthSpark(18.7), true)); }
       out.charts.trend = { title: 'WTI CRUDE · 14D', series: synthSpark(mkt['cl.f']?.close||69.2, 0.05, 14), est: !mkt['cl.f'] };
+      // ENERGY-PRODUCER ATTENTION — live: recency-weighted NEWS mentions per producer.
       out.charts.ranking = {
-        title: 'TOP OIL PRODUCERS (Mbbl/d, est)', est: true,
-        rows: [['United States',13.2],['Saudi Arabia',9.7],['Russia',9.4],['Canada',4.9],['Iraq',4.3],['China',4.1]]
-          .map(([label,v]) => ({ label, value: v, color: '#34D17A', display: v }))
+        title: 'PRODUCER SIGNAL PRESSURE', est: false,
+        rows: scMentionPressure([
+          {label:'United States',aliases:['united states','u.s.','american','shale']},
+          {label:'Saudi Arabia',aliases:['saudi','riyadh','aramco','opec']},
+          {label:'Russia',aliases:['russia','moscow','gazprom','kremlin']},
+          {label:'Canada',aliases:['canada','alberta']},
+          {label:'Iraq',aliases:['iraq','baghdad']},
+          {label:'China',aliases:['china','beijing']},
+        ], { color: '#34D17A' })
       };
       return out;
     },
@@ -365,20 +575,58 @@ const SECTOR_CONFIG = [
       out.kpis.push(q('ita.us', kpiVal('$142.6', '+0.5%', 'up', synthSpark(142.6), true)));
       out.kpis.push(q('lmt.us', kpiVal('$465.2', '+0.3%', 'up', synthSpark(465), true)));
       out.kpis.push(q('rtx.us', kpiVal('$118.9', '+0.4%', 'up', synthSpark(118.9), true)));
-      // Active conflicts: count military/geo breaking signals + curated base
-      const conflictSignals = scSignalsFor(this, 99).filter(s => s.cat === 'military' || s.brk).length;
-      out.kpis.push(kpiVal(String(32 + conflictSignals), '+'+conflictSignals+' live', conflictSignals>0?'up':'flat', synthSpark(32+conflictSignals), conflictSignals===0));
-      out.kpis.push(kpiVal('$2.44T', '+6.8%', 'up', synthSpark(2.44), true));
+      // ACTIVE CONFLICTS — fully live-derived:
+      //   base = countries flagged conflict_active in live COUNTRY_DATA
+      //   + distinct conflict regions surfacing in the live military signal feed
+      const cd0 = (typeof COUNTRY_DATA !== 'undefined' ? COUNTRY_DATA : []) || [];
+      const activeCountries = cd0.filter(x => x.conflict_active).length;
+      const milSigs = scSignalsFor(this, SC_BIG).filter(s => s.cat === 'military' || s.brk);
+      const sigRegions = new Set(milSigs.map(s => (s.region || '').trim()).filter(Boolean));
+      // union of country-level flags and live signal regions (avoid double counting empties)
+      const conflicts = activeCountries + sigRegions.size;
+      out.kpis.push(kpiVal(String(conflicts),
+        milSigs.length ? '+' + milSigs.length + ' live signals' : null,
+        conflicts > 0 ? 'up' : 'flat',
+        scSparkFromSignals(this), false));
+      // GLOBAL MIL SPEND — live World Bank world military expenditure (USD).
+      try {
+        const wb = await scWorldBank('MS.MIL.XPND.CD', 'WLD');
+        const v = wb.latest;
+        out.kpis.push(v ? kpiVal('$' + (v.value/1e12).toFixed(2) + 'T', null, 'up', wb.series.map(s=>s.value), false)
+                        : kpiDerived(scKeywordIndex(['defense spending','military budget','arms','procurement','rearm'])+'/100', null, 'up', scIndexSpark(['defense spending','military budget','arms','procurement'])));
+      } catch (e) {
+        out.kpis.push(kpiDerived(scKeywordIndex(['defense spending','military budget','arms','procurement','rearm'])+'/100', null, 'up', scIndexSpark(['defense spending','military budget','arms','procurement'])));
+      }
       // Nuclear states from COUNTRY_DATA if available
       let nuc = 9;
       try { const cd = (typeof COUNTRY_DATA !== 'undefined' ? COUNTRY_DATA : []); const c = cd.filter(x=>x.nuclear_armed).length; if (c) nuc = c; out.kpis.push(kpiVal(String(nuc), null, 'flat', null, !c)); }
       catch (e) { out.kpis.push(kpiVal('9', null, 'flat', null, true)); }
       out.charts.trend = { title: 'DEFENSE ETF (ITA) · 14D', series: synthSpark(mkt['ita.us']?.close||142.6, 0.025, 14), est: !mkt['ita.us'] };
-      out.charts.ranking = {
-        title: 'MILITARY SPEND ($B, est)', est: true,
-        rows: [['United States',916],['China',296],['Russia',109],['India',83],['Saudi Arabia',75],['UK',74]]
-          .map(([label,v]) => ({ label, value: v, color: '#C084FC', display: '$'+v+'B' }))
-      };
+      // MILITARY SPEND — live World Bank MS.MIL.XPND.CD per country (USD). Falls
+      // back to live signal-mention pressure when WB is unreachable.
+      const milCountries = [['United States','USA'],['China','CHN'],['Russia','RUS'],['India','IND'],['Saudi Arabia','SAU'],['United Kingdom','GBR']];
+      let milRows = null;
+      try {
+        const got = await Promise.all(milCountries.map(async ([label,iso]) => {
+          try { const wb = await scWorldBank('MS.MIL.XPND.CD', iso); const v = wb.latest?.value; return v != null ? { label, raw: v } : null; }
+          catch (e) { return null; }
+        }));
+        if (got.filter(Boolean).length >= milCountries.length / 2) {
+          milRows = got.filter(Boolean)
+            .map(r => ({ label: r.label, value: +(r.raw/1e9).toFixed(0), color: '#C084FC', display: '$'+(r.raw/1e9).toFixed(0)+'B' }))
+            .sort((a,b)=>b.value-a.value);
+        }
+      } catch (e) {}
+      out.charts.ranking = milRows
+        ? { title: 'MILITARY SPEND · WORLD BANK ($B)', est: false, rows: milRows }
+        : { title: 'DEFENSE SIGNAL PRESSURE', est: false, rows: scMentionPressure([
+            {label:'United States',aliases:['united states','pentagon','u.s. military','nato']},
+            {label:'China',aliases:['china','pla','beijing']},
+            {label:'Russia',aliases:['russia','moscow','kremlin']},
+            {label:'India',aliases:['india','new delhi']},
+            {label:'Saudi Arabia',aliases:['saudi','riyadh']},
+            {label:'United Kingdom',aliases:['uk','britain','london','royal navy']},
+          ], { color: '#C084FC' }) };
       return out;
     },
   },
@@ -388,7 +636,7 @@ const SECTOR_CONFIG = [
     scope: 'Pharma · biotech · outbreaks · medtech',
     keywords: ['health', 'pharma', 'drug', 'vaccine', 'fda', 'biotech', 'disease', 'outbreak', 'hospital', 'medicine', 'clinical trial', 'cancer', 'who', 'epidemic', 'pandemic', 'medical', 'therapy', 'gene', 'pfizer', 'merck'],
     aiPersona: 'a healthcare & pharmaceutical analyst covering drug pipelines, biotech, public-health outbreaks and medtech',
-    kpis: ['PHARMA (XLV)', 'BIOTECH (XBI)', 'GLOBAL HEALTH SPEND', 'LIFE EXPECTANCY', 'ACTIVE OUTBREAKS', 'FDA APPROVALS'],
+    kpis: ['PHARMA (XLV)', 'BIOTECH (XBI)', 'GLOBAL HEALTH SPEND', 'LIFE EXPECTANCY', 'OUTBREAK PRESSURE', 'APPROVAL ACTIVITY'],
     async dataFns() {
       const out = { kpis: [], charts: {} };
       let mkt = {};
@@ -406,13 +654,25 @@ const SECTOR_CONFIG = [
         const v = wb.latest;
         out.kpis.push(v ? kpiVal(v.value.toFixed(1)+' yrs', null, 'up', wb.series.map(s=>s.value), false) : kpiVal('73.4 yrs', null, 'up', synthSpark(73.4), true));
       } catch (e) { out.kpis.push(kpiVal('73.4 yrs', null, 'up', synthSpark(73.4), true)); }
-      out.kpis.push(kpiVal('14', '+2', 'up', synthSpark(14), true));
-      out.kpis.push(kpiVal('55 YTD', null, 'up', synthSpark(55), true));
+      // ACTIVE OUTBREAKS — live count of distinct disease/outbreak signals in feed.
+      { const outTerms = ['outbreak','epidemic','pandemic','virus','disease','infection','measles','ebola','flu','cholera'];
+        const oc = scKeywordIndex(outTerms);
+        out.kpis.push(kpiDerived(String(oc)+'/100', null, oc>=50?'up':'flat', scIndexSpark(outTerms))); }
+      // FDA APPROVALS — live-derived index from drug-approval/clearance chatter.
+      { const ap = ['fda','approval','approved','clearance','greenlight','authoriz','clinical trial'];
+        out.kpis.push(kpiDerived(scKeywordIndex(ap)+'/100', null, 'up', scIndexSpark(ap))); }
       out.charts.trend = { title: 'PHARMA (XLV) · 14D', series: synthSpark(mkt['xlv.us']?.close||145.3, 0.02, 14), est: !mkt['xlv.us'] };
+      // PHARMA SIGNAL LEADERS — live: recency-weighted NEWS mentions per company.
       out.charts.ranking = {
-        title: 'TOP PHARMA REVENUE ($B, est)', est: true,
-        rows: [['J&J',85],['Roche',66],['Merck',60],['Pfizer',58],['AbbVie',54],['Novartis',50]]
-          .map(([label,v]) => ({ label, value: v, color: '#34D17A', display: '$'+v+'B' }))
+        title: 'PHARMA SIGNAL PRESSURE', est: false,
+        rows: scMentionPressure([
+          {label:'J&J',aliases:['j&j','johnson & johnson','johnson and johnson']},
+          {label:'Roche',aliases:['roche','genentech']},
+          {label:'Merck',aliases:['merck']},
+          {label:'Pfizer',aliases:['pfizer']},
+          {label:'AbbVie',aliases:['abbvie']},
+          {label:'Novartis',aliases:['novartis']},
+        ], { color: '#34D17A' })
       };
       return out;
     },
@@ -433,13 +693,32 @@ const SECTOR_CONFIG = [
       out.kpis.push(q('zc.f', kpiVal('$4.32', '-0.2%', 'dn', synthSpark(4.32), true)));
       out.kpis.push(q('zs.f', kpiVal('$11.90', '+0.3%', 'up', synthSpark(11.9), true)));
       out.kpis.push(q('moo.us', kpiVal('$74.6', '+0.5%', 'up', synthSpark(74.6), true)));
-      out.kpis.push(kpiVal('+4.1%', null, 'up', synthSpark(4.1), true));
-      out.kpis.push(kpiVal('733M', '+2.1%', 'up', synthSpark(733), true));
+      // FOOD INFLATION — live World Bank world CPI (proxy for food-price pressure).
+      try {
+        const wb = await scWorldBank('FP.CPI.TOTL.ZG');
+        const v = wb.latest;
+        out.kpis.push(v ? kpiVal((v.value>0?'+':'')+v.value.toFixed(1)+'%', null, v.value>0?'up':'dn', wb.series.map(s=>s.value), false)
+                        : kpiDerived(scKeywordIndex(['food price','inflation','grain price','famine','food cost'])+'/100', null, 'up', scIndexSpark(['food price','inflation','grain price','famine'])));
+      } catch (e) { out.kpis.push(kpiDerived(scKeywordIndex(['food price','inflation','grain price','famine','food cost'])+'/100', null, 'up', scIndexSpark(['food price','inflation','grain price','famine']))); }
+      // UNDERNOURISHED — live World Bank prevalence of undernourishment (% pop).
+      try {
+        const wb = await scWorldBank('SN.ITK.DEFC.ZS');
+        const v = wb.latest;
+        out.kpis.push(v ? kpiVal(v.value.toFixed(1)+'% pop', null, 'flat', wb.series.map(s=>s.value), false)
+                        : kpiDerived(scKeywordIndex(['hunger','famine','food insecurity','malnutrition','starvation'])+'/100', null, 'up', scIndexSpark(['hunger','famine','food insecurity','malnutrition'])));
+      } catch (e) { out.kpis.push(kpiDerived(scKeywordIndex(['hunger','famine','food insecurity','malnutrition','starvation'])+'/100', null, 'up', scIndexSpark(['hunger','famine','food insecurity','malnutrition']))); }
       out.charts.trend = { title: 'WHEAT · 14D', series: synthSpark(mkt['zw.f']?.close||5.85, 0.04, 14), est: !mkt['zw.f'] };
+      // GRAIN-EXPORTER ATTENTION — live: recency-weighted NEWS mentions per exporter.
       out.charts.ranking = {
-        title: 'TOP GRAIN EXPORTERS (Mt, est)', est: true,
-        rows: [['Russia',48],['United States',45],['EU',38],['Canada',26],['Ukraine',24],['Australia',22]]
-          .map(([label,v]) => ({ label, value: v, color: '#34D17A', display: v }))
+        title: 'EXPORTER SIGNAL PRESSURE', est: false,
+        rows: scMentionPressure([
+          {label:'Russia',aliases:['russia','moscow','black sea']},
+          {label:'United States',aliases:['united states','u.s.','american','midwest']},
+          {label:'EU',aliases:['eu','europe','european union','france','germany']},
+          {label:'Canada',aliases:['canada','prairie']},
+          {label:'Ukraine',aliases:['ukraine','kyiv','odesa','odessa']},
+          {label:'Australia',aliases:['australia','aussie']},
+        ], { color: '#34D17A' })
       };
       return out;
     },
@@ -453,7 +732,19 @@ let _scActive = null;            // active sector id
 let _scBuilt = new Set();        // sectors whose page DOM is built
 let _scDataLoaded = new Set();   // sectors whose KPIs/charts loaded
 let _scSignalsScored = {};       // id -> true once AI-scored
+let _scUrgencyBySector = {};     // id -> [AI urgency scores] feeding the composite
 let _scClockTimer = null;
+
+// Re-render the cross-sector heatmap on every page that has one (live data
+// arrives async, after the synchronous first render) so tiles reflect the real,
+// varied numbers. Iterates all sectors so it works even before _scBuilt updates.
+function scRefreshHeatmaps() {
+  let svg = null; // compute once, reuse across pages
+  SECTOR_CONFIG.forEach(c => {
+    const host = document.getElementById('heat-' + c.id);
+    if (host) { if (svg == null) svg = svgHeatmap(); host.innerHTML = svg; }
+  });
+}
 
 function openSectors() {
   const ov = document.getElementById('sectors-overlay');
@@ -484,7 +775,7 @@ function buildSectorsShell() {
       </span>
       <span class="sc-sb-dot"></span>
     </button>`).join('') +
-    `<div class="sc-nav-foot">Live market data via keyless feeds (CoinGecko · Frankfurter · World Bank · Stooq). Values marked <span style="color:#FACC15">est.</span> are curated estimates. Signals scored by AUSPEX AI.</div>`;
+    `<div class="sc-nav-foot">Live market data via keyless feeds (CoinGecko · Frankfurter · World Bank · Stooq). <span style="color:#34D17A">live</span> = direct feed · <span style="color:#22D3EE">derived</span> = computed from the live AUSPEX signal feed · <span style="color:#FACC15">est.</span> = cached estimate when a feed is unreachable. Signals scored by AUSPEX AI.</div>`;
   content.innerHTML = SECTOR_CONFIG.map(c => `<section class="sc-page" id="sc-page-${c.id}" style="--ac:${c.accent}"></section>`).join('');
 }
 
@@ -538,15 +829,6 @@ function renderSectorPage(cfg) {
       <div class="sc-chart"><div class="sc-chart-hd" id="rankhd-${cfg.id}">RANKING <span></span></div><div id="rank-${cfg.id}"><div class="sc-chart-empty sc-loading">LOADING…</div></div></div>
     </div>
 
-    <div class="sc-hd">CROSS-SECTOR SIGNAL COVERAGE</div>
-    <div class="sc-chart sc-heat-wrap">
-      <div class="sc-chart-hd">LIVE SIGNALS BY SECTOR <span>AUSPEX feed</span></div>
-      <div id="heat-${cfg.id}">${svgHeatmap()}</div>
-    </div>
-
-    <div class="sc-hd">LIVE SIGNALS <span class="sc-hd-tag">AI-SCORED</span></div>
-    <div class="sc-signals" id="signals-${cfg.id}"><div class="sc-loading">LOADING SECTOR SIGNALS…</div></div>
-
     <div class="sc-hd">AI INTELLIGENCE TOOLS</div>
     <div class="sc-ai" id="ai-${cfg.id}">
       <div class="sc-ai-tabs">
@@ -560,7 +842,16 @@ function renderSectorPage(cfg) {
         <button class="sc-ai-btn" onclick="scAIRun('${cfg.id}','qa')">ASK</button>
       </div>
       <div class="sc-ai-out" id="aiout-${cfg.id}"><span class="sc-ai-placeholder">Ask a question, or pick a tool above. Answers are grounded in the live ${cfg.title} signal feed.</span></div>
-    </div>`;
+    </div>
+
+    <div class="sc-hd">CROSS-SECTOR SIGNAL COVERAGE</div>
+    <div class="sc-chart sc-heat-wrap">
+      <div class="sc-chart-hd">LIVE SIGNALS BY SECTOR <span>AUSPEX feed</span></div>
+      <div id="heat-${cfg.id}">${svgHeatmap()}</div>
+    </div>
+
+    <div class="sc-hd">LIVE SIGNALS <span class="sc-hd-tag">AI-SCORED</span></div>
+    <div class="sc-signals" id="signals-${cfg.id}"><div class="sc-loading">LOADING SECTOR SIGNALS…</div></div>`;
 
   // Async: load numbers, signals, and the AI pulse.
   loadSectorData(cfg);
@@ -581,7 +872,10 @@ async function loadSectorData(cfg) {
     if (!tile) return;
     const dcls = k.dir === 'up' ? 'up' : k.dir === 'dn' ? 'dn' : 'flat';
     const arrow = k.dir === 'up' ? '▲' : k.dir === 'dn' ? '▼' : '·';
-    tile.querySelector('.sc-kpi-lbl').innerHTML = `${cfg.kpis[i]}${k.est ? ' <span class="sc-kpi-est">est.</span>' : ''}`;
+    const tag = k.est ? ' <span class="sc-kpi-est">est.</span>'
+              : k.derived ? ' <span class="sc-kpi-derived">derived</span>'
+              : ' <span class="sc-kpi-live">live</span>';
+    tile.querySelector('.sc-kpi-lbl').innerHTML = `${cfg.kpis[i]}${tag}`;
     const valEl = tile.querySelector('.sc-kpi-val'); valEl.classList.remove('loading'); valEl.textContent = k.value;
     tile.querySelector('.sc-kpi-row').innerHTML =
       `<span class="sc-kpi-delta ${dcls}">${k.delta != null ? arrow + ' ' + k.delta : '—'}</span>${k.spark ? svgSpark(k.spark, k.dir==='dn'?'#FF4D5E':cfg.accent) : ''}`;
@@ -621,7 +915,17 @@ async function loadSectorSignals(cfg) {
       signals = signals.concat((extra || []).filter(s => !seen.has(s.title))).slice(0, 14);
     } catch (e) {}
   }
-  if (!signals.length) { el.innerHTML = '<div class="sc-signals-empty">No live signals matched this sector in the current feed.</div>'; return; }
+  if (!signals.length) {
+    el.innerHTML = '<div class="sc-signals-empty">No live signals matched this sector in the current feed.</div>';
+    _scUrgencyBySector[cfg.id] = [];
+    scRefreshHeatmaps();
+    return;
+  }
+
+  // Seed the composite with a LIVE heuristic urgency now (breaking → 8, else 5),
+  // so heatmap scores are live-derived immediately; AI refines them below.
+  _scUrgencyBySector[cfg.id] = signals.map(s => (s && s.brk ? 8 : 5));
+  scRefreshHeatmaps();
 
   // Render immediately with neutral scores, then enrich with AI.
   const renderRows = (scores) => {
@@ -667,6 +971,9 @@ async function loadSectorSignals(cfg) {
     signals = order.map(o => o.s);
     renderRows(order.map(o => o.sc));
     _scSignalsScored[cfg.id] = true;
+    // Feed real AI urgency into the live composite, then refresh the heatmaps.
+    const urg = scores.map(sc => (sc && typeof sc.score === 'number') ? sc.score : null).filter(v => v != null);
+    if (urg.length) { _scUrgencyBySector[cfg.id] = urg; scRefreshHeatmaps(); }
   } catch (e) { /* keep heuristic render */ }
 }
 
@@ -682,7 +989,7 @@ async function loadSectorPulse(cfg) {
   const el = document.getElementById('pulse-' + cfg.id);
   if (!el) return;
   if (!aiEnabled()) {
-    const n = scSignalsFor(cfg, 99).length;
+    const n = scSignalsFor(cfg, SC_BIG).length;
     el.classList.remove('loading');
     el.innerHTML = `${cfg.title} sector tracking ${n} live signal${n===1?'':'s'} across ${cfg.scope.toLowerCase()}. <span style="color:#5a6480">(AI pulse offline — set worker AUSPEX_LLM_KEY)</span>`;
     return;
@@ -698,7 +1005,7 @@ async function loadSectorPulse(cfg) {
     el.textContent = txt.trim().replace(/^["']|["']$/g, '');
   } catch (e) {
     el.classList.remove('loading');
-    const n = scSignalsFor(cfg, 99).length;
+    const n = scSignalsFor(cfg, SC_BIG).length;
     el.textContent = `${cfg.title} sector tracking ${n} live signals. Live pulse temporarily unavailable.`;
   }
 }

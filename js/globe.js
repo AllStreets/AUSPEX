@@ -359,13 +359,11 @@ function makeAuspexEventMarker(event) {
 // COUNTRY MARKER — nuclear/conflict/sanctions/P5 indicators
 // ═══════════════════════════════════════════
 function makeCountryMarker(country) {
-  // Crisp inline-SVG glyphs (NOT unicode emoji — those render as inconsistent
-  // colored emoji on phones/other platforms). Identical on every device.
   const icons = [];
-  if (country.nuclear_armed)     icons.push(`<span class="ctry-ico ctry-nuclear" title="Nuclear armed"><svg viewBox="0 0 24 24" width="20" height="20" style="filter:drop-shadow(0 0 6px #FF9F0Acc)"><circle cx="12" cy="12" r="11.5" fill="#FF9F0A"/><g fill="#1c1206"><path d="M13.7 14.94 16.6 19.97 7.4 19.97 10.3 14.94Z"/><path d="M8.6 12 2.8 12 7.4 4.03 10.3 9.06Z"/><path d="M13.7 9.06 16.6 4.03 21.2 12 15.4 12Z"/><circle cx="12" cy="12" r="2.6"/></g></svg></span>`);
-  if (country.conflict_active)   icons.push(`<span class="ctry-ico ctry-conflict" title="Active conflict"><svg viewBox="0 0 24 24" width="15" height="15" style="filter:drop-shadow(0 0 4px #FF2D5599)"><path d="M12 3 22 20 2 20Z" fill="#FF2D55"/></svg></span>`);
-  if (country.sanctions_subject) icons.push(`<span class="ctry-ico ctry-sanction" title="Under sanctions"><svg viewBox="0 0 24 24" width="15" height="15"><circle cx="12" cy="12" r="9.5" fill="none" stroke="#2979FF" stroke-width="2.6"/><line x1="5.2" y1="5.2" x2="18.8" y2="18.8" stroke="#2979FF" stroke-width="2.6"/></svg></span>`);
-  if (country.un_p5)             icons.push(`<span class="ctry-ico ctry-p5" title="UN Security Council P5"><svg viewBox="0 0 24 24" width="15" height="15"><path d="M12 2 14.9 8.6 22 9.3 16.5 14 18.2 21 12 17.3 5.8 21 7.5 14 2 9.3 9.1 8.6Z" fill="#E8B84B"/></svg></span>`);
+  if (country.nuclear_armed)     icons.push(`<span class="ctry-ico ctry-nuclear" title="Nuclear armed">☢</span>`);
+  if (country.conflict_active)   icons.push(`<span class="ctry-ico ctry-conflict" title="Active conflict">▲</span>`);
+  if (country.sanctions_subject) icons.push(`<span class="ctry-ico ctry-sanction" title="Under sanctions">⊘</span>`);
+  if (country.un_p5)             icons.push(`<span class="ctry-ico ctry-p5" title="UN Security Council P5">★</span>`);
   const d = document.createElement('div');
   d.className = 'ctry-marker';
   d.dataset.iso = country.iso2 || '';
