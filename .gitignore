@@ -22,8 +22,7 @@ worker/.env
 # playwright scratch
 .playwright-mcp/
 
-# verification screenshots
+# verification screenshots (local only)
 auspex-*.png
 page-*.png
-
-auspex-country.png
+Screenshot*.png

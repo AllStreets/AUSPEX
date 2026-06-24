@@ -5,23 +5,23 @@
 &nbsp;
 
 <img alt="senses" src="https://img.shields.io/badge/senses-perils_%2B_breakthroughs-34D399?style=for-the-badge&labelColor=04070b"/>
+<img alt="sectors" src="https://img.shields.io/badge/sectors-8_industries-34D399?style=for-the-badge&labelColor=04070b"/>
 <img alt="relief tools" src="https://img.shields.io/badge/RELIEF_tools-10-34D399?style=for-the-badge&labelColor=04070b"/>
-<img alt="boards" src="https://img.shields.io/badge/tool_boards-2-34D399?style=for-the-badge&labelColor=04070b"/>
-<img alt="tests" src="https://img.shields.io/badge/tests-104_passing-A3E635?style=for-the-badge&labelColor=04070b"/>
+<img alt="tests" src="https://img.shields.io/badge/tests-134_passing-A3E635?style=for-the-badge&labelColor=04070b"/>
 <a href="LICENSE"><img alt="license" src="https://img.shields.io/badge/license-Apache--2.0-34D399?style=for-the-badge&labelColor=04070b"/></a>
 <br/>
-<img alt="news" src="https://img.shields.io/badge/news-RSS_%2B_GDELT_%2B_NewsAPI_(server--side)-6b7382?style=flat-square&labelColor=04070b"/>
 <img alt="globe" src="https://img.shields.io/badge/globe-three--globe_%2F_NASA_marble-6b7382?style=flat-square&labelColor=04070b"/>
+<img alt="news" src="https://img.shields.io/badge/news-RSS_%2B_GDELT_%2B_NewsAPI-6b7382?style=flat-square&labelColor=04070b"/>
 <img alt="data" src="https://img.shields.io/badge/data-USGS_%C2%B7_GDACS_%C2%B7_Launch_Library-6b7382?style=flat-square&labelColor=04070b"/>
 <img alt="backend" src="https://img.shields.io/badge/worker-node_%2F_express_%C2%B7_supabase-6b7382?style=flat-square&labelColor=04070b"/>
 
 &nbsp;
 
-<a href="#quickstart"><kbd> &nbsp; <strong>Quickstart</strong> &nbsp; </kbd></a> &nbsp;
-<a href="#what-it-senses"><kbd> &nbsp; <strong>What it senses</strong> &nbsp; </kbd></a> &nbsp;
-<a href="#two-boards"><kbd> &nbsp; <strong>The boards</strong> &nbsp; </kbd></a> &nbsp;
-<a href="#how-it-works"><kbd> &nbsp; <strong>Architecture</strong> &nbsp; </kbd></a> &nbsp;
-<a href="#deploy"><kbd> &nbsp; <strong>Deploy</strong> &nbsp; </kbd></a>
+<a href="#quickstart"><kbd> &nbsp; <b>Quickstart</b> &nbsp; </kbd></a> &nbsp;
+<a href="#what-it-senses"><kbd> &nbsp; <b>What it senses</b> &nbsp; </kbd></a> &nbsp;
+<a href="#three-lenses"><kbd> &nbsp; <b>The lenses</b> &nbsp; </kbd></a> &nbsp;
+<a href="#architecture"><kbd> &nbsp; <b>Architecture</b> &nbsp; </kbd></a> &nbsp;
+<a href="#deploy"><kbd> &nbsp; <b>Deploy</b> &nbsp; </kbd></a>
 
 </div>
 
@@ -29,58 +29,30 @@
 
 ## What this is
 
-The *auspex* was the one who read the sky for signs and spoke them aloud, so the city could act before the storm. Not a spy — a guardian who turned what the world was already showing into warning, in time for it to matter.
+The *auspex* read the sky for signs and spoke them aloud, so the city could act before the storm — not a spy, but a guardian who turned what the world was already showing into warning, in time for it to matter.
 
-**AUSPEX is that, for the whole planet, for everyone.** A living globe where autonomous pipelines read the world's public signals — earthquakes, floods, cyclones, conflict, displacement, outbreaks, *and* the world's progress: launches, discoveries, medical and scientific breakthroughs — score them honestly, draw the connections between them, and render it all so that *anyone* can see what is actually happening. No login. No Bloomberg terminal. No institutional wall.
+**AUSPEX is that, for the whole planet, for everyone.** A living globe where autonomous pipelines read the world's public signals — earthquakes, floods, cyclones, conflict, displacement, outbreaks — *and* its progress — launches, discoveries, medical and scientific breakthroughs — score them honestly, draw the connections between them, and render it so *anyone* can see what is actually happening. No login. No terminal. No institutional wall.
 
-It is built against one specific enemy: the version of the world sold by a doom-optimised feed. AUSPEX is calm where the world is calm, lights up where it isn't, reserves red for genuine danger, and carries the good news beside the bad — because awareness, not alarm, is the point.
+It is built against one enemy: the world sold by a doom-optimised feed. AUSPEX is calm where the world is calm, lights up where it isn't, reserves red for genuine danger, and carries the good news beside the bad.
 
 > *The globe is the page. Red means danger. Everything else is the world, alive.*
 
----
-
-## How it works
-
-Two processes, one contract — so the public side ships **zero secrets** and a million visitors cost about the same as one.
-
-```
-  PUBLIC  (keyless, edge-cacheable)                PRIVATE  (keyed, scheduled)
-  ┌──────────────────────────────────┐            ┌────────────────────────────────┐
-  │ frontend · static · :8800        │   reads    │ worker · node/express · :8801  │
-  │   the living green globe         │ ◄───────── │   USGS + GDACS  (perils)       │
-  │   1,000-city base layer          │  snapshot  │   Launch Library 2 (progress)  │
-  │   typed event icons + arcs       │   .json    │  RSS + GDELT + NewsAPI (server) │
-  │   honest cards · live map key    │  news.json │   honest reasoning (severity,  │
-  │   Analyst + RELIEF tool boards   │            │   confidence, links, sources)  │
-  └──────────────────────────────────┘            └────────────────────────────────┘
-                  │                                              │
-                  └────────────  Supabase  ──────────────────────┘
-                       persistence · ~2,000-story history · countries · regions
-```
-
-The heavy work runs **once per event in the worker**, not once per visitor. That — plus a keyless disaster path (USGS and GDACS need no keys) — is what lets AUSPEX be free, fast on a weak connection, and honest about its sources.
-
 ```
   the instrument
-  ├─ living globe ......... NASA day/night marble, breathing green aura that
-  │                         shifts with world state — red only on real peril
-  ├─ 1,000 cities ......... typed + readable — capitals (a gold star), finance, tech,
-  │                         ports, tourism, energy, megacities — each its own icon
-  ├─ orbiting moon ........ a real-textured Moon on a normal orbit, for depth and life
-  ├─ typed event icons .... quake · volcano · flood · cyclone · fire · drought ·
-  │                         launch · medical · physics · science · financial
-  ├─ connections .......... real links between events close in space + time,
-  │                         drawn in light — never invented causation
-  ├─ honest cards ......... severity · confidence · plain brief · sources, one tap
-  ├─ live map key .......... a legend that derives itself from what's on the globe
-  └─ every icon clickable .. nothing on the map is a dead pixel
+  ├─ living globe .... NASA marble + breathing aura; red only on real peril
+  ├─ 1,000 cities .... capitals (gold star), finance, tech, ports, energy …
+  ├─ orbiting moon ... real-textured, on a true orbit — depth and life
+  ├─ typed events .... quake·volcano·flood·cyclone·fire·launch·science…
+  ├─ connections ..... real links across space + time — never invented
+  ├─ honest cards .... severity · confidence · brief · sources, one tap
+  └─ live map key .... a legend that derives itself from the globe
 ```
 
 ---
 
 ## What it senses
 
-AUSPEX reads two halves of the same pulse.
+AUSPEX reads two halves of the same pulse. The word *auspicious* descends from *auspex* — the watcher announced **favourable** omens too — so carrying the world's breakthroughs beside its perils is the truest form of the name.
 
 <table>
 <tr>
@@ -89,8 +61,8 @@ AUSPEX reads two halves of the same pulse.
 #### ◆ Perils
 | | sensed from |
 |---|---|
-| earthquakes | USGS (keyless) |
-| cyclone · flood · volcano · drought | GDACS (keyless) |
+| earthquakes | USGS *(keyless)* |
+| cyclone · flood · volcano · drought | GDACS *(keyless)* |
 | conflict · unrest | news + regions |
 | displacement · famine · access | news + regions |
 | outbreaks · civilian harm | news signals |
@@ -110,13 +82,11 @@ AUSPEX reads two halves of the same pulse.
 </tr>
 </table>
 
-The word *auspicious* descends from *auspex* — the watcher announced **favourable** omens too. Carrying the world's breakthroughs beside its perils isn't an add-on; it is the truest form of the name.
-
 ---
 
-## Two boards
+## Three lenses
 
-AUSPEX puts genuinely powerful tools in ordinary hands. Two parallel boards, both AI-powered, both pin-linked to anything on the globe, both grounded in the live feed and Supabase history.
+AUSPEX puts genuinely powerful tools in ordinary hands — three AI-powered lenses, all grounded in the same live feed and Supabase history.
 
 <table>
 <tr>
@@ -140,16 +110,29 @@ AUSPEX puts genuinely powerful tools in ordinary hands. Two parallel boards, bot
 
 - Situation Report · Response Council
 - Needs & Gaps Matrix
-- Displacement Tracker · Famine & Food-Security Watch
+- Displacement · Famine & Food-Security
 - Access & Blackout · Recovery Timeline
-- **Health & Outbreak Watch** · **Civilian Protection**
+- Health & Outbreak · Civilian Protection
 - Good News — humanity's wins
 
 </td>
 </tr>
 </table>
 
-Pin a region, event, city, country, or story to either board (the green **PIN TO RELIEF** sits beside every **PIN TO ANALYST**), change focus freely, and run the tools against deep, real context — focus-relevant news, Supabase history, nearby events and their links, full region and country records.
+ANALYST and RELIEF are **pin-linked** — the green `PIN TO RELIEF` sits beside every `PIN TO ANALYST`. Pin any region, event, city, country, or story, change focus freely, and run the tools against deep real context: focus-relevant news, history, nearby events and their links, full region and country records.
+
+### SECTORS
+*The market lens — eight industries, every number live.*
+
+```
+┌─────────────────────┬─────────────────────┬─────────────────────┬─────────────────────┐
+│ Trade & Supply      │ Finance & Markets   │ Real Estate         │ Technology & AI     │
+├─────────────────────┼─────────────────────┼─────────────────────┼─────────────────────┤
+│ Energy              │ Defense & Security  │ Healthcare & Pharma │ Agriculture & Food  │
+└─────────────────────┴─────────────────────┴─────────────────────┴─────────────────────┘
+```
+
+Each page scores its slice of the world from live data — a **0–100 composite** (signal volume, breaking weight, AI urgency) and **1–10 per-signal** urgency — over keyless market feeds (CoinGecko · Frankfurter · World Bank · Stooq) plus the AUSPEX news layer. Four AI tools per sector — **Ask · Brief · Forecast · Scenario** — and a cross-sector coverage board. No hardcoded numbers; every figure is derived or marked an estimate.
 
 ---
 
@@ -157,31 +140,51 @@ Pin a region, event, city, country, or story to either board (the green **PIN TO
 
 The news layer is the anti-social-media core, and it is deliberate:
 
-- **Server-side and broad.** A spread of reputable global RSS feeds (BBC, Guardian, Al Jazeera, NPR, DW, France 24, UN News, ReliefWeb, science desks) as the keyless backbone, plus the GDELT firehose and optional NewsAPI — all fetched server-side, deduped, cached. Perils *and* progress, across regions and viewpoints, with no per-visitor rate limit.
-- **Filtered for signal.** A junk filter drops advertisements, PR fluff, and pop-culture/celebrity noise, while a priority allowlist guarantees real geopolitics, economy, disaster, science, and health are never wrongly dropped.
-- **Multi-source by design.** **Divergence** compares how Western, Chinese, and Russian outlets cover the same story; **Silence** detects information blackouts; ten global **broadcasters** span all six inhabited continents — North America, South America, Europe, Africa, Asia, and Oceania. You see the spread, not one outlet's frame.
+- **Server-side and broad.** Reputable global RSS (BBC, Guardian, Al Jazeera, NPR, DW, France 24, UN News, ReliefWeb, science desks) as the keyless backbone, plus the GDELT firehose and optional NewsAPI — fetched server-side, deduped, cached. No per-visitor rate limit.
+- **Filtered for signal.** A junk filter drops ads, PR fluff, and celebrity noise; a priority allowlist guarantees real geopolitics, economy, disaster, science, and health are never wrongly dropped.
+- **Multi-source by design.** **Divergence** compares Western, Chinese, and Russian coverage of the same story; **Silence** detects information blackouts; ten **broadcasters** span all six inhabited continents. You see the spread, not one outlet's frame.
+
+---
+
+## Architecture
+
+Two processes, one contract — so the public side ships **zero secrets** and a million visitors cost about the same as one.
+
+```
+   PUBLIC · keyless · edge-cached                  PRIVATE · keyed · scheduled
+┌──────────────────────────────────┐           ┌──────────────────────────────────┐
+│ frontend — static — :8800        │           │ worker — node/express — :8801    │
+│                                  │           │                                  │
+│ · living green globe             │  ◄──────  │ · USGS + GDACS ...... perils     │
+│ · 1,000-city base layer          │ snapshot  │ · Launch Library 2 .. progress   │
+│ · typed event icons + arcs       │   .json   │ · RSS+GDELT+NewsAPI . feed       │
+│ · ANALYST · RELIEF · SECTORS     │  ◄──────  │ · reasoning engine: severity,    │
+│ · honest cards · live map key    │ news.json │   confidence, links, sources     │
+└──────────────────────────────────┘           └──────────────────────────────────┘
+                 │                                              │
+                 └─────────────────  Supabase  ─────────────────┘
+               ~2,000-story history · countries · regions · ai_usage
+```
+
+The heavy work runs **once per event in the worker**, not once per visitor — and the disaster path is keyless (USGS and GDACS need no keys). That is what lets AUSPEX be free, fast on a weak connection, and honest about its sources.
 
 ---
 
 ## Quickstart
 
-> **Prerequisites:** Node 18+ (24 recommended). Disaster sensing needs **zero** API keys. For the AI tools and the keyed feeds, copy `js/keys.local.example.js` → `js/keys.local.js` (gitignored; sets `window.AUSPEX_KEYS`) and `worker/.env.example` → `worker/.env`. The committed `js/keys.js` is secret-free and falls back to empty keys when `js/keys.local.js` is absent (e.g. on Vercel).
+> **Prerequisites:** Node 18+ (24 recommended). Disaster sensing needs **zero** API keys. For the AI tools and keyed feeds, copy `js/keys.local.example.js` → `js/keys.local.js` (gitignored) and `worker/.env.example` → `worker/.env`. The committed `js/keys.js` is secret-free and falls back to empty keys when `js/keys.local.js` is absent (e.g. on Vercel).
 
 ```bash
 git clone https://github.com/AllStreets/AUSPEX.git
-cd AUSPEX
-npm install
-npm test                 # 104 passing — the tested core (severity / normalize / filter / news / connect)
+cd AUSPEX && npm install
+npm test                 # 134 passing — severity · normalize · filter · news · connect
 
-# terminal 1 — the worker: senses the world, serves snapshot.json + news.json
 cd worker && npm install && cd ..
-npm run worker           # http://localhost:8801
-
-# terminal 2 — the living globe
-npm run dev              # http://localhost:8800
+npm run worker           # terminal 1 → worker on http://localhost:8801
+npm run dev              # terminal 2 → globe  on http://localhost:8800
 ```
 
-Open **http://localhost:8800**. The globe lights up with live events; toggle **CITIES** for the 1,000-city layer; click any icon for an honest card; open the **MAP KEY** for the live legend; open **ANALYST** or **RELIEF** above it for the tool boards.
+Open **http://localhost:8800**. Toggle **CITIES** for the 1,000-city layer; click any icon for an honest card; open the **MAP KEY** for the live legend, or **ANALYST · RELIEF · SECTORS** for the tool boards.
 
 ---
 
@@ -189,14 +192,13 @@ Open **http://localhost:8800**. The globe lights up with live events; toggle **C
 
 | piece | host | notes |
 |---|---|---|
-| frontend | static (Vercel) — `vercel.json` included | point `WORKER_BASE` at the worker URL |
-| worker | container (Railway / Render / Fly) — `worker/Dockerfile` included | env: `NEWS_API_KEY`, `AUSPEX_LLM_KEY`, `ALLOWED_ORIGIN` |
+| frontend | static — Vercel (`vercel.json` included) | point `WORKER_BASE` at the worker URL |
+| worker | container — Railway / Render / Fly (`worker/Dockerfile`) | env: `NEWS_API_KEY`, `AUSPEX_LLM_KEY`, `ALLOWED_ORIGIN` |
 | database | Supabase | schema in `sql/schema.sql`; anon key is publishable, RLS-protected |
-| refresh | `api/refresh` + cron | keeps the corpus fresh without traffic — see below |
+| refresh | `api/refresh` + cron | keeps the corpus fresh without traffic |
 
-**Always fresh.** `/news.json` and `/snapshot.json` are fetched live server-side and edge-cached for ~10 minutes, so every visitor sees current data. To keep the Supabase corpus growing *independent of traffic*, `api/refresh` fetches the live feed, geolocates it, and archives fresh stories (duplicates ignored). It runs **several times a day** via `.github/workflows/refresh.yml` (GitHub Actions, plan-independent) plus a **once-a-day** Vercel cron in `vercel.json`. Optionally set `CRON_SECRET` (same value in the Vercel env and the repo's Actions secret) to lock the endpoint down.
-
-**Cost guard.** The AI tools run through `api/ai`, which caps each visitor (by hashed IP) at **1,000,000 OpenAI tokens per UTC day** so no single user can run up the bill. Usage is tracked in Supabase (`ai_usage`, an add-only RLS-locked counter — a visitor can't reset their own); over the cap returns `429`. It works out of the box (no extra keys) and fails open if the store is briefly unreachable. Change the ceiling with `AI_DAILY_TOKEN_LIMIT`.
+- **Always fresh.** `/news.json` and `/snapshot.json` are fetched live server-side and edge-cached ~10 min, so every visitor sees current data. To grow the Supabase corpus *independent of traffic*, `api/refresh` archives fresh stories — several times a day via `.github/workflows/refresh.yml` (GitHub Actions) plus a daily Vercel cron. Optionally lock it with `CRON_SECRET`.
+- **Cost guard.** The AI tools run through `api/ai`, capping each visitor (by hashed IP) at **1M OpenAI tokens / UTC day** via an add-only, RLS-locked Supabase counter (`ai_usage`); over the cap returns `429`. Works with no extra keys and fails open if the store is briefly unreachable. Tune with `AI_DAILY_TOKEN_LIMIT`.
 
 The public frontend ships no secrets — all keyed work lives in the worker. **AUSPEX does not go public until it is worthy of everyone in the world.** That is the bar.
 
@@ -205,7 +207,7 @@ The public frontend ships no secrets — all keyed work lives in the worker. **A
 ## Principles
 
 - **For everyone.** No login to see the planet. Readable by a child, useful to an analyst, fast on a cheap phone.
-- **Honest before impressive.** Confidence and sources on every claim. Unconfirmed signals look unconfirmed. We never cry wolf, and we never dress a rumour as a fact.
+- **Honest before impressive.** Confidence and sources on every claim. Unconfirmed signals look unconfirmed.
 - **A commons, not a product.** It watches events and systems — never people. A guardian's name, not a spy's.
 - **Alive, calm, uncluttered.** Severity is light. Red is earned. Green is the instrument, breathing.
 
@@ -213,8 +215,8 @@ The public frontend ships no secrets — all keyed work lives in the worker. **A
 
 <div align="center">
 
-One of three. **AgentZeus** watches the world *for you*. **NEXUS** runs the agents. **AUSPEX** watches the world *for everyone*.
+One of three. **AgentZeus** watches the world *for you* · **NEXUS** runs the agents · **AUSPEX** watches the world *for everyone*.
 
-<sub>Built on the Meridian globe platform · vision in <a href="docs/VISION.md">docs/VISION.md</a> · specs + plans under <a href="docs/specs">docs/</a></sub>
+<sub>Built on the Meridian globe platform · vision in <a href="docs/VISION.md">docs/VISION.md</a> · design record under <a href="docs/">docs/</a></sub>
 
 </div>
