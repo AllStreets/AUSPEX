@@ -154,6 +154,7 @@ setInterval(() => { if (marketVisible) fetchMarketData(); }, 5 * 60 * 1000);
             relief:  'openRelief',
             brief:   'openDailyBrief',
             mapkey:  'toggleMapKey',
+            sectors: 'openSectors',
           };
           const pfn = pageMap[payload.page];
           if (pfn && typeof window[pfn] === 'function') window[pfn]();

@@ -77,6 +77,10 @@
 
 <!-- COMMAND PANEL -->
 <div id="cmd-panel">
+  <button class="cmd-btn" id="cmd-sectors-btn" style="--lc:#E8B84B" onclick="openSectors()">
+    <svg class="cmd-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+    SECTORS
+  </button>
   <button class="cmd-btn" id="cmd-relief-btn" style="--lc:#34D399" onclick="openRelief()">
     <svg class="cmd-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 14h2a2 2 0 0 0 0-4h-3l-3 2"/><path d="M16 12l4-2a2 2 0 0 1 2 4l-6 4-3 1H2"/><path d="M2 18v-6"/><path d="M12 6.5a2.5 2.5 0 0 1 5 0c0 1.7-2.5 3.5-2.5 3.5S12 8.2 12 6.5z"/></svg>
     RELIEF
@@ -367,6 +371,23 @@
   </div>
 </div>
 
+<!-- SECTORS OVERLAY -->
+<div id="sectors-overlay">
+  <div class="sc-bar">
+    <span class="sc-wordmark">◈ AUSPEX SECTORS</span>
+    <span class="sc-status-line" id="sc-status">INDUSTRY INTELLIGENCE · STANDING BY</span>
+    <div class="sc-bar-acts">
+      <span class="sc-clock" id="sc-clock">--:--:-- UTC</span>
+      <div class="sc-bar-sep"></div>
+      <button class="sc-close-btn" onclick="closeSectors()">EXIT SECTORS</button>
+    </div>
+  </div>
+  <div class="sc-body">
+    <nav class="sc-nav" id="sc-nav"><!-- sector tabs injected by sectors.js --></nav>
+    <main class="sc-content" id="sc-content"><!-- one .sc-page per sector injected by sectors.js --></main>
+  </div>
+</div>
+
 <!-- ADVERSARY PLAYBOOK -->
 <div id="playbook-modal">
   <div class="pb-bar">
@@ -530,6 +551,7 @@
 <script src="js/globe.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/analyst.js"></script>
+<script src="js/sectors.js"></script>
 <script src="js/relief.js"></script>
 <script src="js/overlay.js"></script>
 <script src="js/features.js"></script>

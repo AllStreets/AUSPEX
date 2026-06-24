@@ -13,6 +13,10 @@ try { process.loadEnvFile(new URL('./.env', import.meta.url)); } catch {}
 const SNAPSHOT_PATH = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../snapshot.json');
 const app = express();
 
+// JSON body parsing — needed by the POST /api/ai proxy (SECTORS + Analyst/RELIEF
+// in production). Limit kept modest; AI prompts are small.
+app.use(express.json({ limit: '512kb' }));
+
 // ── News proxy cache ──────────────────────────────────────────────
 // The unified feed (GDELT + NewsAPI) lives in worker/news.js so the poller
 // can read it to derive breakthroughs. We just drive refresh + serve here.
@@ -29,7 +33,7 @@ app.use((req, res, next) => {
   // Echo the request origin when allowed; otherwise fall back to the dev origin.
   res.header('Access-Control-Allow-Origin', ALLOWED_ORIGINS.has(origin) ? origin : DEV_ORIGIN);
   res.header('Vary', 'Origin');
-  res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   next();
@@ -70,6 +74,77 @@ app.get('/flights.json', async (req, res) => {
     }
   }
   res.json(_flightsCache.payload);
+});
+
+// ── AI proxy ──────────────────────────────────────────────────────
+// callOpenAI() in the frontend POSTs here when no client key is present
+// (production). The real key lives in process.env.AUSPEX_LLM_KEY and never
+// reaches the browser. Body: {system,user,maxTokens,model}. Returns {content}.
+app.post('/api/ai', async (req, res) => {
+  const key = process.env.AUSPEX_LLM_KEY;
+  if (!key) return res.status(503).json({ error: 'AI key not configured (AUSPEX_LLM_KEY)' });
+  const { system = '', user = '', maxTokens = 420, model = 'gpt-5.4-mini' } = req.body || {};
+  if (!user) return res.status(400).json({ error: 'Missing user prompt' });
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 58000);
+    const r = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST', signal: ctrl.signal,
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
+      body: JSON.stringify({
+        model, max_completion_tokens: Math.min(+maxTokens || 420, 4000), temperature: 0.7,
+        messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
+      }),
+    });
+    clearTimeout(t);
+    const d = await r.json();
+    if (d.error) return res.status(502).json({ error: d.error.message || 'OpenAI error' });
+    res.json({ content: d.choices?.[0]?.message?.content || '' });
+  } catch (e) {
+    res.status(502).json({ error: e.message || 'AI proxy failed' });
+  }
+});
+
+// ── Market proxy (Stooq) ──────────────────────────────────────────
+// Equities / commodities / indices have no keyless CORS-safe API, so we fetch
+// Stooq's CSV server-side and return JSON. GET /api/market?symbols=spy.us,cl.f
+// Returns { quotes: [{symbol,date,time,open,high,low,close,volume,change,pct}], source }.
+// 5-minute in-memory cache keyed by the (sorted) symbol set.
+const _marketCache = new Map(); // key -> { at, payload }
+const MARKET_TTL = 5 * 60 * 1000;
+app.get('/api/market', async (req, res) => {
+  const raw = String(req.query.symbols || '').trim();
+  if (!raw) return res.status(400).json({ error: 'Missing symbols' });
+  const symbols = raw.split(',').map(s => s.trim().toLowerCase()).filter(Boolean).slice(0, 25);
+  const key = symbols.slice().sort().join(',');
+  const cached = _marketCache.get(key);
+  if (cached && Date.now() - cached.at < MARKET_TTL) return res.json(cached.payload);
+  try {
+    const url = `https://stooq.com/q/l/?s=${encodeURIComponent(symbols.join(','))}&f=sd2t2ohlcv&h&e=csv`;
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 8000);
+    const r = await fetch(url, { signal: ctrl.signal, headers: { 'User-Agent': 'Mozilla/5.0 AUSPEX' } });
+    clearTimeout(t);
+    const csv = await r.text();
+    const lines = csv.trim().split('\n');
+    const quotes = lines.slice(1).map(line => {
+      const c = line.split(',');
+      const o = +c[3], cl = +c[6];
+      const open = isFinite(o) ? o : null, close = isFinite(cl) ? cl : null;
+      const change = (open != null && close != null) ? +(close - open).toFixed(4) : null;
+      const pct = (open != null && close != null && open !== 0) ? +(((close - open) / open) * 100).toFixed(2) : null;
+      return {
+        symbol: c[0], date: c[1], time: c[2],
+        open, high: +c[4] || null, low: +c[5] || null, close, volume: +c[7] || null,
+        change, pct,
+      };
+    }).filter(q => q.symbol && q.symbol.toLowerCase() !== 'n/d');
+    const payload = { source: quotes.length ? 'stooq' : 'empty', generatedAt: new Date().toISOString(), quotes };
+    _marketCache.set(key, { at: Date.now(), payload });
+    res.json(payload);
+  } catch (e) {
+    res.json({ source: 'error', error: e.message, quotes: [] });
+  }
 });
 
 app.listen(8801, () => console.log('[AUSPEX worker] listening on :8801'));
