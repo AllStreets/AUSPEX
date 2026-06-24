@@ -48,6 +48,7 @@
     <button class="lc-btn" id="lc-diverge"  onclick="toggleDivergence()" title="Narrative divergence">DIVERGE</button>
     <button class="lc-btn on" id="lc-events" onclick="toggleSnapshotEvents()" title="Disaster events layer">EVENTS</button>
     <button class="lc-btn" id="lc-flights"  onclick="toggleFlights()"    title="Flight anomaly overlay">FLIGHTS</button>
+    <button class="lc-btn" id="lc-vessels"  onclick="toggleVessels()"    title="Live AIS vessels — ships at sea">VESSELS</button>
     <button class="lc-btn" id="lc-sanctions" onclick="toggleSanctions()" title="Sanctions mesh">SANCTIONS</button>
     <button class="lc-btn" id="lc-shipping" onclick="toggleShipping()"   title="Shipping chokepoints">SHIPPING</button>
     <button class="lc-btn" id="lc-silence"  onclick="toggleSilence()"    title="Silence anomaly">SILENCE</button>
@@ -73,6 +74,11 @@
 <div id="flight-data-badge" style="display:none">
   <span class="fdb-dot"></span>
   <span class="fdb-txt" id="fdb-label">LIVE DATA</span>
+</div>
+<!-- VESSEL DATA BADGE — live AIS status; stacks under the flight badge -->
+<div id="vessel-data-badge" style="display:none">
+  <span class="fdb-dot"></span>
+  <span class="fdb-txt" id="vdb-label">LIVE AIS</span>
 </div>
 
 <!-- COMMAND PANEL -->
@@ -554,6 +560,7 @@
 <script src="js/sectors.js"></script>
 <script src="js/relief.js"></script>
 <script src="js/overlay.js"></script>
+<script src="js/vessels.js"></script>
 <script src="js/features.js"></script>
 <script src="js/main.js"></script>
 

@@ -5,6 +5,7 @@ import path from 'path';
 import { pollAll } from './poller.js';
 import { refreshNews, getNewsPayload, NEWS_REFRESH_INTERVAL_MS } from './news.js';
 import { fetchFlights } from './flights.js';
+import { fetchVessels } from './vessels.js';
 
 // Load server-side secrets (NEWS_API_KEY) from worker/.env if present.
 // Node 20.12+ API; the try means it's fine if the file is absent.
@@ -74,6 +75,21 @@ app.get('/flights.json', async (req, res) => {
     }
   }
   res.json(_flightsCache.payload);
+});
+
+// Live AIS vessels (aisstream.io). 30s in-memory cache so we open ~one stream
+// window per cache window. Needs AISSTREAM_API_KEY in worker/.env.
+let _vesselsCache = { at: 0, payload: null };
+app.get('/vessels.json', async (req, res) => {
+  if (!_vesselsCache.payload || Date.now() - _vesselsCache.at > 30000) {
+    try {
+      const vessels = await fetchVessels(2500);
+      _vesselsCache = { at: Date.now(), payload: { generatedAt: new Date().toISOString(), source: vessels.length ? 'live' : 'empty', count: vessels.length, vessels } };
+    } catch (e) {
+      _vesselsCache = { at: Date.now(), payload: { generatedAt: new Date().toISOString(), source: 'error', count: 0, vessels: [] } };
+    }
+  }
+  res.json(_vesselsCache.payload);
 });
 
 // ── AI proxy ──────────────────────────────────────────────────────

@@ -127,6 +127,7 @@ setInterval(() => { if (marketVisible) fetchMarketData(); }, 5 * 60 * 1000);
           const fnMap = {
             cities: 'toggleCities', countries: 'toggleCountries',
             cables: 'toggleCables', flights: 'toggleFlights',
+            vessels: 'toggleVessels',
             threats: 'toggleThreats', sanctions: 'toggleSanctions',
             shipping: 'toggleShipping',
           };

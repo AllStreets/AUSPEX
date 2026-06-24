@@ -164,6 +164,14 @@ let flightsVisible = false;
 let _flightTimer   = null;
 let _flightInfoPanel = null;
 
+// Vessel overlay (live AIS) — twin of flights
+let vesselData     = [];
+let vesselsVisible = false;
+let _vesselTimer   = null;
+let _vesselInfoPanel = null;
+let _vesselRAF     = null;
+let _vesselLastTick = 0;
+
 // Cables overlay (B3)
 let cablePaths     = [];   // [{pts:[[lng,lat],...], c1:'#hex'}]
 let borderPaths    = [];   // country border lines from topojson.mesh (green/red)

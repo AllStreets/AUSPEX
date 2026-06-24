@@ -9,6 +9,7 @@
     { "source": "/snapshot.json", "destination": "/api/snapshot" },
     { "source": "/news.json", "destination": "/api/news" },
     { "source": "/flights.json", "destination": "/api/flights" },
+    { "source": "/vessels.json", "destination": "/api/vessels" },
     { "source": "/js/keys.local.js", "destination": "/js/keys.local.empty.js" }
   ],
   "crons": [
