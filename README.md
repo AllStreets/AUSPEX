@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src=".github/assets/banner.png" alt="AUSPEX — a living instrument for watching over the world" width="100%"/>
+<a href="https://auspex-azure.vercel.app" title="Open the live AUSPEX site"><img src=".github/assets/banner.png" alt="AUSPEX — a living instrument for watching over the world — click to open the live site" width="100%"/></a>
 
 &nbsp;
 

@@ -360,10 +360,10 @@ function makeAuspexEventMarker(event) {
 // ═══════════════════════════════════════════
 function makeCountryMarker(country) {
   const icons = [];
-  if (country.nuclear_armed)     icons.push(`<span class="ctry-ico ctry-nuclear" title="Nuclear armed">☢</span>`);
-  if (country.conflict_active)   icons.push(`<span class="ctry-ico ctry-conflict" title="Active conflict">▲</span>`);
-  if (country.sanctions_subject) icons.push(`<span class="ctry-ico ctry-sanction" title="Under sanctions">⊘</span>`);
-  if (country.un_p5)             icons.push(`<span class="ctry-ico ctry-p5" title="UN Security Council P5">★</span>`);
+  if (country.nuclear_armed)     icons.push(`<span class="ctry-ico ctry-nuclear" title="Nuclear armed">☢︎</span>`);
+  if (country.conflict_active)   icons.push(`<span class="ctry-ico ctry-conflict" title="Active conflict">▲︎</span>`);
+  if (country.sanctions_subject) icons.push(`<span class="ctry-ico ctry-sanction" title="Under sanctions">⊘︎</span>`);
+  if (country.un_p5)             icons.push(`<span class="ctry-ico ctry-p5" title="UN Security Council P5">★︎</span>`);
   const d = document.createElement('div');
   d.className = 'ctry-marker';
   d.dataset.iso = country.iso2 || '';

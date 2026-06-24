@@ -63,8 +63,11 @@ function scKeywordIndex(terms) {
     const hay = `${s.title || ''} ${s.summary || ''} ${s.region || ''}`.toLowerCase();
     if (t.some(k => k && hay.includes(k))) w += scRecencyWeight(s) * (s.brk ? 1.5 : 1);
   }
-  // scale: saturate around ~12 weighted hits → 100
-  return Math.min(100, Math.round(w / 12 * 100));
+  // Smooth saturating curve → 0..99. Approaches but never reaches 100, and
+  // spreads realistically across the range instead of pinning broad terms to
+  // the ceiling. K sets where the curve bends (~45 weighted hits → ~63).
+  if (w <= 0) return 0;
+  return Math.min(99, Math.round(99 * (1 - Math.exp(-w / 45))));
 }
 // Live spark for a derived index: per-day weighted term counts over n days.
 function scIndexSpark(terms, n = 14) {
@@ -288,7 +291,8 @@ function scSectorMetrics() {
     const ai = _scUrgencyBySector[c.id];
     let urgency = 0, urgencyN = 0;
     if (ai && ai.length) { urgency = ai.reduce((a, b) => a + b, 0) / ai.length; urgencyN = ai.length; }
-    return { id: c.id, abbr: c.heatAbbr, accent: c.accent, volume, breaking, urgency, urgencyN };
+    const name = (c.title || c.heatAbbr).split('&')[0].trim();
+    return { id: c.id, abbr: c.heatAbbr, name, accent: c.accent, volume, breaking, urgency, urgencyN };
   });
   // min-max normalizer across sectors → 0..1 (constant series → 0)
   const norm = (vals) => {
@@ -306,7 +310,8 @@ function scSectorMetrics() {
     const bw = anyUrg ? 0.25 : 0.30;
     const uw = anyUrg ? 0.25 : 0.00;
     const composite = vw * nVol(r.volume) + bw * nBrk(r.breaking) + uw * nUrg(r.urgency);
-    r.score = Math.round(composite * 100);
+    // Clamp to 2..99 — never a flat 0 (reads as broken) and never 100 (reads as fake).
+    r.score = Math.max(2, Math.min(99, Math.round(composite * 100)));
     r.live = !anyUrg ? 'derived' : 'live';
   });
   return raw;
@@ -318,11 +323,13 @@ function scSectorMetrics() {
 function svgHeatmap() {
   const cols = scSectorMetrics();
   const tiles = cols.map((c) => {
-    const gl = (0.06 + (c.score / 100) * 0.24).toFixed(2);
+    const gl = (0.05 + (c.score / 100) * 0.20).toFixed(2);
+    const bar = Math.max(4, Math.min(100, c.score)).toFixed(0);
     return `<div class="sc-heat-tile" style="--ac:${c.accent};--gl:${gl}">
-      <div class="sc-heat-tlbl">${c.abbr}</div>
+      <div class="sc-heat-tlbl">${c.name}</div>
       <div class="sc-heat-tval">${c.score}</div>
-      <div class="sc-heat-tsub">${c.volume.toLocaleString()} sig</div>
+      <div class="sc-heat-tmeter"><span style="width:${bar}%"></span></div>
+      <div class="sc-heat-tsub">${c.volume.toLocaleString()} signals</div>
     </div>`;
   }).join('');
   return `<div class="sc-heat-grid">${tiles}</div>`;
