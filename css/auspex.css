@@ -157,7 +157,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 #mir-panel{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
 .mir-hdr{display:flex;align-items:flex-start;gap:14px;padding:22px 30px 18px;border-bottom:1px solid var(--b1);flex-shrink:0}
 .mir-hdr-l{flex:1;min-width:0}
-.mir-eyebrow{display:inline-flex;align-items:center;gap:8px;font-family:var(--f-brand);font-size:9.5px;font-weight:800;letter-spacing:.18em;color:#8AA0FF;margin-bottom:9px}
+.mir-eyebrow{display:inline-flex;align-items:center;gap:8px;font-family:var(--f-mono);font-size:10px;font-weight:600;letter-spacing:.12em;color:#9aafff;margin-bottom:9px}
 .mir-title{font-family:var(--f-head);font-size:20px;font-weight:600;line-height:1.32;color:var(--t1)}
 .mir-close{background:none;border:1px solid var(--b1);border-radius:3px;color:var(--t3);cursor:pointer;width:26px;height:26px;font-size:14px;flex-shrink:0;transition:all .18s}
 .mir-close:hover{border-color:var(--b2);color:var(--t1)}
@@ -167,14 +167,14 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 .mir-spin{width:14px;height:14px;border:2px solid rgba(138,160,255,.25);border-top-color:#8AA0FF;border-radius:50%;animation:mir-spin .8s linear infinite;flex-shrink:0}
 @keyframes mir-spin{to{transform:rotate(360deg)}}
 /* section caption */
-.mir-cap{font-family:var(--f-brand);font-size:10px;font-weight:800;letter-spacing:.2em;color:#aab6bd;margin-bottom:18px}
+.mir-cap{font-family:var(--f-mono);font-size:11px;font-weight:600;letter-spacing:.14em;color:#c5cfd5;margin-bottom:18px}
 /* CONSENSUS — white light through the prism */
 .mir-consensus{margin-bottom:46px}
 .mir-prism{height:3px;border-radius:3px;margin-bottom:24px;background:linear-gradient(90deg,rgba(233,241,236,.9),#0A84FF,#FF2D55,#FF9F0A,#34D399);opacity:.55}
 .mir-facts{list-style:none;margin:0;padding:0;counter-reset:mf}
 .mir-facts li{display:flex;gap:18px;align-items:baseline;padding:15px 0;border-bottom:1px solid var(--b1);font-family:var(--f-head);font-size:17px;line-height:1.55;color:var(--t1)}
 .mir-facts li:last-child{border-bottom:none}
-.mir-num{font-style:normal;font-family:var(--f-brand);font-size:12px;font-weight:800;color:#34E08A;flex-shrink:0;width:18px;opacity:.85}
+.mir-num{font-style:normal;font-family:var(--f-mono);font-size:17px;font-weight:600;color:#3FE894;flex-shrink:0;width:26px;opacity:.95}
 /* FRAMING SPECTRUM — the signature gauge */
 .mir-spectrum{margin:50px 0}
 .mir-axis{position:relative;height:92px;margin:40px 10px 16px}
@@ -194,7 +194,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 .mir-row{position:relative;padding:26px 0 26px 26px;border-left:3px solid var(--mc);border-bottom:1px solid var(--b1);background:linear-gradient(90deg,color-mix(in srgb,var(--mc) 6%,transparent),transparent 44%)}
 .mir-row:last-child{border-bottom:none}
 .mir-row-hd{display:flex;align-items:center;gap:13px;margin-bottom:12px}
-.mir-row-name{font-family:var(--f-brand);font-size:12.5px;font-weight:800;letter-spacing:.14em;color:var(--mc)}
+.mir-row-name{font-family:var(--f-mono);font-size:11px;font-weight:600;letter-spacing:.12em;color:var(--mc)}
 .mir-row-tone{font-family:var(--f-mono);font-size:8px;letter-spacing:.09em;color:var(--t3);border:1px solid var(--b1);border-radius:2px;padding:3px 9px}
 .mir-row-frame{font-family:var(--f-head);font-size:17px;line-height:1.62;color:var(--t1);max-width:78ch}
 .mir-cites{margin-top:15px;display:flex;flex-direction:column;gap:7px}
