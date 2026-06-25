@@ -86,6 +86,9 @@ export async function fetchVessels(limit = 2500, collectMs = 6000) {
 
     try { ws = new WS('wss://stream.aisstream.io/v0/stream'); }
     catch { clearTimeout(timer); return finish(); }
+    // aisstream sends binary frames; ask for ArrayBuffer so we can decode them
+    // synchronously (undici's WebSocket would otherwise hand back a Blob).
+    try { ws.binaryType = 'arraybuffer'; } catch {}
 
     ws.onopen = () => {
       _opened = true;
@@ -102,7 +105,12 @@ export async function fetchVessels(limit = 2500, collectMs = 6000) {
     ws.onmessage = (ev) => {
       _msgs++;
       try {
-        const data = typeof ev.data === 'string' ? ev.data : ev.data.toString();
+        let data = ev.data;
+        if (typeof data !== 'string') {
+          if (data instanceof ArrayBuffer) data = new TextDecoder().decode(data);
+          else if (data && typeof data.byteLength === 'number') data = new TextDecoder().decode(data); // Buffer / TypedArray
+          else if (data && typeof data.toString === 'function') data = data.toString();
+        }
         const msg = JSON.parse(data);
         const mmsi = msg.MetaData && msg.MetaData.MMSI;
         if (!mmsi) return;
