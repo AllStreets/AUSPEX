@@ -59,25 +59,81 @@ function computeFlightArcs() {
   });
 }
 
+// Registration-prefix → country (live ADS-B gives a tail like "N443UA"; the
+// prefix is the country of registry). flagcdn renders a real flag ICON, never an
+// emoji — matching the vessels card.
+const _REG_COUNTRY = [
+  ['N','us','United States'],['C-','ca','Canada'],['G-','gb','United Kingdom'],['D-','de','Germany'],
+  ['F-','fr','France'],['I-','it','Italy'],['EC-','es','Spain'],['CS-','pt','Portugal'],['PH-','nl','Netherlands'],
+  ['OO-','be','Belgium'],['LX-','lu','Luxembourg'],['OE-','at','Austria'],['HB-','ch','Switzerland'],['EI-','ie','Ireland'],
+  ['SE-','se','Sweden'],['LN-','no','Norway'],['OY-','dk','Denmark'],['OH-','fi','Finland'],['TF-','is','Iceland'],
+  ['SP-','pl','Poland'],['OK-','cz','Czechia'],['OM-','sk','Slovakia'],['HA-','hu','Hungary'],['YR-','ro','Romania'],
+  ['LZ-','bg','Bulgaria'],['9A-','hr','Croatia'],['S5-','si','Slovenia'],['SX-','gr','Greece'],['TC-','tr','Turkey'],
+  ['RA-','ru','Russia'],['RF-','ru','Russia'],['UR-','ua','Ukraine'],['4K-','az','Azerbaijan'],['4L-','ge','Georgia'],
+  ['JA','jp','Japan'],['HL','kr','South Korea'],['B-','cn','China'],['VT-','in','India'],['VH-','au','Australia'],
+  ['ZK-','nz','New Zealand'],['9V-','sg','Singapore'],['9M-','my','Malaysia'],['HS-','th','Thailand'],['PK-','id','Indonesia'],
+  ['RP-','ph','Philippines'],['VN-','vn','Vietnam'],['A6-','ae','UAE'],['A7-','qa','Qatar'],['HZ-','sa','Saudi Arabia'],
+  ['9K-','kw','Kuwait'],['JY-','jo','Jordan'],['4X-','il','Israel'],['SU-','eg','Egypt'],['AP-','pk','Pakistan'],
+  ['S2-','bd','Bangladesh'],['ET-','et','Ethiopia'],['5Y-','ke','Kenya'],['5N-','ng','Nigeria'],['ZS-','za','South Africa'],
+  ['CN-','ma','Morocco'],['7T-','dz','Algeria'],['PP-','br','Brazil'],['PR-','br','Brazil'],['PT-','br','Brazil'],
+  ['LV-','ar','Argentina'],['CC-','cl','Chile'],['HK-','co','Colombia'],['OB-','pe','Peru'],['XA-','mx','Mexico'],
+  ['XB-','mx','Mexico'],['XC-','mx','Mexico'],['YV-','ve','Venezuela'],
+];
+// Country NAME (OpenSky origin_country) → ISO for the flag.
+const _NAME_ISO = {
+  'united states':'us','united kingdom':'gb','germany':'de','france':'fr','italy':'it','spain':'es','portugal':'pt',
+  'netherlands':'nl','belgium':'be','ireland':'ie','switzerland':'ch','austria':'at','sweden':'se','norway':'no',
+  'denmark':'dk','finland':'fi','poland':'pl','czechia':'cz','czech republic':'cz','greece':'gr','turkey':'tr',
+  'russian federation':'ru','russia':'ru','ukraine':'ua','japan':'jp','china':'cn','south korea':'kr','republic of korea':'kr',
+  'india':'in','australia':'au','new zealand':'nz','singapore':'sg','malaysia':'my','thailand':'th','indonesia':'id',
+  'philippines':'ph','viet nam':'vn','vietnam':'vn','united arab emirates':'ae','qatar':'qa','saudi arabia':'sa',
+  'israel':'il','egypt':'eg','pakistan':'pk','brazil':'br','argentina':'ar','chile':'cl','colombia':'co','mexico':'mx',
+  'canada':'ca','south africa':'za','morocco':'ma','nigeria':'ng','kenya':'ke',
+};
+const _REG_SORTED = _REG_COUNTRY.slice().sort((a, b) => b[0].length - a[0].length);
+function flightCountry(f) {
+  const raw = (f.country || '').trim();
+  // Registrations contain a digit; origin-country names don't — that's the tell.
+  if (/\d/.test(raw)) {
+    const up = raw.toUpperCase();
+    for (const [pfx, iso, name] of _REG_SORTED) if (up.startsWith(pfx)) return { iso, name };
+    return null;
+  }
+  const iso = _NAME_ISO[raw.toLowerCase()];
+  return iso ? { iso, name: raw } : (raw ? { iso: null, name: raw } : null);
+}
+function flightTail(f) {
+  const raw = (f.country || '').trim();
+  return /\d/.test(raw) ? raw : (f.reg || '');
+}
+function _flCountryCell(f) {
+  const c = flightCountry(f);
+  if (!c) return `<span style="margin-left:auto">COUNTRY: —</span>`;
+  const flag = c.iso ? `<img src="https://flagcdn.com/${c.iso}.svg" alt="${c.name}" loading="lazy" onerror="this.style.display='none'" style="height:10px;width:auto;border-radius:1px;box-shadow:0 0 0 1px rgba(255,255,255,.15);vertical-align:middle">` : '';
+  return `<span style="margin-left:auto;display:inline-flex;align-items:center;gap:5px">COUNTRY: ${flag} ${c.name.toUpperCase()}</span>`;
+}
+
 function showFlightInfo(f) {
   if (_flightInfoPanel) _flightInfoPanel.remove();
   const col = f.flightType==='military'?'#30D158':f.flightType==='cargo'?'#A78BFA':'#0A84FF';
   const alt = Math.round((f.alt||0)/0.3048/100)*100;
   const spd = Math.round((f.vel||0)*1.944);
+  const tail = flightTail(f);
   const panel = document.createElement('div');
   panel.id = 'fl-info-panel';
   // Initial centered position — drag will convert to fixed top/left
   const initBottom = 80;
-  panel.style.cssText = `position:fixed;bottom:${initBottom}px;left:50%;transform:translateX(-50%);z-index:200;background:rgba(4,6,17,.97);border:1px solid ${col}44;border-radius:4px;padding:12px 16px;font-family:var(--f-mono);backdrop-filter:blur(20px);display:flex;align-items:center;gap:14px;min-width:320px;pointer-events:all;cursor:grab;user-select:none`;
+  panel.style.cssText = `position:fixed;bottom:${initBottom}px;left:50%;transform:translateX(-50%);z-index:200;background:rgba(4,6,17,.97);border:1px solid ${col}44;border-radius:4px;padding:12px 16px;font-family:var(--f-mono);backdrop-filter:blur(20px);display:flex;align-items:center;gap:14px;min-width:340px;max-width:min(620px,92vw);box-sizing:border-box;pointer-events:all;cursor:grab;user-select:none`;
   panel.innerHTML = `
     <div style="color:${col};flex-shrink:0;width:26px;height:26px;filter:drop-shadow(0 0 6px ${col})">${PLANE_SVG}</div>
     <div style="flex:1;min-width:0">
       <div style="color:${col};font-size:11px;font-weight:700;letter-spacing:.12em;margin-bottom:3px">${(f.callsign||f.icao||'?').toUpperCase()} <span style="font-size:8px;opacity:.6;margin-left:6px">${f.flightType==='military'?'MILITARY':f.flightType==='cargo'?'CARGO FREIGHTER':'COMMERCIAL PASSENGER'}</span></div>
-      <div style="font-size:8px;color:var(--t3);display:flex;gap:12px;flex-wrap:wrap">
-        <span>COUNTRY: ${(f.country||'—').toUpperCase()}</span>
+      <div style="font-size:8px;color:var(--t3);display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+        <span>TAIL #: ${tail || '—'}</span>
         <span>HDG: ${Math.round(f.heading||0)}°</span>
         <span>ALT: ${alt.toLocaleString()}ft</span>
         <span>SPD: ${spd}kts</span>
+        ${_flCountryCell(f)}
       </div>
     </div>
     <button id="fl-close-btn" style="background:none;border:1px solid var(--b1);border-radius:2px;color:var(--t3);cursor:pointer;padding:3px 8px;font-family:var(--f-mono);font-size:10px;flex-shrink:0">×</button>`;
