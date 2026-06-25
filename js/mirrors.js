@@ -103,7 +103,7 @@ async function openMirrors(story) {
   }).join('\n');
 
   const sys = 'You are AUSPEX\'s media-bias analyst — rigorously non-partisan. Given a news event and how different media spheres cover it, produce an honest x-ray of the coverage. Never take a side; describe how each side frames it. Be specific and concise. Output ONLY valid JSON.';
-  const user = `EVENT:\nTitle: ${story.title}\nSummary: ${story.summary || ''}\n${story.body ? 'Detail: ' + String(story.body).slice(0, 700) : ''}\n\nHOW THE SPHERES ARE COVERING IT (from the live feed; may be sparse):\n${covLines}\n\nReturn JSON exactly:\n{\n "agreed": ["the core facts all/most sides would accept — 2 to 4 short bullets"],\n "spheres": {\n   "western": {"framing":"one sentence on the Western framing/emphasis","tone":"one or two words"},\n   "chinese": {"framing":"...","tone":"..."},\n   "russian": {"framing":"...","tone":"..."},\n   "arab": {"framing":"...","tone":"..."}\n },\n "omitted": ["what tends to go under-reported or be left out across the coverage — 1 to 3 short bullets"],\n "note": "one calm sentence on how much the framing diverges and why awareness matters"\n}`;
+  const user = `EVENT:\nTitle: ${story.title}\nSummary: ${story.summary || ''}\n${story.body ? 'Detail: ' + String(story.body).slice(0, 700) : ''}\n\nHOW THE SPHERES ARE COVERING IT (from the live feed; may be sparse):\n${covLines}\n\nDefine a single framing AXIS with two opposing poles for THIS story, then place each sphere on it (0 = fully the left pole, 100 = fully the right pole). Return JSON exactly:\n{\n "poles": ["left-pole framing in 2-4 words", "right-pole framing in 2-4 words"],\n "agreed": ["the core facts all/most sides accept — 2 to 4 short bullets"],\n "spheres": {\n   "western": {"framing":"one sentence on the Western framing/emphasis","tone":"one or two words","lean": 0-100 or null if no coverage},\n   "chinese": {"framing":"...","tone":"...","lean": 0-100 or null},\n   "russian": {"framing":"...","tone":"...","lean": 0-100 or null},\n   "arab": {"framing":"...","tone":"...","lean": 0-100 or null}\n },\n "omitted": ["what tends to be under-reported or left out — 1 to 3 short bullets"],\n "note": "one calm sentence on how far the framing diverges and why awareness matters"\n}`;
 
   let data = null;
   try {
@@ -117,30 +117,55 @@ async function openMirrors(story) {
   p.innerHTML = _mirShell(story, _mirRender(data, cov));
 }
 
+function _mesc(x) { return String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
 function _mirRender(d, cov) {
-  const agreed = (d.agreed || []).map(x => `<li>${String(x).replace(/</g, '&lt;')}</li>`).join('');
-  const omitted = (d.omitted || []).map(x => `<li>${String(x).replace(/</g, '&lt;')}</li>`).join('');
-  const cards = MIR_SPHERES.map(sp => {
+  const poles = Array.isArray(d.poles) ? d.poles : ['', ''];
+  const agreed = (d.agreed || []).map((x, i) => `<li><i class="mir-num">${i + 1}</i>${_mesc(x)}</li>`).join('');
+  const omitted = (d.omitted || []).map(x => `<li>${_mesc(x)}</li>`).join('');
+
+  // Framing spectrum — each sphere placed by its lean. Labels alternate above/below
+  // so they don't collide. This is the signature: divergence you can SEE.
+  const nodes = MIR_SPHERES.map((sp, i) => {
     const s = (d.spheres && d.spheres[sp.id]) || {};
-    const hits = (cov.out[sp.id] || []).slice(0, 2).map(h => `<div class="mir-hl">“${h.title.replace(/</g, '&lt;')}” <span>${h.src}</span></div>`).join('');
-    return `<div class="mir-card" style="--mc:${sp.color}">
-      <div class="mir-card-hd"><span class="mir-dot"></span>${sp.label}${s.tone ? `<span class="mir-tone">${String(s.tone).toUpperCase()}</span>` : ''}</div>
-      <div class="mir-frame">${(s.framing || '—').replace(/</g, '&lt;')}</div>
-      ${hits ? `<div class="mir-hls">${hits}</div>` : `<div class="mir-nohl">no matching live coverage</div>`}
+    if (s.lean == null || isNaN(+s.lean)) return '';
+    const lean = Math.max(3, Math.min(97, +s.lean));
+    return `<div class="mir-node ${i % 2 ? 'dn' : 'up'}" style="left:${lean}%;--mc:${sp.color}">
+      <b class="mir-node-lbl">${sp.label}</b><span class="mir-node-dot"></span></div>`;
+  }).join('');
+
+  // Mirror entries — editorial rows, not tiles: a heavy colour rule, the sphere in
+  // its own colour, the framing in display serif, real headlines as mono citations.
+  const rows = MIR_SPHERES.map(sp => {
+    const s = (d.spheres && d.spheres[sp.id]) || {};
+    const hits = (cov.out[sp.id] || []).slice(0, 2)
+      .map(h => `<div class="mir-cite">↳ “${_mesc(h.title)}” <span>${_mesc(h.src)}</span></div>`).join('');
+    return `<div class="mir-row" style="--mc:${sp.color}">
+      <div class="mir-row-hd"><span class="mir-row-name">${sp.label}</span>${s.tone ? `<span class="mir-row-tone">${_mesc(String(s.tone).toUpperCase())}</span>` : ''}</div>
+      <div class="mir-row-frame">${_mesc(s.framing || '—')}</div>
+      ${hits ? `<div class="mir-cites">${hits}</div>` : `<div class="mir-cite mir-cite-none">↳ no matching coverage in the live feed</div>`}
     </div>`;
   }).join('');
+
   return `
-    <div class="mir-sec mir-agree">
-      <div class="mir-sec-t">◇ WHAT ALL SIDES AGREE ON</div>
-      <ul class="mir-list">${agreed || '<li>—</li>'}</ul>
-    </div>
-    <div class="mir-sec-t mir-mid">◇ HOW EACH MIRROR FRAMES IT</div>
-    <div class="mir-grid">${cards}</div>
-    <div class="mir-sec mir-omit">
-      <div class="mir-sec-t">◇ WHAT TENDS TO BE LEFT OUT</div>
-      <ul class="mir-list">${omitted || '<li>—</li>'}</ul>
-    </div>
-    ${d.note ? `<div class="mir-note">${String(d.note).replace(/</g, '&lt;')}</div>` : ''}`;
+    <section class="mir-consensus">
+      <div class="mir-prism"></div>
+      <div class="mir-cap">CONSENSUS — what every mirror shows</div>
+      <ol class="mir-facts">${agreed || '<li>—</li>'}</ol>
+    </section>
+    <section class="mir-spectrum">
+      <div class="mir-cap">FRAMING SPECTRUM — where each mirror stands</div>
+      <div class="mir-axis">
+        <div class="mir-axis-track">${nodes}</div>
+      </div>
+      <div class="mir-poles"><span>◄ ${_mesc(poles[0] || 'one framing')}</span><span>${_mesc(poles[1] || 'the other')} ►</span></div>
+    </section>
+    <section class="mir-mirrors">${rows}</section>
+    <section class="mir-blindspot">
+      <div class="mir-cap">THE BLIND SPOT — what tends to be left out</div>
+      <ul class="mir-facts mir-omit">${omitted || '<li>—</li>'}</ul>
+    </section>
+    ${d.note ? `<div class="mir-note">“${_mesc(d.note)}”</div>` : ''}`;
 }
 
 // Inject the entry button into the article reading panel once the DOM is ready.
