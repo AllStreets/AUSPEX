@@ -123,15 +123,44 @@ function makeFlightMarker(f) {
   d.style.color = col;
   // Inner div rotates the plane SVG to match heading. SVG points north (0°).
   const pulse = type==='military' ? `<div class="fl-pulse"></div>` : '';
-  const cs  = (f.callsign||f.icao||'?').toUpperCase();
-  const alt = Math.round((f.alt||0)/0.3048/1000);
-  const spd = Math.round((f.vel||0)*1.944);
-  const typeStr = type==='military'?'MILITARY':type==='cargo'?'CARGO':'PASSENGER';
-  d.innerHTML = `
-    <div class="fl-inner" style="transform:rotate(${hdg}deg)">${pulse}${PLANE_SVG}</div>
-    <div class="fl-tip"><div class="fl-tip-cs" style="color:${col}">${cs}</div><div class="fl-tip-type" style="color:${col}">${typeStr}</div><div class="fl-tip-row"><span>HDG ${Math.round(hdg)}°</span><span>FL${alt*10}</span><span>${spd}kts</span></div></div>`;
+  d.innerHTML = `<div class="fl-inner" style="transform:rotate(${hdg}deg)">${pulse}${PLANE_SVG}</div>`;
+  // Hover uses a single body-level tooltip (not a child of the marker): globe.gl
+  // rewrites each marker's inline z-index every frame by camera depth, so a
+  // child tip can't stay above nearer planes. The shared element always wins.
+  d.addEventListener('mouseenter', () => _onFlightHover(f));
+  d.addEventListener('mouseleave', () => _onFlightHover(null));
   d.addEventListener('click', e => { e.stopPropagation(); showFlightInfo(f); });
   return d;
+}
+
+// Shared flight hover tooltip — mirrors the vessel hover (always on top, follows cursor).
+let _flHoverEl = null, _flMouse = { x: 0, y: 0 };
+function _onFlightHover(f) {
+  if (!_flHoverEl) {
+    _flHoverEl = document.createElement('div');
+    _flHoverEl.id = 'fl-hover';
+    document.body.appendChild(_flHoverEl);
+    document.addEventListener('mousemove', e => { _flMouse = { x: e.clientX, y: e.clientY }; if (_flHoverEl.style.display === 'block') _positionFlightHover(); });
+  }
+  if (!f) { _flHoverEl.style.display = 'none'; return; }
+  const type = f.flightType || 'passenger';
+  const col  = type==='military'?'#30D158':type==='cargo'?'#A78BFA':'#0A84FF';
+  const cs   = (f.callsign||f.icao||'?').toUpperCase();
+  const alt  = Math.round((f.alt||0)/0.3048/1000);
+  const spd  = Math.round((f.vel||0)*1.944);
+  const typeStr = type==='military'?'MILITARY':type==='cargo'?'CARGO':'PASSENGER';
+  _flHoverEl.innerHTML = `<div class="vs-h-cs" style="color:${col}">${cs}</div><div class="vs-h-type" style="color:${col}">${typeStr}</div><div class="vs-h-row"><span>HDG ${Math.round(f.heading||0)}°</span><span>FL${alt*10}</span><span>${spd}kts</span></div>`;
+  _flHoverEl.style.borderColor = col + '66';
+  _flHoverEl.style.display = 'block';
+  _positionFlightHover();
+}
+function _positionFlightHover() {
+  if (!_flHoverEl) return;
+  const pad = 16, w = _flHoverEl.offsetWidth, h = _flHoverEl.offsetHeight;
+  let x = _flMouse.x + pad, y = _flMouse.y + pad;
+  if (x + w > window.innerWidth - 8) x = _flMouse.x - w - pad;
+  if (y + h > window.innerHeight - 8) y = _flMouse.y - h - pad;
+  _flHoverEl.style.left = x + 'px'; _flHoverEl.style.top = y + 'px';
 }
 
 async function fetchFlights() {

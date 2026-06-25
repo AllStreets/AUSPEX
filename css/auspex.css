@@ -571,11 +571,11 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 .vs-tip-type{font-size:7px;letter-spacing:.18em;opacity:.7;margin-bottom:5px}
 .vs-tip-row{display:flex;gap:12px;font-size:7.5px;opacity:.65}
 .vs-flag{width:auto;border-radius:1px;box-shadow:0 0 0 1px rgba(255,255,255,.15);vertical-align:middle;flex-shrink:0}
-/* Shared vessel hover tooltip (one element, follows cursor, always on top) */
-#vs-hover{position:fixed;display:none;z-index:1200;pointer-events:none;background:rgba(3,4,9,.97);border:1px solid rgba(120,140,170,.4);border-radius:3px;padding:6px 10px;font-family:var(--f-mono);color:var(--t1);backdrop-filter:blur(14px);min-width:140px;max-width:240px;white-space:nowrap}
-#vs-hover .vs-h-cs{font-size:10px;font-weight:700;letter-spacing:.08em;margin-bottom:3px;overflow:hidden;text-overflow:ellipsis}
-#vs-hover .vs-h-type{font-size:7px;letter-spacing:.18em;opacity:.7;margin-bottom:5px}
-#vs-hover .vs-h-row{display:flex;gap:12px;font-size:7.5px;opacity:.65;color:var(--t1)}
+/* Shared hover tooltip for vessels + flights (one element, follows cursor, always on top) */
+#vs-hover,#fl-hover{position:fixed;display:none;z-index:1200;pointer-events:none;background:rgba(3,4,9,.97);border:1px solid rgba(120,140,170,.4);border-radius:3px;padding:6px 10px;font-family:var(--f-mono);color:var(--t1);backdrop-filter:blur(14px);min-width:140px;max-width:240px;white-space:nowrap}
+#vs-hover .vs-h-cs,#fl-hover .vs-h-cs{font-size:10px;font-weight:700;letter-spacing:.08em;margin-bottom:3px;overflow:hidden;text-overflow:ellipsis}
+#vs-hover .vs-h-type,#fl-hover .vs-h-type{font-size:7px;letter-spacing:.18em;opacity:.7;margin-bottom:5px}
+#vs-hover .vs-h-row,#fl-hover .vs-h-row{display:flex;gap:12px;font-size:7.5px;opacity:.65;color:var(--t1)}
 /* ── DRAGGABLE PANELS ────────────────── */
 .drag-handle{cursor:grab;user-select:none}
 .drag-handle:active{cursor:grabbing}
