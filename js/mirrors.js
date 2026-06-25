@@ -1,7 +1,7 @@
 'use strict';
 
 // ═══════════════════════════════════════════════════════════════════════
-// THREE MIRRORS — per-story bias x-ray.
+// MIRRORS — per-story bias x-ray.
 // Reads any story through the world's media spheres at once and shows, honestly:
 // what they ALL agree on (the facts), how each FRAMES it, and what each OMITS.
 // This is AUSPEX's thesis made literal — the least-biased view is the one that
@@ -20,6 +20,8 @@ const MIR_SPHERES = [
 ];
 const _MIR_STOP = new Set('the a an and or of to in on for with from this that these those is are was were be been has have had will would could should it its as at by we they their our you your he she his her not but who what when where why how amid over into out up down off about after before than then them his has are us un new news say says said report reports'.split(' '));
 let _mirEl = null, _mirCache = {};
+// Prism glyph — light splitting into a spectrum: the mark for the bias x-ray.
+const MIR_ICON = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M12 4 19 18 5 18 Z"/><path d="M3 11 9 11"/><path d="M15 12 21 9"/><path d="M15 14.5 21 14.5"/><path d="M15 17 21 20"/></svg>';
 
 function _mirKeywords(s) {
   const txt = `${s.title || ''} ${s.summary || ''}`.toLowerCase();
@@ -74,7 +76,7 @@ function _mirShell(story, inner) {
   return `
     <div class="mir-hdr">
       <div class="mir-hdr-l">
-        <div class="mir-eyebrow">◆ THREE MIRRORS · bias x-ray</div>
+        <div class="mir-eyebrow">${MIR_ICON} MIRRORS · bias x-ray</div>
         <div class="mir-title">${(story.title || '').replace(/</g, '&lt;')}</div>
       </div>
       <button class="mir-close" onclick="closeMirrors()">×</button>
@@ -168,18 +170,4 @@ function _mirRender(d, cov) {
     ${d.note ? `<div class="mir-note">“${_mesc(d.note)}”</div>` : ''}`;
 }
 
-// Inject the entry button into the article reading panel once the DOM is ready.
-function _mirInjectButton() {
-  const relief = document.getElementById('ap-relief-btn');
-  if (!relief || document.getElementById('ap-mirrors-btn')) return;
-  const b = document.createElement('button');
-  b.id = 'ap-mirrors-btn';
-  b.setAttribute('onclick', 'openMirrorsFromArticle()');
-  b.innerHTML = '◆ THREE MIRRORS';
-  b.style.cssText = 'display:inline-flex;align-items:center;gap:7px;padding:9px 16px;margin-left:8px;background:rgba(110,138,255,.06);border:1px solid rgba(110,138,255,.22);border-radius:3px;font-family:var(--f-mono);font-size:10px;color:rgba(110,138,255,.85);letter-spacing:.08em;cursor:pointer;transition:all .18s';
-  b.onmouseover = () => { b.style.background = 'rgba(110,138,255,.14)'; b.style.borderColor = 'rgba(110,138,255,.5)'; b.style.color = '#8AA0FF'; };
-  b.onmouseout = () => { b.style.background = 'rgba(110,138,255,.06)'; b.style.borderColor = 'rgba(110,138,255,.22)'; b.style.color = 'rgba(110,138,255,.85)'; };
-  relief.insertAdjacentElement('afterend', b);
-}
-if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _mirInjectButton);
-else _mirInjectButton();
+// (The MIRRORS entry button lives in index.html, inline with the article actions.)
