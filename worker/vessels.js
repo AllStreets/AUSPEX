@@ -70,7 +70,6 @@ export async function fetchVessels(limit = 2500, collectMs = 6000) {
   if (!key) { console.warn('[vessels] AISSTREAM_API_KEY not set'); return []; }
 
   const WS = await getWS();
-  let _msgs = 0, _opened = false, _err = null, _closed = null;
   const positions = new Map(); // mmsi -> { lat, lng, sog, cog, heading }
   const now = Date.now();
 
@@ -91,7 +90,6 @@ export async function fetchVessels(limit = 2500, collectMs = 6000) {
     try { ws.binaryType = 'arraybuffer'; } catch {}
 
     ws.onopen = () => {
-      _opened = true;
       try {
         ws.send(JSON.stringify({
           APIKey: key,
@@ -100,10 +98,9 @@ export async function fetchVessels(limit = 2500, collectMs = 6000) {
         }));
       } catch { finish(); }
     };
-    ws.onerror = (e) => { _err = (e && (e.message || e.error)) || 'err'; finish(); };
-    ws.onclose = (e) => { _closed = (e && e.code) || 'closed'; clearTimeout(timer); finish(); };
+    ws.onerror = () => finish();
+    ws.onclose = () => { clearTimeout(timer); finish(); };
     ws.onmessage = (ev) => {
-      _msgs++;
       try {
         let data = ev.data;
         if (typeof data !== 'string') {
@@ -138,7 +135,6 @@ export async function fetchVessels(limit = 2500, collectMs = 6000) {
   });
 
   _pruneStatic(now);
-  console.log(`[vessels] opened=${_opened} msgs=${_msgs} positions=${positions.size} closed=${_closed} err=${_err || 'none'}`);
 
   const out = [];
   for (const [mmsi, p] of positions) {
