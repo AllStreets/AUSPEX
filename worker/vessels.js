@@ -67,7 +67,7 @@ function _pruneStatic(now) {
 // Open one short aisstream window and return a deduped vessel snapshot.
 export async function fetchVessels(limit = 2500, collectMs = 6000) {
   const key = process.env.AISSTREAM_API_KEY;
-  if (!key) return [];
+  if (!key) { console.warn('[vessels] AISSTREAM_API_KEY not set'); return []; }
 
   const WS = await getWS();
   const positions = new Map(); // mmsi -> { lat, lng, sog, cog, heading }

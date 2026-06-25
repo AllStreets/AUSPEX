@@ -14,9 +14,11 @@ export default async function handler(req, res) {
   try {
     const vessels = await fetchVessels(2500, 6500);
     if (vessels.length) {
-      res.setHeader('Cache-Control', 's-maxage=30, stale-while-revalidate=60');
+      // Longer edge cache → aisstream sees ~one connection per minute regardless
+      // of visitor count, staying well under its free-tier connection limits.
+      res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=180');
     } else {
-      res.setHeader('Cache-Control', 's-maxage=10');
+      res.setHeader('Cache-Control', 's-maxage=20');
     }
     res.status(200).json({
       generatedAt: new Date().toISOString(),
