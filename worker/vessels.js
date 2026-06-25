@@ -67,10 +67,9 @@ function _pruneStatic(now) {
 // Open one short aisstream window and return a deduped vessel snapshot.
 export async function fetchVessels(limit = 2500, collectMs = 6000) {
   const key = process.env.AISSTREAM_API_KEY;
-  if (!key) { console.error('[vessels] AISSTREAM_API_KEY missing'); return []; }
+  if (!key) return [];
 
   const WS = await getWS();
-  let _msgs = 0, _err = null, _opened = false;
   const positions = new Map(); // mmsi -> { lat, lng, sog, cog, heading }
   const now = Date.now();
 
@@ -88,7 +87,6 @@ export async function fetchVessels(limit = 2500, collectMs = 6000) {
     catch { clearTimeout(timer); return finish(); }
 
     ws.onopen = () => {
-      _opened = true;
       try {
         ws.send(JSON.stringify({
           APIKey: key,
@@ -97,10 +95,9 @@ export async function fetchVessels(limit = 2500, collectMs = 6000) {
         }));
       } catch { finish(); }
     };
-    ws.onerror = (e) => { _err = (e && (e.message || e.error)) || 'ws error'; finish(); };
+    ws.onerror = () => finish();
     ws.onclose = () => { clearTimeout(timer); finish(); };
     ws.onmessage = (ev) => {
-      _msgs++;
       try {
         const data = typeof ev.data === 'string' ? ev.data : ev.data.toString();
         const msg = JSON.parse(data);
@@ -130,7 +127,6 @@ export async function fetchVessels(limit = 2500, collectMs = 6000) {
   });
 
   _pruneStatic(now);
-  console.log(`[vessels] opened=${_opened} msgs=${_msgs} positions=${positions.size} static=${_staticCache.size} err=${_err || 'none'}`);
 
   const out = [];
   for (const [mmsi, p] of positions) {
