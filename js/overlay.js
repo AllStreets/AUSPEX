@@ -91,14 +91,53 @@ const _NAME_ISO = {
   'canada':'ca','south africa':'za','morocco':'ma','nigeria':'ng','kenya':'ke',
 };
 const _REG_SORTED = _REG_COUNTRY.slice().sort((a, b) => b[0].length - a[0].length);
+// ICAO 24-bit address blocks → country. Universal: every aircraft (incl. military
+// with serial "tails" like 17-20977) has an ICAO hex, so this is the most reliable
+// country source. Major allocations cover the vast majority of traffic.
+const _HEX_COUNTRY = [
+  [0xA00000,0xAFFFFF,'us','United States'],[0xC00000,0xC3FFFF,'ca','Canada'],
+  [0x400000,0x43FFFF,'gb','United Kingdom'],[0x3C0000,0x3FFFFF,'de','Germany'],
+  [0x380000,0x3BFFFF,'fr','France'],[0x300000,0x33FFFF,'it','Italy'],
+  [0x340000,0x37FFFF,'es','Spain'],[0x480000,0x487FFF,'nl','Netherlands'],
+  [0x448000,0x44FFFF,'be','Belgium'],[0x4B0000,0x4B7FFF,'ch','Switzerland'],
+  [0x440000,0x447FFF,'at','Austria'],[0x4A8000,0x4AFFFF,'se','Sweden'],
+  [0x478000,0x47FFFF,'no','Norway'],[0x458000,0x45FFFF,'dk','Denmark'],
+  [0x460000,0x467FFF,'fi','Finland'],[0x488000,0x48FFFF,'pl','Poland'],
+  [0x468000,0x46FFFF,'gr','Greece'],[0x490000,0x497FFF,'pt','Portugal'],
+  [0x4CA000,0x4CAFFF,'ie','Ireland'],[0x498000,0x49FFFF,'cz','Czechia'],
+  [0x4B8000,0x4BFFFF,'tr','Turkey'],[0x508000,0x50FFFF,'ua','Ukraine'],
+  [0x140000,0x1FFFFF,'ru','Russia'],[0x780000,0x7BFFFF,'cn','China'],
+  [0x840000,0x87FFFF,'jp','Japan'],[0x718000,0x71FFFF,'kr','South Korea'],
+  [0x800000,0x83FFFF,'in','India'],[0x7C0000,0x7FFFFF,'au','Australia'],
+  [0xE40000,0xE7FFFF,'br','Brazil'],[0x738000,0x73FFFF,'il','Israel'],
+  [0x768000,0x76FFFF,'sg','Singapore'],[0x710000,0x717FFF,'sa','Saudi Arabia'],
+  [0x896000,0x897FFF,'ae','UAE'],[0x008000,0x00FFFF,'za','South Africa'],
+  [0x010000,0x017FFF,'eg','Egypt'],[0x0D0000,0x0D7FFF,'mx','Mexico'],
+  [0x880000,0x887FFF,'th','Thailand'],[0x750000,0x757FFF,'my','Malaysia'],
+  [0x8A0000,0x8A7FFF,'id','Indonesia'],[0x758000,0x75FFFF,'ph','Philippines'],
+  [0x888000,0x88FFFF,'vn','Vietnam'],[0x760000,0x767FFF,'pk','Pakistan'],
+  [0xC80000,0xC87FFF,'nz','New Zealand'],[0xE00000,0xE3FFFF,'ar','Argentina'],
+  [0x0A0000,0x0A7FFF,'dz','Algeria'],[0x020000,0x027FFF,'ma','Morocco'],
+  [0x0C0000,0x0C7FFF,'co','Colombia'],[0x728000,0x72FFFF,'qa','Qatar'],
+];
+function hexCountry(hex) {
+  const v = parseInt(hex, 16);
+  if (!Number.isFinite(v)) return null;
+  for (const [a, b, iso, name] of _HEX_COUNTRY) if (v >= a && v <= b) return { iso, name };
+  return null;
+}
 function flightCountry(f) {
+  // 1) ICAO hex — universal (covers military serials + any registration).
+  const byHex = hexCountry(f.icao);
+  if (byHex) return byHex;
+  // 2) Registration prefix (civil tail like "N443UA").
   const raw = (f.country || '').trim();
-  // Registrations contain a digit; origin-country names don't — that's the tell.
   if (/\d/.test(raw)) {
     const up = raw.toUpperCase();
     for (const [pfx, iso, name] of _REG_SORTED) if (up.startsWith(pfx)) return { iso, name };
     return null;
   }
+  // 3) OpenSky origin-country name.
   const iso = _NAME_ISO[raw.toLowerCase()];
   return iso ? { iso, name: raw } : (raw ? { iso: null, name: raw } : null);
 }
