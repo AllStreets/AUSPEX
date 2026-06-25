@@ -727,8 +727,7 @@ function _updateAllGlobeElementsNow() {
     : [];
   if (typeof flightsVisible !== 'undefined' && flightsVisible && typeof flightData !== 'undefined')
     flightData.forEach(f => visual.push({...f, _type:'flight'}));
-  if (typeof vesselsVisible !== 'undefined' && vesselsVisible && typeof vesselData !== 'undefined')
-    vesselData.forEach(v => visual.push({...v, _type:'vessel'}));
+  // Vessels render on their own GPU objects layer (js/vessels.js), not here.
   if (typeof silenceVisible !== 'undefined' && silenceVisible && typeof _silenceAnomalies !== 'undefined')
     _silenceAnomalies.forEach(a => visual.push({...a, _type:'blackout'}));
   if (typeof threatsVisible !== 'undefined' && threatsVisible) {
@@ -787,7 +786,6 @@ function _updateAllGlobeElementsNow() {
 
   G.htmlElementsData(visual).htmlElement(item => {
     if (item._type === 'flight') return makeFlightMarker(item);
-    if (item._type === 'vessel') return makeVesselMarker(item);
     if (item._type === 'broadcaster') {
       const d = document.createElement('div');
       d.className = 'bcast-marker';

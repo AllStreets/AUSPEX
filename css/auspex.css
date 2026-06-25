@@ -558,14 +558,23 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 .fl-tip-row{display:flex;gap:12px;font-size:7.5px;opacity:.65}
 /* VESSELS — twin of .fl-* markers */
 .vs-m{transform:translate(-50%,-50%);cursor:pointer;position:relative;width:26px;height:26px;display:flex;align-items:center;justify-content:center;pointer-events:all}
+.vs-m:hover{z-index:600}/* hovered vessel + its tip render above every other marker */
 .vs-inner{display:flex;align-items:center;justify-content:center;width:100%;height:100%;transform-origin:center center}
-.vs-ship{width:20px;height:24px;transition:filter .2s,transform .2s;filter:drop-shadow(0 0 2px currentColor)}
-.vs-m:hover .vs-ship{filter:drop-shadow(0 0 8px currentColor) brightness(1.4);transform:scale(1.15)}
+/* No always-on filter — a per-frame drop-shadow on hundreds of markers is what
+   made the globe lag. The glow is applied only on hover. */
+.vs-ship{width:20px;height:24px;transition:transform .15s;filter:none}
+.vs-m:hover .vs-ship{filter:drop-shadow(0 0 7px currentColor) brightness(1.35);transform:scale(1.18)}
 .vs-tip{position:absolute;left:20px;top:50%;transform:translateY(-50%);background:rgba(3,4,9,.97);border:1px solid currentColor;border-radius:3px;padding:6px 10px;font-family:var(--f-mono);font-size:8.5px;color:var(--t1);white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .13s;backdrop-filter:blur(14px);z-index:10;min-width:140px}
 .vs-m:hover .vs-tip{opacity:1}
 .vs-tip-cs{font-size:10px;font-weight:700;letter-spacing:.08em;margin-bottom:3px}
 .vs-tip-type{font-size:7px;letter-spacing:.18em;opacity:.7;margin-bottom:5px}
 .vs-tip-row{display:flex;gap:12px;font-size:7.5px;opacity:.65}
+.vs-flag{width:auto;border-radius:1px;box-shadow:0 0 0 1px rgba(255,255,255,.15);vertical-align:middle;flex-shrink:0}
+/* Shared vessel hover tooltip (one element, follows cursor, always on top) */
+#vs-hover{position:fixed;display:none;z-index:1200;pointer-events:none;background:rgba(3,4,9,.97);border:1px solid rgba(120,140,170,.4);border-radius:3px;padding:6px 10px;font-family:var(--f-mono);color:var(--t1);backdrop-filter:blur(14px);min-width:140px;max-width:240px;white-space:nowrap}
+#vs-hover .vs-h-cs{font-size:10px;font-weight:700;letter-spacing:.08em;margin-bottom:3px;overflow:hidden;text-overflow:ellipsis}
+#vs-hover .vs-h-type{font-size:7px;letter-spacing:.18em;opacity:.7;margin-bottom:5px}
+#vs-hover .vs-h-row{display:flex;gap:12px;font-size:7.5px;opacity:.65;color:var(--t1)}
 /* ── DRAGGABLE PANELS ────────────────── */
 .drag-handle{cursor:grab;user-select:none}
 .drag-handle:active{cursor:grabbing}
