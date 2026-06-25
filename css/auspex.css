@@ -543,6 +543,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 
 /* ── C1 FLIGHT MARKERS ───────────────── */
 .fl-m{transform:translate(-50%,-50%);cursor:pointer;position:relative;width:28px;height:28px;display:flex;align-items:center;justify-content:center;pointer-events:all}
+.fl-m:hover{z-index:600}/* hovered plane + its tip render above every other marker */
 .fl-inner{display:flex;align-items:center;justify-content:center;width:100%;height:100%;transform-origin:center center}
 .fl-plane{width:26px;height:26px;transition:filter .2s;filter:none}
 .fl-m:hover .fl-plane{filter:drop-shadow(0 0 8px currentColor) brightness(1.4);transform:scale(1.15)}

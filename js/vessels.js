@@ -62,7 +62,7 @@ function vesselFlag(mmsi) {
   const m = MID_TO_FLAG[mid];
   return m ? { iso: m[0], name: m[1] } : null;
 }
-function _flagImg(fl, h) { return fl ? `<img class="vs-flag" src="https://flagcdn.com/${fl.iso}.svg" alt="${fl.name}" loading="lazy" style="height:${h}px">` : ''; }
+function _flagImg(fl, h) { return fl ? `<img class="vs-flag" src="https://flagcdn.com/${fl.iso}.svg" alt="${fl.name}" loading="lazy" style="height:${h}px" onerror="this.style.display='none'">` : ''; }
 
 // ── GPU SPRITE RENDERING ────────────────────────────────────────────────────
 // Hundreds of HTML markers tank the framerate (the browser re-lays-out every DOM
@@ -232,7 +232,6 @@ function showVesselInfo(v) {
         <span>COG: ${Math.round(v.cog||0)}°</span>
         <span>HDG: ${Math.round(v.heading||0)}°</span>
         ${flagCell}
-        <span>CALL: ${(v.callsign||'—').toUpperCase()}</span>
       </div>
     </div>
     <button id="vs-close-btn" style="background:none;border:1px solid var(--b1);border-radius:2px;color:var(--t3);cursor:pointer;padding:3px 8px;font-family:var(--f-mono);font-size:10px;flex-shrink:0">×</button>`;
