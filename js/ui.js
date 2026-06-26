@@ -265,6 +265,9 @@ function openArticle(story) {
   }
   document.getElementById('ap-coords').textContent = coordStr;
 
+  if (typeof renderProvenance === 'function') renderProvenance(story);
+  if (typeof reachReset === 'function') reachReset();
+
   document.getElementById('art-panel').classList.remove('art-panel--event');
   document.getElementById('art-panel').classList.add('on');
   document.getElementById('art-bd').classList.add('on');
