@@ -224,11 +224,15 @@ function pinStoryFromArticle() {
 function _apStripHtml(s) {
   if (s == null) return '';
   return String(s)
-    .replace(/<\/(p|div|li|h[1-6]|blockquote)>/gi, ' ')
-    .replace(/<br\s*\/?>/gi, ' ')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&').replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>').replace(/&quot;/gi, '"').replace(/&#0?39;|&apos;|&rsquo;/gi, "'")
+    // 1) decode entities FIRST, so encoded tags (&lt;a href&gt;) become strippable
+    .replace(/&nbsp;/gi, ' ').replace(/&lt;/gi, '<').replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"').replace(/&#0?39;|&apos;|&rsquo;/gi, "'").replace(/&amp;/gi, '&')
+    // 2) block tags → spaces
+    .replace(/<\/(p|div|li|h[1-6]|blockquote)>/gi, ' ').replace(/<br\s*\/?>/gi, ' ')
+    // 3) strip anchors even when unterminated (truncated "read more" links)
+    .replace(/<\/?a\b[^>]*>?/gi, '')
+    // 4) any other tag, then any leftover unterminated tag fragment at the end
+    .replace(/<[a-z!/][^>]*>/gi, '').replace(/<[a-z!/][^>]*$/i, '')
     .replace(/\s+/g, ' ').trim();
 }
 

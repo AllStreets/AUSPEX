@@ -36,7 +36,7 @@
   /* Breakthroughs (future) */
   --brk-cyan:#5AC8FA;  --brk-gold:#FFD489;
 
-  --sb-w:368px;
+  --sb-w:clamp(330px, 22vw, 384px); /* feed slims/stretches with the viewport */
   --hdr-h:58px;
   --tkr-h:38px;
   --scrb-h:54px;
