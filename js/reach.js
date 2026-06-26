@@ -75,10 +75,14 @@ function reachListenFromArticle() {
   if (!window.speechSynthesis) return;
   if (_reachSpeaking) { speechSynthesis.cancel(); _reachSpeaking = false; _reachListenLabel('LISTEN'); return; }
   const story = _reachStory(); if (!story) return;
-  const title = document.getElementById('ap-title').textContent;
-  const lead = document.getElementById('ap-lead').textContent;
-  const text = document.getElementById('ap-text').textContent;
-  const u = new SpeechSynthesisUtterance(`${title}. ${lead} ${text}`.slice(0, 4000));
+  const title = (document.getElementById('ap-title').textContent || '').trim();
+  const l = (document.getElementById('ap-lead').textContent || '').trim();
+  const t = (document.getElementById('ap-text').textContent || '').trim();
+  // The lead (summary) and body are often the same text — read the content once.
+  let spoken = title + '. ';
+  if (t && t !== l && !t.includes(l) && !l.includes(t)) spoken += l + ' ' + t;
+  else spoken += (t.length >= l.length ? t : l) || l;
+  const u = new SpeechSynthesisUtterance(spoken.slice(0, 4000));
   if (_reachLang) u.lang = _reachLang;
   u.rate = 1.0;
   u.onend = () => { _reachSpeaking = false; _reachListenLabel('LISTEN'); };

@@ -218,6 +218,20 @@ function pinStoryFromArticle() {
   if (lbl) lbl.textContent = pinned ? 'PINNED ✓' : 'PIN TO ANALYST';
   if (btn) { btn.style.background = pinned?'rgba(74,222,128,.12)':'rgba(74,222,128,.05)'; btn.style.borderColor = pinned?'rgba(74,222,128,.45)':'rgba(74,222,128,.2)'; btn.style.color = pinned?'#4ADE80':'rgba(74,222,128,.7)'; }
 }
+// Some feed items arrive with raw HTML in the summary/body (<p>, <a href>, &amp;
+// entities). The article reads as plain text, so strip tags + decode entities,
+// keeping the link/anchor text. Used for what's displayed (and thus translated).
+function _apStripHtml(s) {
+  if (s == null) return '';
+  return String(s)
+    .replace(/<\/(p|div|li|h[1-6]|blockquote)>/gi, ' ')
+    .replace(/<br\s*\/?>/gi, ' ')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&').replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>').replace(/&quot;/gi, '"').replace(/&#0?39;|&apos;|&rsquo;/gi, "'")
+    .replace(/\s+/g, ' ').trim();
+}
+
 function openArticle(story) {
   if (!story) return;
   _apStoryId = story.id ?? null;
@@ -243,12 +257,12 @@ function openArticle(story) {
   brkEl.textContent = 'BREAKING';
   brkEl.style.color = '';
   brkEl.style.display = story.brk ? 'inline-flex' : 'none';
-  document.getElementById('ap-title').textContent = story.title;
+  document.getElementById('ap-title').textContent = _apStripHtml(story.title);
   document.getElementById('ap-src').textContent = story.src;
   document.getElementById('ap-time').textContent = story.time;
   document.getElementById('ap-region').textContent = story.region;
-  document.getElementById('ap-lead').textContent = story.summary;
-  document.getElementById('ap-text').textContent = story.body;
+  document.getElementById('ap-lead').textContent = _apStripHtml(story.summary);
+  document.getElementById('ap-text').textContent = _apStripHtml(story.body);
   const apLink = document.getElementById('ap-link');
   if (story.url) {
     apLink.href = story.url;
