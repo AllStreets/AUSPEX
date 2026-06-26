@@ -131,7 +131,7 @@ function _mirRender(d, cov) {
   const nodes = MIR_SPHERES.map((sp, i) => {
     const s = (d.spheres && d.spheres[sp.id]) || {};
     if (s.lean == null || isNaN(+s.lean)) return '';
-    const lean = Math.max(3, Math.min(97, +s.lean));
+    const lean = Math.max(7, Math.min(93, +s.lean));
     return `<div class="mir-node ${i % 2 ? 'dn' : 'up'}" style="left:${lean}%;--mc:${sp.color}">
       <b class="mir-node-lbl">${sp.label}</b><span class="mir-node-dot"></span></div>`;
   }).join('');

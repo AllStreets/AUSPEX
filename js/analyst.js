@@ -883,10 +883,10 @@ function buildMapKey() {
   ];
   const _catColor = (c) => (typeof CATS !== 'undefined' && CATS[c] && CATS[c].color) || '#8FA0E8';
   const _catLabel = (c) => (typeof CATS !== 'undefined' && CATS[c] && CATS[c].label) || c.toUpperCase();
-  const storyMarkerRows = _STORY_CATS.map(d => ({ shape:d.shape, color:_catColor(d.cat), lbl:`${_catLabel(d.cat)} — ${d.name} (${d.shapeName})` }));
+  const storyMarkerRows = _STORY_CATS.map(d => ({ ico:(typeof auspexCatIcon === 'function' ? auspexCatIcon(d.cat) : ''), color:_catColor(d.cat), lbl:`${_catLabel(d.cat)} — ${d.name}` }));
   const storyArcRows    = _STORY_CATS.map(d => ({ dash:_catColor(d.cat), lbl:`${_catLabel(d.cat)} — ${d.name} story link` }));
   const rows = [
-    { s:'STORY MARKERS — SHAPE + COLOUR BY CATEGORY' },
+    { s:'STORY MARKERS — ICON + COLOUR BY CATEGORY' },
     ...storyMarkerRows,
     { s:'ANIMATED EFFECTS' },
     { dot:'var(--brk)', lbl:'Breaking news — double pulse ring' },
@@ -1002,6 +1002,7 @@ function buildMapKey() {
     if (r.dot)      return `<div class="mk-row"><div class="mk-dot" style="background:${r.dot}"></div><span class="mk-lbl">${r.lbl}</span></div>`;
     if (r.dash)     return `<div class="mk-row"><div class="mk-dash" style="background:${r.dash}"></div><span class="mk-lbl">${r.lbl}</span></div>`;
     if (r.shape)    return `<div class="mk-row"><div class="mk-dot" style="background:${r.color};clip-path:${shapeClip[r.shape]||'none'};border-radius:${r.shape==='square'?'1px':'0'}"></div><span class="mk-lbl">${r.lbl}</span></div>`;
+    if (r.ico)      return `<div class="mk-row"><div class="mk-cat-ico" style="color:${r.color};filter:drop-shadow(0 0 3px ${r.color}88)">${r.ico}</div><span class="mk-lbl">${r.lbl}</span></div>`;
     if (r.ring)     return `<div class="mk-row"><div class="mk-ring-demo" style="--rc:${r.ring}"><div class="mk-ring-r mk-ring-r1"></div><div class="mk-ring-r mk-ring-r2"></div><div class="mk-ring-core"></div></div><span class="mk-lbl">${r.lbl}</span></div>`;
     if (r.plane)    return `<div class="mk-row"><div class="mk-plane-ico" style="color:${r.plane};filter:drop-shadow(0 0 3px ${r.plane}88)">${typeof PLANE_SVG !== 'undefined' ? PLANE_SVG : '✈'}</div><span class="mk-lbl">${r.lbl}</span></div>`;
     if (r.cityType) {

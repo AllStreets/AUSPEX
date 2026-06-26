@@ -309,10 +309,14 @@ function makeMarker(story) {
   d.className = 'gm';
   d.style.color = story.color;
   const _canPulse = _pulseSet.has(story);
+  const ico = (typeof auspexCatIcon === 'function') ? auspexCatIcon(cat) : '';
+  // Brightened tint so the glyph reads against any globe backdrop (same treatment
+  // as the event markers); a dark backing disc lives in .gm-ico.
+  const glyphColor = (typeof auspexLiftColor === 'function') ? auspexLiftColor(story.color, 0.45) : story.color;
   d.innerHTML = `
-    ${_canPulse ? `<div class="gm-ring cat-ring-${cat}" style="border-color:${story.color}"></div>` : ''}
-    ${_canPulse && story.brk ? `<div class="gm-ring gm-ring2 cat-ring-${cat}" style="border-color:${story.color}"></div>` : ''}
-    <div class="gm-core cat-core-${cat}" style="background:${story.color};box-shadow:0 0 ${story.brk?10:5}px ${story.color}99"></div>
+    ${_canPulse ? `<div class="gm-ring" style="border-color:${story.color}"></div>` : ''}
+    ${_canPulse && story.brk ? `<div class="gm-ring gm-ring2" style="border-color:${story.color}"></div>` : ''}
+    <div class="gm-ico" style="color:${glyphColor};filter:drop-shadow(0 0 ${story.brk?5:3}px ${story.color}cc)">${ico}</div>
     <div class="gm-tip">${story.title.length > 72 ? story.title.slice(0,70)+'…' : story.title}</div>
   `;
   d.addEventListener('pointerdown', e => e.stopPropagation());

@@ -177,17 +177,17 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 .mir-num{font-style:normal;font-family:var(--f-mono);font-size:17px;font-weight:600;color:#3FE894;flex-shrink:0;width:26px;opacity:.95}
 /* FRAMING SPECTRUM — the signature gauge */
 .mir-spectrum{margin:50px 0}
-.mir-axis{position:relative;height:92px;margin:40px 10px 16px}
+.mir-axis{position:relative;height:128px;margin:46px 14px 22px;overflow:visible}
 .mir-axis-track{position:absolute;left:0;right:0;top:50%;height:2px;border-radius:2px;background:linear-gradient(90deg,rgba(255,255,255,.05),rgba(255,255,255,.18),rgba(255,255,255,.05))}
 .mir-axis-track::before,.mir-axis-track::after{content:'';position:absolute;top:-4px;width:1px;height:10px;background:rgba(255,255,255,.22)}
 .mir-axis-track::before{left:0}.mir-axis-track::after{right:0}
 .mir-node{position:absolute;top:50%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center}
 .mir-node-dot{width:14px;height:14px;border-radius:50%;background:var(--mc);border:2px solid #06070f;box-shadow:0 0 12px var(--mc),0 0 3px var(--mc);position:relative;z-index:2}
-.mir-node-lbl{position:absolute;font-family:var(--f-brand);font-size:9px;font-weight:800;letter-spacing:.1em;color:var(--mc);white-space:nowrap}
-.mir-node.up .mir-node-lbl{bottom:19px}
-.mir-node.dn .mir-node-lbl{top:19px}
-.mir-node::after{content:'';position:absolute;left:50%;width:1px;height:15px;background:var(--mc);opacity:.45;transform:translateX(-50%)}
-.mir-node.up::after{bottom:10px}.mir-node.dn::after{top:10px}
+.mir-node-lbl{position:absolute;font-family:var(--f-mono);font-size:9px;font-weight:600;letter-spacing:.08em;color:var(--mc);white-space:nowrap}
+.mir-node.up .mir-node-lbl{bottom:25px}
+.mir-node.dn .mir-node-lbl{top:25px}
+.mir-node::after{content:'';position:absolute;left:50%;width:1px;height:17px;background:var(--mc);opacity:.45;transform:translateX(-50%)}
+.mir-node.up::after{bottom:11px}.mir-node.dn::after{top:11px}
 .mir-poles{display:flex;justify-content:space-between;font-family:var(--f-mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:#8c9aa2}
 /* MIRRORS — editorial entries, not tiles */
 .mir-mirrors{margin-top:48px}
@@ -345,6 +345,9 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 @keyframes ring-out{0%{transform:translate(-50%,-50%) scale(.5);opacity:.9}100%{transform:translate(-50%,-50%) scale(3);opacity:0}}
 .gm-core{width:9px;height:9px;border-radius:50%;position:relative;z-index:2;transition:transform .15s}
 .gm:hover .gm-core{transform:scale(1.45)}
+.gm-ico{width:17px;height:17px;position:relative;z-index:2;display:flex;align-items:center;justify-content:center;transition:transform .15s;border-radius:50%;background:radial-gradient(circle,rgba(5,9,18,.82) 0%,rgba(5,9,18,.46) 56%,transparent 76%)}
+.gm-ico svg{width:100%;height:100%;display:block}
+.gm:hover .gm-ico{transform:scale(1.42)}
 .gm-tip{position:absolute;left:14px;top:50%;transform:translateY(-50%);background:rgba(3,4,9,.94);border:1px solid rgba(255,255,255,.1);border-radius:3px;padding:5px 10px;font-family:var(--f-ui);font-size:10.5px;color:var(--t1);white-space:nowrap;max-width:340px;overflow:hidden;text-overflow:ellipsis;pointer-events:none;opacity:0;transition:opacity .13s;backdrop-filter:blur(10px)}
 .gm:hover .gm-tip{opacity:1}
 
@@ -904,6 +907,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 .mk-city-ico{width:14px;height:14px;flex-shrink:0}
 .mk-event-ico{width:15px;height:15px;flex-shrink:0;display:flex;align-items:center;justify-content:center}.mk-event-ico svg{width:15px;height:15px;display:block}
 .mk-plane-ico{width:16px;height:16px;flex-shrink:0;display:flex;align-items:center;justify-content:center}.mk-plane-ico svg{width:16px;height:16px}
+.mk-cat-ico{width:16px;height:16px;flex-shrink:0;display:flex;align-items:center;justify-content:center}.mk-cat-ico svg{width:16px;height:16px}
 .mk-ctrl-ico{width:16px;height:16px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
 .mk-lbl{font-family:var(--f-ui);font-size:10px;color:var(--t2);flex:1;line-height:1.3}
 .mk-collapse-btn{padding:8px 14px;border-top:1px solid rgba(255,255,255,.05);font-family:var(--f-mono);font-size:7.5px;letter-spacing:.14em;color:var(--t3);cursor:pointer;text-align:center;background:none;border-left:none;border-right:none;border-bottom:none;width:100%;transition:all .15s}

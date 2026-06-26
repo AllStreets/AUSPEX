@@ -49,6 +49,25 @@ function auspexEventIcon(key) {
   return (key && AUSPEX_EVENT_ICONS[key]) || AUSPEX_EVENT_ICONS.default;
 }
 
+// ── STORY-CATEGORY ICONS ───────────────────────────────────────────────────
+// The five news categories rendered as proper icons (same hand as the event
+// glyphs) instead of bare shapes — coloured live by CATS[cat].color on the globe.
+const AUSPEX_CAT_ICONS = {
+  // geopolitics → a columned institution (parliament / state affairs)
+  geo:      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5 12 4l9 5.5"/><path d="M5.5 10v8M9.5 10v8M14.5 10v8M18.5 10v8"/><path d="M3.5 18.5h17M4.5 21h15"/></svg>`,
+  // military / conflict → a shield with an insignia star
+  military: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5 4.5 5.2v5.6c0 4.7 3.2 8 7.5 10.2 4.3-2.2 7.5-5.5 7.5-10.2V5.2L12 2.5Z"/><path d="M12 8.3l1.15 2.4 2.6.3-1.95 1.8.5 2.6L12 16.4l-2.3 1.2.5-2.6L8.25 11l2.6-.3L12 8.3Z"/></svg>`,
+  // finance / markets → a rising bar chart
+  finance:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 20.5h17"/><path d="M6.5 20.5v-5M11 20.5V11M15.5 20.5v-7M20 20.5V6.5"/></svg>`,
+  // climate / environment → a leaf
+  climate:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 18C5 9.5 11 5 19.5 5 19.5 13.5 13.5 19 5 19c-.4 0-.8 0-1.1-.1Z"/><path d="M5 18.5c2.4-4.2 5.6-7 9.8-8.6"/></svg>`,
+  // technology → a microchip
+  tech:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="7" width="10" height="10" rx="1.5"/><path d="M10 7V4M14 7V4M10 20v-3M14 20v-3M7 10H4M7 14H4M20 10h-3M20 14h-3"/></svg>`,
+  // aggregate / fallback
+  all:      `<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="12" cy="12" r="4.5"/></svg>`,
+};
+function auspexCatIcon(cat) { return AUSPEX_CAT_ICONS[cat] || AUSPEX_CAT_ICONS.all; }
+
 // Resolve the best glyph for a whole event — stays fluid for brand-new event
 // kinds the snapshot may invent. Tries explicit icon, then type, then sense;
 // finally falls back by POLARITY (peril → warning triangle, breakthrough →
