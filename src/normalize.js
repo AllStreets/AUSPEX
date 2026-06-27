@@ -62,6 +62,54 @@ export function normalizeLaunch(launch) {
   };
 }
 
+// NASA EONET — global, keyless multi-hazard tracker (wildfires, severe storms /
+// cyclones, volcanoes, floods, drought, …). Robust fallback so the disaster layer
+// never collapses to earthquakes-only when GDACS is slow/down.
+const EONET_TYPE = {
+  wildfires: 'fire', severeStorms: 'cyclone', volcanoes: 'volcano',
+  floods: 'flood', drought: 'drought', earthquakes: 'earthquake',
+  landslides: 'disaster', dustHaze: 'disaster', tempExtremes: 'drought',
+};
+const EONET_SKIP = new Set(['seaLakeIce', 'snow', 'watercolor', 'manmade']);
+const EONET_SEV = { cyclone: 0.72, volcano: 0.70, flood: 0.66, earthquake: 0.60, fire: 0.56, drought: 0.50, disaster: 0.50 };
+
+export function normalizeEONETEvent(e) {
+  if (!e) return null;
+  const cat = e.categories && e.categories[0];
+  const catId = cat && cat.id;
+  if (!catId || EONET_SKIP.has(catId)) return null;
+  const type = EONET_TYPE[catId] || 'disaster';
+  const geoms = e.geometry || e.geometries || [];
+  const g = geoms[geoms.length - 1];
+  if (!g || !g.coordinates) return null;
+  let lng, lat;
+  if (g.type === 'Point') { lng = g.coordinates[0]; lat = g.coordinates[1]; }
+  else { // Polygon/MultiPolygon → centroid of the first ring
+    let ring = g.coordinates[0];
+    while (Array.isArray(ring) && Array.isArray(ring[0]) && Array.isArray(ring[0][0])) ring = ring[0];
+    if (!Array.isArray(ring) || !ring.length) return null;
+    let sx = 0, sy = 0, n = 0;
+    for (const p of ring) { if (Array.isArray(p) && p.length >= 2) { sx += p[0]; sy += p[1]; n++; } }
+    if (!n) return null;
+    lng = sx / n; lat = sy / n;
+  }
+  if (typeof lat !== 'number' || typeof lng !== 'number' || Number.isNaN(lat) || Number.isNaN(lng)) return null;
+  const severity = EONET_SEV[type] ?? 0.5;
+  const src = (e.sources && e.sources[0] && e.sources[0].url) || e.link || 'https://eonet.gsfc.nasa.gov';
+  return {
+    id: `eonet:${e.id}`,
+    sense: 'disaster', type, polarity: 'peril',
+    title: e.title || (cat.title || 'Natural event'),
+    lat, lng,
+    metric: { label: 'status', value: cat.title || '', band: severity > 0.66 ? 'red' : severity > 0.33 ? 'orange' : 'green' },
+    severity, confidence: 'confirmed',
+    occurredAt: g.date || new Date().toISOString(),
+    brief: `${cat.title || 'Natural event'} — ${e.title || ''}`.trim(),
+    sources: [{ name: 'NASA EONET', url: src }],
+    links: [], icon: type,
+  };
+}
+
 export function validateSnapshotEvent(e) {
   return (
     typeof e.id === 'string' && e.id.length > 0 &&

@@ -9,10 +9,13 @@
 // ═══════════════════════════════════════════
 import { fetchUSGSEvents } from '../worker/senses/usgs.js';
 import { fetchGDACSEvents } from '../worker/senses/gdacs.js';
+import { fetchEONETEvents } from '../worker/senses/eonet.js';
 import { fetchSpaceEvents } from '../worker/senses/space.js';
 import { runReasoningPass } from '../worker/reason.js';
 import { buildSnapshot } from '../worker/snapshot.js';
 import { computeLinks } from '../src/connect.js';
+
+export const maxDuration = 30; // headroom for EONET retries + reasoning
 
 // Wrap each sense so a single source failing → [] (never the whole response).
 const safe = (fn) => fn().catch(() => []);
@@ -20,15 +23,18 @@ const safe = (fn) => fn().catch(() => []);
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 's-maxage=180, stale-while-revalidate=600');
   try {
-    const [usgs, gdacs, space] = await Promise.all([
+    // USGS (quakes) + GDACS + NASA EONET together = resilient, GLOBAL multi-hazard
+    // coverage. If one source is slow/down, the others carry the disaster layer.
+    const [usgs, gdacs, eonet, space] = await Promise.all([
       safe(fetchUSGSEvents),
       safe(fetchGDACSEvents),
+      safe(fetchEONETEvents),
       safe(fetchSpaceEvents),
     ]);
 
     // Optional LLM reasoning pass (keyless degrade if AUSPEX_LLM_KEY unset).
     const events = await runReasoningPass(
-      [...usgs, ...gdacs, ...space],
+      [...usgs, ...gdacs, ...eonet, ...space],
       process.env.AUSPEX_LLM_KEY ?? null,
     );
 
