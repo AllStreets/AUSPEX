@@ -18,7 +18,12 @@ export function normalizeUSGSFeature(f) {
 }
 export function normalizeGDACSItem(item) {
   const p = item.properties ?? {};
-  const severity = Math.min(1, Math.max(0, (p.alertscore ?? 0) / 100));
+  // GDACS carries a real human-assessed alert level (Green/Orange/Red) — trust it
+  // for severity & colour rather than the unscaled alertscore.
+  const ALERT_SEV = { Red: 0.85, Orange: 0.6, Green: 0.3 };
+  const severity = ALERT_SEV[p.alertlevel] ?? Math.min(1, Math.max(0, (p.alertscore ?? 0) / 3));
+  const band = p.alertlevel === 'Red' ? 'red' : p.alertlevel === 'Orange' ? 'orange'
+    : severity > 0.66 ? 'red' : severity > 0.33 ? 'orange' : 'green';
   const typeMap = { EQ: 'earthquake', TC: 'cyclone', FL: 'flood', VO: 'volcano', DR: 'drought', WF: 'fire' };
   const type = typeMap[p.eventtype] ?? 'disaster';
   const coords = item.geometry?.coordinates ?? [0, 0];
@@ -66,12 +71,19 @@ export function normalizeLaunch(launch) {
 // cyclones, volcanoes, floods, drought, …). Robust fallback so the disaster layer
 // never collapses to earthquakes-only when GDACS is slow/down.
 const EONET_TYPE = {
-  wildfires: 'fire', severeStorms: 'cyclone', volcanoes: 'volcano',
+  severeStorms: 'cyclone', volcanoes: 'volcano',
   floods: 'flood', drought: 'drought', earthquakes: 'earthquake',
   landslides: 'disaster', dustHaze: 'disaster', tempExtremes: 'drought',
 };
-const EONET_SKIP = new Set(['seaLakeIce', 'snow', 'watercolor', 'manmade']);
-const EONET_SEV = { cyclone: 0.72, volcano: 0.70, flood: 0.66, earthquake: 0.60, fire: 0.56, drought: 0.50, disaster: 0.50 };
+// Skip EONET wildfires: its only fire source is InciWeb (US-ONLY), which floods
+// the map with ~130 American fire pins and makes AUSPEX look like a US fire map.
+// Fires belong to the global GDACS feed (alert-rated) instead. seaLakeIce/snow/
+// watercolor/manmade are non-hazard noise.
+const EONET_SKIP = new Set(['wildfires', 'seaLakeIce', 'snow', 'watercolor', 'manmade']);
+// EONET reports WHERE, not HOW BIG (no magnitude/alert). So events stay calm —
+// green/orange, never blanket-red. Real red/orange severity comes from GDACS,
+// which carries human-assessed alert levels.
+const EONET_SEV = { volcano: 0.5, flood: 0.42, drought: 0.38, earthquake: 0.4, cyclone: 0.3, disaster: 0.3 };
 
 export function normalizeEONETEvent(e) {
   if (!e) return null;
