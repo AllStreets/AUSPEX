@@ -103,16 +103,20 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
    plus a 20px clearance, so the taller cmd-panel (after adding SECTORS) no longer
    overlaps the category coverage tiles. */
 #cat-rail{position:fixed;left:18px;top:calc(var(--hdr-h) + var(--tkr-h) + 12px + 160px + 20px);z-index:100;display:flex;flex-direction:column;gap:5px}
-.cat-btn{display:flex;align-items:center;gap:9px;padding:8px 13px;background:var(--glass-card);backdrop-filter:blur(16px);border:1px solid var(--b1);border-radius:3px;cursor:pointer;width:172px;position:relative;overflow:hidden;transition:transform .18s ease,border-color .18s ease,background .18s ease}
+.cat-btn{display:flex;align-items:center;gap:11px;padding:9px 15px;background:var(--glass-card);backdrop-filter:blur(16px);border:1px solid var(--b1);border-radius:3px;cursor:pointer;width:200px;position:relative;overflow:hidden;transition:transform .18s ease,border-color .18s ease,background .18s ease}
 .cat-btn::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2.5px;background:var(--cc);opacity:0;transition:opacity .2s}
 .cat-btn::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,var(--cc),transparent);opacity:0;transition:opacity .2s}
 .cat-btn.on{border-color:color-mix(in srgb,var(--cc) 38%,transparent)}
 .cat-btn.on::before{opacity:1}
 .cat-btn.on::after{opacity:.055}
 .cat-btn:hover{transform:translateX(4px);border-color:var(--b2)}
-.cat-pip{width:6px;height:6px;border-radius:50%;background:var(--cc);flex-shrink:0;transition:box-shadow .2s}
-.cat-btn.on .cat-pip{animation:pip-glow 2.2s ease-in-out infinite}
-@keyframes pip-glow{0%,100%{box-shadow:0 0 0 3px color-mix(in srgb,var(--cc) 22%,transparent)}50%{box-shadow:0 0 0 5px color-mix(in srgb,var(--cc) 7%,transparent)}}
+/* Category glyph — same icon set as the globe markers, tinted live by --cc, so
+   the rail and the map speak one visual language. Replaces the old colour dot. */
+.cat-pip{width:16px;height:16px;display:flex;align-items:center;justify-content:center;color:var(--cc);flex-shrink:0;opacity:.78;transition:opacity .18s,filter .18s}
+.cat-pip svg{width:16px;height:16px;display:block}
+.cat-btn:hover .cat-pip{opacity:1}
+.cat-btn.on .cat-pip{opacity:1;animation:pip-glow 2.6s ease-in-out infinite}
+@keyframes pip-glow{0%,100%{filter:drop-shadow(0 0 1.5px color-mix(in srgb,var(--cc) 45%,transparent))}50%{filter:drop-shadow(0 0 5px color-mix(in srgb,var(--cc) 80%,transparent))}}
 .cat-lbl{font-family:var(--f-brand);font-size:8.5px;font-weight:700;letter-spacing:.1em;color:var(--t2);flex:1;position:relative;z-index:1;transition:color .18s}
 .cat-btn.on .cat-lbl{color:var(--t1)}
 .cat-n{font-family:var(--f-mono);font-size:9px;color:var(--t3);position:relative;z-index:1;transition:color .18s}

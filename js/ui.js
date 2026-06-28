@@ -136,6 +136,13 @@ document.querySelectorAll('.cat-btn').forEach(b =>
   b.addEventListener('click', () => setCategory(b.dataset.cat))
 );
 
+// Paint each filter row's glyph with the SAME icon the globe uses for that
+// category, tinted live via --cc — one consistent visual language rail↔map.
+document.querySelectorAll('.cat-btn').forEach(b => {
+  const pip = b.querySelector('.cat-pip');
+  if (pip && typeof auspexCatIcon === 'function') pip.innerHTML = auspexCatIcon(b.dataset.cat);
+});
+
 // ═══════════════════════════════════════════
 // SEARCH
 // ═══════════════════════════════════════════
