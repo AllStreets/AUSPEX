@@ -363,8 +363,11 @@ function makeAuspexEventMarker(event) {
 // ═══════════════════════════════════════════
 function makeCountryMarker(country) {
   const icons = [];
+  // Active-conflict is REAL: a live news signal (_liveConflict) OR the curated
+  // baseline. The triangle is its own button → opens an AI conflict brief.
+  const _conflict = !!(country._liveConflict || country.conflict_active);
   if (country.nuclear_armed)     icons.push(`<span class="ctry-ico ctry-nuclear" title="Nuclear armed">☢︎</span>`);
-  if (country.conflict_active)   icons.push(`<span class="ctry-ico ctry-conflict" title="Active conflict">▲︎</span>`);
+  if (_conflict)                 icons.push(`<span class="ctry-ico ctry-conflict ctry-conflict-btn" title="Active conflict — click for live brief">▲︎</span>`);
   if (country.sanctions_subject) icons.push(`<span class="ctry-ico ctry-sanction" title="Under sanctions">⊘︎</span>`);
   if (country.un_p5)             icons.push(`<span class="ctry-ico ctry-p5" title="UN Security Council P5">★︎</span>`);
   const d = document.createElement('div');
@@ -380,7 +383,7 @@ function makeCountryMarker(country) {
   d.title = [
     country.name,
     country.nuclear_armed     ? 'Nuclear Armed'     : '',
-    country.conflict_active   ? 'Active Conflict'   : '',
+    _conflict                 ? 'Active Conflict'   : '',
     country.sanctions_subject ? 'Under Sanctions'   : '',
     country.un_p5             ? 'UN P5 Member'      : '',
     'Click to pin to Analyst Board',
@@ -389,6 +392,17 @@ function makeCountryMarker(country) {
     e.stopPropagation();
     openCountryPanel(country);
   });
+  // The conflict triangle is its own button → live AI conflict brief (not the
+  // country panel). Stop propagation so clicking ▲ doesn't also pin the country.
+  const _cf = d.querySelector('.ctry-conflict-btn');
+  if (_cf) {
+    _cf.style.cursor = 'pointer';
+    _cf.style.pointerEvents = 'auto';
+    _cf.addEventListener('click', e => {
+      e.stopPropagation();
+      if (typeof openConflictBrief === 'function') openConflictBrief(country);
+    });
+  }
   return d;
 }
 
@@ -695,6 +709,104 @@ function checkDayNight(h) {
 // globe only needs the most recent 200 for a clean visual layer
 const GLOBE_STORY_LIMIT = 200;
 
+// ═══════════════════════════════════════════
+// LIVE THREAT INTELLIGENCE — region threat levels + active-conflict countries
+// are computed from the CURRENT news feed, not a hardcoded/DB-static value, so
+// the orange/red region labels and the conflict triangles track today's events.
+// Cached by feed size so the (one-pass) scan runs once per refresh, not per zoom.
+// ═══════════════════════════════════════════
+// PRECISE per-region headline keywords (ambiguous tokens like "georgia", "sea",
+// "strait" deliberately avoided — they matched unrelated news and over-coloured
+// the map). Every region has an explicit set; no fuzzy proximity fallback.
+const _REGION_KW = {
+  'South China Sea': ['south china sea', 'spratly', 'paracel', 'scarborough'],
+  'Taiwan Strait': ['taiwan', 'taipei', 'taiwan strait'],
+  'Korean Peninsula': ['north korea', 'pyongyang', 'korean peninsula', 'inter-korean', 'dmz'],
+  'Strait of Hormuz': ['hormuz', 'persian gulf', 'iranian navy', 'gulf tanker', 'iran'],
+  'Red Sea / Bab-el-Mandeb': ['red sea', 'bab-el-mandeb', 'houthi', 'gulf of aden'],
+  'Eastern Ukraine / Donbas': ['donbas', 'donetsk', 'luhansk', 'ukraine', 'kharkiv', 'zaporizh'],
+  'Gaza Strip': ['gaza', 'hamas', 'rafah', 'khan younis'],
+  'Caucasus': ['nagorno', 'karabakh', 'armenia', 'azerbaijan'],
+  'Arctic Circle': ['arctic', 'svalbard', 'murmansk', 'high north'],
+  'Kashmir': ['kashmir', 'line of control', 'jammu'],
+  'Strait of Malacca': ['malacca', 'andaman sea piracy'],
+  'Sahel Region': ['sahel', 'jihadist', 'jnim', 'wagner mali'],
+  'NATO Eastern Flank': ['nato eastern', 'eastern flank', 'baltic states', 'kaliningrad', 'suwalki'],
+  'Suez Canal Zone': ['suez canal', 'suez'],
+  'Black Sea': ['black sea', 'crimea', 'sevastopol', 'kerch'],
+};
+// Violence vocabulary that, inside a MILITARY-category story, marks real conflict
+// (generic words like "strike"/"clash"/"battle"/"war" are excluded — they hit
+// labour strikes, sports and trade wars).
+const _CONFLICT_KW = ['airstrike', 'air strike', 'shelling', 'offensive', 'militant', 'insurgen',
+  'rebel', 'troops', 'invasion', 'militia', 'warfare', 'combat', 'frontline', 'front line',
+  'bombard', 'gunmen', 'jihad', 'ceasefire', 'paramilitary', 'armed group', 'missile', 'drone strike',
+  'soldiers', 'war crime', 'besieged', 'artillery', 'mortar', 'separatist'];
+
+function _storyText(s) { return ((s.title || '') + ' ' + (s.region || '') + ' ' + (s.summary || '')).toLowerCase(); }
+
+// Live threat level for one region from current NEWS — weights breaking + military
+// + geo coverage that matches the region by PRECISE keyword (no proximity fuzz).
+function _liveRegionThreat(region) {
+  const news = (typeof NEWS !== 'undefined') ? NEWS : [];
+  if (!news.length) return region.threat_level || 'elevated';
+  const kws = _REGION_KW[region.name]
+    || (region.name || '').toLowerCase().split(/[/,]/).map(t => t.trim()).filter(t => t.length > 4);
+  if (!kws.length) return 'elevated';
+  let brk = 0, mil = 0, geo = 0, total = 0;
+  for (const s of news) {
+    const text = _storyText(s);
+    if (!kws.some(k => k && text.includes(k))) continue;
+    total++;
+    if (s.brk) brk++;
+    if (s.cat === 'military') mil++;
+    else if (s.cat === 'geo') geo++;
+  }
+  const score = brk * 3 + mil * 2 + geo;
+  if (brk >= 3 || mil >= 10 || score >= 32) return 'critical';
+  if (mil >= 4 || score >= 12 || total >= 10) return 'high';
+  return 'elevated';
+}
+
+// Countries with a live active-conflict signal: >=4 MILITARY-category stories that
+// name the country (word-boundary, so "Niger" ≠ "Nigeria") AND carry violence
+// vocabulary. Strict on purpose — it's unioned with the curated baseline, so the
+// triangle stays real (genuine wars) rather than flagging every mentioned nation.
+let _countryRx = null;
+function _getCountryRx() {
+  if (_countryRx) return _countryRx;
+  const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  _countryRx = (typeof _WORLD_COUNTRIES !== 'undefined' ? _WORLD_COUNTRIES : [])
+    .filter(c => (c.name || '').length > 3)
+    .map(c => ({ iso: c.iso2, rx: new RegExp('\\b' + esc((c.name || '').toLowerCase()) + '\\b') }));
+  return _countryRx;
+}
+function _computeConflictSet(news) {
+  const rx = _getCountryRx();
+  const counts = {};
+  for (const s of news) {
+    if (s.cat !== 'military') continue;                        // anchor on conflict coverage
+    const text = _storyText(s);
+    if (!_CONFLICT_KW.some(k => text.includes(k))) continue;   // require violence vocabulary
+    const title = (s.title || '').toLowerCase();
+    // Country must be the story's SUBJECT (named in the title), not merely a
+    // bystander mentioned in the body of a story about a different war.
+    for (const c of rx) if (c.rx.test(title)) counts[c.iso] = (counts[c.iso] || 0) + 1;
+  }
+  return new Set(Object.keys(counts).filter(iso => counts[iso] >= 3));
+}
+
+let _liveThreatCache = { key: '', regions: new Map(), conflict: new Set() };
+function _ensureLiveThreats() {
+  const news = (typeof NEWS !== 'undefined') ? NEWS : [];
+  const key = String(news.length);
+  if (_liveThreatCache.key === key && news.length) return _liveThreatCache;
+  const regions = new Map();
+  (typeof REGION_DATA !== 'undefined' ? REGION_DATA : []).forEach(r => regions.set(r.name, _liveRegionThreat(r)));
+  _liveThreatCache = { key, regions, conflict: _computeConflictSet(news) };
+  return _liveThreatCache;
+}
+
 // Debounce guard — coalesce rapid calls (e.g. zoom + category change firing together)
 let _updateGlobeTimer = null;
 function updateAllGlobeElements() {
@@ -752,24 +864,27 @@ function _updateAllGlobeElementsNow() {
   const _dbByIso = {};
   COUNTRY_DATA.forEach(c => { _dbByIso[c.iso2] = c; });
 
-  // Always show nuclear-armed nations; show all others when COUNTRIES toggled on
+  // Live threat intelligence (cached per feed refresh): which countries currently
+  // show an ACTIVE-CONFLICT triangle, and each region's live threat level.
+  const _live = _ensureLiveThreats();
+  // Always show nuclear-armed nations; show all others when COUNTRIES toggled on.
+  // _liveConflict marks a live, news-derived active conflict (unioned with the
+  // curated baseline inside the marker) so the red triangle is real, not static.
+  const _mkCountry = (wc) => {
+    const db = _dbByIso[wc.iso2] || {};
+    return { ...wc, ...db, lat: wc.lat, lng: wc.lng, _type: 'country', _liveConflict: _live.conflict.has(wc.iso2) };
+  };
   const _allToShow = countriesVisible
-    ? _WORLD_COUNTRIES.map(wc => {
-        const db = _dbByIso[wc.iso2] || {};
-        return { ...wc, ...db, lat: wc.lat, lng: wc.lng, _type:'country' };
-      })
-    : _WORLD_COUNTRIES
-        .filter(wc => wc.nuclear_armed || (_dbByIso[wc.iso2]?.nuclear_armed))
-        .map(wc => {
-          const db = _dbByIso[wc.iso2] || {};
-          return { ...wc, ...db, lat: wc.lat, lng: wc.lng, _type:'country' };
-        });
+    ? _WORLD_COUNTRIES.map(_mkCountry)
+    : _WORLD_COUNTRIES.filter(wc => wc.nuclear_armed || (_dbByIso[wc.iso2]?.nuclear_armed)).map(_mkCountry);
 
   _allToShow.forEach(c => visual.push(c));
-  // Region labels — shown when threats overlay is active
+  // Region labels — shown when threats overlay is active. Threat level (colour) is
+  // computed LIVE from the news feed, not the DB-static value.
   if (typeof threatsVisible !== 'undefined' && threatsVisible && REGION_DATA.length) {
-    REGION_DATA.filter(r => r.threat_level === 'critical' || r.threat_level === 'high')
-      .forEach(r => visual.push({...r, _type:'region_label'}));
+    REGION_DATA.map(r => ({ ...r, threat_level: _live.regions.get(r.name) || r.threat_level }))
+      .filter(r => r.threat_level === 'critical' || r.threat_level === 'high')
+      .forEach(r => visual.push({ ...r, _type: 'region_label' }));
   }
   // Broadcaster city markers — shown when BROADCAST panel is active
   try { if (_lnpActive) { BROADCASTERS.forEach(b => visual.push({...b, lat: b.lat, lng: b.lng, _type:'broadcaster'})); } } catch(e) {}
@@ -854,8 +969,9 @@ function _updateAllGlobeElementsNow() {
 
   const _conflictRings = (threatsVisible && REGION_DATA.length)
     ? REGION_DATA
+        .map(r => ({ ...r, threat_level: _live.regions.get(r.name) || r.threat_level }))
         .filter(r => r.threat_level === 'critical' || r.threat_level === 'high')
-        .map(r => ({...r, _region: true}))
+        .map(r => ({ ...r, _region: true }))
     : [];
   const _regionColors = { critical:'#FF2D55', high:'#FF9F0A', elevated:'#B7950B' };
   // NOTE: expanding rings on every event AND on breaking stories were removed —

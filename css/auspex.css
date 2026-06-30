@@ -388,6 +388,9 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 .ctry-ico.ctry-nuclear { font-size:22px;filter:drop-shadow(0 0 8px #FF9F0Acc);opacity:1 }
 .ctry-nuclear { color:#FF9F0A }
 .ctry-conflict{ color:#FF2D55 }
+/* Active-conflict triangle is a button → live AI conflict brief. */
+.ctry-conflict-btn{ cursor:pointer; transition:transform .14s ease, filter .14s ease }
+.ctry-conflict-btn:hover{ transform:scale(1.35); filter:drop-shadow(0 0 6px #FF2D55) }
 .ctry-sanction{ color:#2979FF }
 .ctry-p5      { color:#B7950B }
 .ctry-name   { font-family:var(--f-mono);font-size:7px;font-weight:600;letter-spacing:.09em;color:rgba(200,210,230,.55);white-space:nowrap;text-shadow:0 1px 3px rgba(0,0,0,1),0 0 10px rgba(0,0,0,1),0 0 18px rgba(0,0,0,.9);transform:scale(var(--gz-lbl-boost,1));transform-origin:top center }
