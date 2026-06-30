@@ -722,8 +722,22 @@ function _updateAllGlobeElementsNow() {
   if (typeof silenceVisible !== 'undefined' && silenceVisible && typeof _silenceAnomalies !== 'undefined')
     _silenceAnomalies.forEach(a => visual.push({...a, _type:'blackout'}));
   if (typeof threatsVisible !== 'undefined' && threatsVisible) {
-    const hotspots = stories.filter(s => s.brk || s.cat === 'military' || s.cat === 'geo');
-    hotspots.forEach(s => visual.push({...s, _type:'threat'}));
+    // ONE pulse per place. Many breaking/military/geo stories share a country or
+    // city centroid; pulsing each of them stacked dozens of overlapping rings on
+    // the same spot and made the globe lag. Dedupe to a ~11 km cell and keep that
+    // place's DOMINANT story (breaking > military > geo, then most recent) so a
+    // single pulse emanates from the dominant icon. Capped for safety.
+    const rank = s => (s.brk ? 0 : 4) + (s.cat === 'military' ? 0 : s.cat === 'geo' ? 1 : 2);
+    const byCell = new Map();
+    for (const s of stories) {
+      if (!(s.brk || s.cat === 'military' || s.cat === 'geo')) continue;
+      if (s.lat == null || s.lng == null) continue;
+      const key = `${s.lat.toFixed(1)},${s.lng.toFixed(1)}`;
+      const cur = byCell.get(key);
+      if (!cur || rank(s) < rank(cur)) byCell.set(key, s); // first-seen wins ties (most recent)
+    }
+    [...byCell.values()].sort((a, b) => rank(a) - rank(b)).slice(0, 40)
+      .forEach(s => visual.push({ ...s, _type: 'threat' }));
   }
   // City markers from Supabase (base intelligence layer)
   if (citiesVisible && CITY_DATA.length) {
@@ -813,12 +827,13 @@ function _updateAllGlobeElementsNow() {
     if (item._type === 'threat') {
       const d = document.createElement('div');
       d.style.cssText = 'position:relative;transform:translate(-50%,-50%);pointer-events:none';
-      // Threat rings pulse — fine, since the threats layer is off by default
-      // (no pulsing in the default stories+events view; only when threats is on).
-      const rings = [28,48,68].map((r,i) => `<div style="position:absolute;top:50%;left:50%;width:${r}px;height:${r}px;border-radius:50%;border:1px solid ${item.color||'#FF9F0A'}${['44','28','14'][i]};transform:translate(-50%,-50%);animation:ring-out ${2+i*0.8}s ease-out infinite;animation-delay:${i*0.4}s"></div>`).join('');
-      // Invisible central hit target so the ranked threat is clickable
+      // A SINGLE pulse ring emanating from this place's dominant icon — the same
+      // look the story icons used to have (.gm-ring). Deduped upstream so there's
+      // exactly one pulse per place, not a stack per story → smooth, not laggy.
+      const ring = `<div class="gm-ring" style="border-color:${item.color || '#FF9F0A'}"></div>`;
+      // Invisible central hit target so the place is clickable
       const hit = `<div class="threat-hit" title="${(item.title||'').replace(/"/g,'&quot;')}" style="position:absolute;top:50%;left:50%;width:30px;height:30px;border-radius:50%;transform:translate(-50%,-50%);pointer-events:auto;cursor:pointer"></div>`;
-      d.innerHTML = rings + hit;
+      d.innerHTML = ring + hit;
       d.querySelector('.threat-hit').addEventListener('click', e => { e.stopPropagation(); openThreatPanel(item); });
       return d;
     }
