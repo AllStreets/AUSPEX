@@ -308,14 +308,12 @@ function makeMarker(story) {
   const cat = story.cat || 'all';
   d.className = 'gm';
   d.style.color = story.color;
-  const _canPulse = _pulseSet.has(story);
   const ico = (typeof auspexCatIcon === 'function') ? auspexCatIcon(cat) : '';
   // Brightened tint so the glyph reads against any globe backdrop (same treatment
-  // as the event markers); a dark backing disc lives in .gm-ico.
+  // as the event markers); a dark backing disc lives in .gm-ico. No pulse rings —
+  // they animated continuously and made the globe lag.
   const glyphColor = (typeof auspexLiftColor === 'function') ? auspexLiftColor(story.color, 0.45) : story.color;
   d.innerHTML = `
-    ${_canPulse ? `<div class="gm-ring" style="border-color:${story.color}"></div>` : ''}
-    ${_canPulse && story.brk ? `<div class="gm-ring gm-ring2" style="border-color:${story.color}"></div>` : ''}
     <div class="gm-ico" style="color:${glyphColor};filter:drop-shadow(0 0 ${story.brk?5:3}px ${story.color}cc)">${ico}</div>
     <div class="gm-tip">${story.title.length > 72 ? story.title.slice(0,70)+'…' : story.title}</div>
   `;
@@ -351,8 +349,9 @@ function makeAuspexEventMarker(event) {
   const d = document.createElement('div');
   d.className = `auspex-m auspex-${event.type}${unconfirmed ? ' auspex-unconfirmed' : ''}`;
   d.style.cssText = `color:${color};position:relative;transform:translate(-50%,-50%)`;
+  // Static marker — NO pulsing ring. Animating a ring on every event repainted
+  // continuously and made the globe lag; the glyph alone reads the event clearly.
   d.innerHTML =
-    `<div class="auspex-ring" style="width:${size*2}px;height:${size*2}px;border:1px ${unconfirmed?'dashed':'solid'} ${color}${unconfirmed?'66':'99'};border-radius:50%;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);animation:auspex-pulse 2.4s ease-out infinite"></div>` +
     `<div class="auspex-glyph" style="width:${glyph}px;height:${glyph}px;color:${glyphColor};display:flex;align-items:center;justify-content:center;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle, rgba(5,9,18,0.7) 0%, rgba(5,9,18,0.42) 50%, ${color}22 70%, transparent 82%);filter:drop-shadow(0 0 ${Math.round(sev*5)+2}px ${color}cc);opacity:${unconfirmed?0.7:1}">${svg}</div>` +
     `<div class="auspex-tip">${event.title}</div>`;
   d.addEventListener('click', e => { e.stopPropagation(); openAuspexEventCard(event); });
@@ -696,9 +695,6 @@ function checkDayNight(h) {
 // globe only needs the most recent 200 for a clean visual layer
 const GLOBE_STORY_LIMIT = 200;
 
-// Stories allowed to show pulse rings — one per category (most recent breaking, else most recent)
-let _pulseSet = new Set();
-
 // Debounce guard — coalesce rapid calls (e.g. zoom + category change firing together)
 let _updateGlobeTimer = null;
 function updateAllGlobeElements() {
@@ -715,15 +711,6 @@ function _updateAllGlobeElementsNow() {
   const allStories = activeCat === 'all' ? NEWS : NEWS.filter(s => s.cat === activeCat);
   // Show the N most recent stories as markers; the full pool is still searchable
   const stories = allStories.slice(0, GLOBE_STORY_LIMIT);
-  // One pulse ring per category — prefer most recent breaking story, else most recent
-  _pulseSet = new Set();
-  const _pulseCatSeen = {};
-  for (const s of stories) {
-    if (s.brk && !_pulseCatSeen[s.cat]) { _pulseSet.add(s); _pulseCatSeen[s.cat] = true; }
-  }
-  for (const s of stories) {
-    if (!_pulseCatSeen[s.cat]) { _pulseSet.add(s); _pulseCatSeen[s.cat] = true; }
-  }
 
   // STORIES layer — geolocated, category-colored news dots (toggleable, on by default)
   const visual = (typeof storiesVisible === 'undefined' || storiesVisible)
@@ -826,6 +813,8 @@ function _updateAllGlobeElementsNow() {
     if (item._type === 'threat') {
       const d = document.createElement('div');
       d.style.cssText = 'position:relative;transform:translate(-50%,-50%);pointer-events:none';
+      // Threat rings pulse — fine, since the threats layer is off by default
+      // (no pulsing in the default stories+events view; only when threats is on).
       const rings = [28,48,68].map((r,i) => `<div style="position:absolute;top:50%;left:50%;width:${r}px;height:${r}px;border-radius:50%;border:1px solid ${item.color||'#FF9F0A'}${['44','28','14'][i]};transform:translate(-50%,-50%);animation:ring-out ${2+i*0.8}s ease-out infinite;animation-delay:${i*0.4}s"></div>`).join('');
       // Invisible central hit target so the ranked threat is clickable
       const hit = `<div class="threat-hit" title="${(item.title||'').replace(/"/g,'&quot;')}" style="position:absolute;top:50%;left:50%;width:30px;height:30px;border-radius:50%;transform:translate(-50%,-50%);pointer-events:auto;cursor:pointer"></div>`;
@@ -854,38 +843,16 @@ function _updateAllGlobeElementsNow() {
         .map(r => ({...r, _region: true}))
     : [];
   const _regionColors = { critical:'#FF2D55', high:'#FF9F0A', elevated:'#B7950B' };
-  const _brkRings = [..._pulseSet].filter(s => s.brk);
-  // AUSPEX severe events get a secondary glow ring (markers are primary)
-  const _auspexSevColor = (sev, polarity) => polarity === 'breakthrough'
-    ? (sev > 0.7 ? '#5AC8FA' : '#007AFF')
-    : (sev > 0.7 ? '#FF2D55' : sev > 0.4 ? '#FF9F0A' : '#FFD60A');
-  const _auspexRings = snapshotVisible
-    ? SNAPSHOT_EVENTS.filter(e => (e.severity ?? 0) >= 0.5).map(e => ({ ...e, _auspex: true }))
-    : [];
-  G.ringsData([..._brkRings, ..._conflictRings, ..._auspexRings])
-    .ringColor(r => {
-      if (r._auspex) return _auspexSevColor(r.severity ?? 0, r.polarity) + '44';
-      if (r._region) return (_regionColors[r.threat_level] || '#FF9F0A') + '30';
-      // Finance + climate rings are muted — less visually dominant
-      if (r.cat === 'finance') return (r.color || '#FFD60A') + '28';
-      if (r.cat === 'climate') return (r.color || '#30D158') + '28';
-      return (r.color || '#FF2D55') + '55';
-    })
-    .ringMaxRadius(r => {
-      if (r._auspex) return 2 + (r.severity ?? 0) * 4;
-      if (r._region) return Math.min(r.radius_km / 55, 18);
-      if (r.cat === 'finance') return 2.8;
-      if (r.cat === 'climate') return 2.8;
-      return r.mag ? r.mag * 0.7 : 4.5;
-    })
-    .ringPropagationSpeed(r => {
-      if (r._auspex) return 0.8;
-      if (r._region) return 0.35;
-      if (r.cat === 'finance') return 0.7;
-      if (r.cat === 'climate') return 0.7;
-      return r.mag ? r.mag * 0.25 : 1.4;
-    })
-    .ringRepeatPeriod(r => r._auspex ? 1400 : r._region ? 4000 : (r.cat === 'finance' || r.cat === 'climate') ? 1600 : 900)
+  // NOTE: expanding rings on every event AND on breaking stories were removed —
+  // animating a ring per snapshot event / breaking story repainted the globe every
+  // frame and made the platform lag. The static glyph marks each one clearly. Only
+  // the threats layer (conflict regions, OFF by default) still pulses, so the
+  // default stories+events view has no pulsing at all.
+  G.ringsData([..._conflictRings])
+    .ringColor(r => (_regionColors[r.threat_level] || '#FF9F0A') + '30')
+    .ringMaxRadius(r => Math.min((r.radius_km || 600) / 55, 18))
+    .ringPropagationSpeed(0.35)
+    .ringRepeatPeriod(4000)
     .ringAltitude(0.006);
 
   // Refresh arcs so honest connection links (computeAuspexLinkArcs) appear/update
