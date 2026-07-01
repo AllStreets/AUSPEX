@@ -172,7 +172,11 @@ async function fetchNews() {
         region: srcName || 'Global',
         title: a.title.replace(/ - [^-]+$/, '').slice(0, 120),
         summary: a.description || a.title,
-        body: a.description || '',
+        // Feeds (GDELT/RSS/NewsAPI) ship only the dek — no full article body.
+        // Leave body empty rather than duplicating the dek; the popup expands it
+        // with an AI brief + structured dossier instead. Prevents the archived
+        // "summary == body" duplication that showed the same line twice.
+        body: '',
         url: a.url || null,
         urlToImage: a.urlToImage || null,
         _pub: pub.getTime(),

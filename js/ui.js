@@ -243,8 +243,124 @@ function _apStripHtml(s) {
     .replace(/\s+/g, ' ').trim();
 }
 
+// ── Article body enrichment ────────────────────────────────────────────────
+// Live/archived stories only carry a one-line dek (the feed's `description`),
+// stored in `summary`. `body` is empty (or, for legacy archives, a duplicate of
+// the dek). Rather than render the dek twice, we: (1) show it once as the lead,
+// (2) fill the body with an AI-expanded analytical brief when the model is
+// reachable, and (3) always render an honest structured "dossier" of the signals
+// we actually have. Demo stories with a genuine, distinct body keep the classic
+// full-text read.
+
+// Reset the enrichment block and advance the open token so any in-flight AI
+// brief from a previously-open card cannot inject into this one. Returns the
+// token the caller should capture.
+function _apBeginRender() {
+  const enrichEl = document.getElementById('ap-enrich');
+  if (enrichEl) { enrichEl.className = 'ap-enrich'; enrichEl.innerHTML = ''; }
+  return ++_apRenderSeq;
+}
+
+const _apEsc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+
+// How many news spheres carry this story in the live feed (honest, no AI).
+// Reuses the Blindspot coverage helpers when they are loaded.
+function _apCoverage(story) {
+  if (typeof _bsSpheres !== 'function' || typeof _bsKeywords !== 'function' ||
+      typeof _bsMatch !== 'function' || typeof NEWS === 'undefined') return null;
+  const news = NEWS || [];
+  const kw = _bsKeywords(story);
+  const labels = [];
+  for (const sp of _bsSpheres()) {
+    const n = news.filter(s => s.id !== story.id && _bsMatch(s.src, sp.names) &&
+        kw.some(k => (`${s.title || ''} ${s.summary || ''}`.toLowerCase()).includes(k))).length
+      + (_bsMatch(story.src, sp.names) ? 1 : 0);
+    if (n > 0) labels.push(sp.label);
+  }
+  if (!labels.length) return null;
+  return labels.length === 1
+    ? `Single sphere · ${labels[0]} · scrutinize`
+    : `${labels.length} spheres · ${labels.join(', ')}`;
+}
+
+// Build the structured dossier rows from data we genuinely have.
+function _apEnrichBlock(story) {
+  const rows = [];
+  const m = (typeof outletMeta === 'function') ? outletMeta(story.src) : null;
+  const tlbl = (typeof TYPE_LABEL !== 'undefined' && m) ? (TYPE_LABEL[m.type] || m.type) : '';
+  if (m) rows.push(['SOURCE', `${_apEsc(m.owner)} · ${_apEsc(tlbl)} · ${_apEsc(m.lean)} lean`]);
+  else if (story.src) rows.push(['SOURCE', `${_apEsc(story.src)} · ownership unverified`]);
+
+  const cfg = (typeof CATS !== 'undefined' && CATS[story.cat]) ? CATS[story.cat] : null;
+  const catLbl = cfg ? cfg.label : (story.cat || '').toUpperCase();
+  const filed = [catLbl, story.brk ? 'BREAKING' : null, story.region || null]
+    .filter(Boolean).map(_apEsc).join(' · ');
+  if (filed) rows.push(['FILED', filed]);
+
+  const cov = _apCoverage(story);
+  if (cov) rows.push(['COVERAGE', _apEsc(cov)]);
+
+  if (!rows.length) return '';
+  return rows.map(([k, v]) =>
+    `<div class="ap-enrich-row"><span class="ap-enrich-k">${k}</span><span class="ap-enrich-v">${v}</span></div>`
+  ).join('');
+}
+
+// Expand a thin story into a 3-sentence analytical brief via the AI proxy.
+// Cached per story id; guarded by the render token so a stale response never
+// lands in a card the user has since navigated away from.
+async function _apFillBrief(story, seq) {
+  const textEl = document.getElementById('ap-text');
+  if (!textEl) return;
+  const id = story.id;
+  if (_apBriefCache[id] != null) { if (_apRenderSeq === seq) textEl.textContent = _apBriefCache[id]; return; }
+  textEl.innerHTML = '<span class="ap-brief-load"><span class="lp-spin" style="width:11px;height:11px;border-width:2px"></span> AUSPEX is expanding this brief…</span>';
+  const sys = 'You are AUSPEX, a geopolitical intelligence desk. The reader has ALREADY seen the headline and the one-line dek shown above your text — do NOT restate or paraphrase them. Add analysis they do not already have, in exactly three sentences: (1) essential context or background the dek leaves out, (2) why it matters strategically — stakes, actors, second-order effects, (3) what to watch next. Neutral wire-service register. Output only the three sentences as one paragraph — no preamble, no markdown, no lists. Do not invent specific figures, names, dates, or quotes that are not implied by the input; stay analytical rather than fabricating facts.';
+  const user = `HEADLINE: ${_apStripHtml(story.title)}\nDEK: ${_apStripHtml(story.summary)}\nSOURCE: ${story.src || 'wire'}\nREGION: ${story.region || '—'}`;
+  try {
+    const out = (await callOpenAI(sys, user, 340) || '').trim();
+    if (_apRenderSeq !== seq) return;               // user navigated away
+    if (!out) { textEl.textContent = ''; return; }  // fall back to lead + dossier
+    _apBriefCache[id] = out;
+    textEl.textContent = out;
+  } catch (e) {
+    if (_apRenderSeq === seq) textEl.textContent = '';
+  }
+}
+
+// Render the lead + body region for a story. Called by openArticle.
+function _apRenderBody(story, seq) {
+  const leadTxt = _apStripHtml(story.summary);
+  const bodyTxt = _apStripHtml(story.body);
+  document.getElementById('ap-lead').textContent = leadTxt;
+  const textEl = document.getElementById('ap-text');
+  const enrichEl = document.getElementById('ap-enrich');
+
+  // A genuine, distinct article body (demo dataset) → classic full-text read.
+  const hasRealBody = bodyTxt && bodyTxt !== leadTxt &&
+    !leadTxt.includes(bodyTxt) && bodyTxt.length > leadTxt.length + 40;
+  if (hasRealBody) {
+    textEl.textContent = bodyTxt;
+    if (enrichEl) { enrichEl.className = 'ap-enrich'; enrichEl.innerHTML = ''; }
+    return;
+  }
+
+  // Thin story: never duplicate the dek. Structured dossier always; AI brief when reachable.
+  if (enrichEl) {
+    const html = _apEnrichBlock(story);
+    enrichEl.innerHTML = html;
+    enrichEl.className = html ? 'ap-enrich on' : 'ap-enrich';
+  }
+  if (typeof aiEnabled === 'function' && aiEnabled()) {
+    _apFillBrief(story, seq);
+  } else {
+    textEl.textContent = '';
+  }
+}
+
 function openArticle(story) {
   if (!story) return;
+  const _seq = _apBeginRender();
   _apStoryId = story.id ?? null;
   if (typeof _restorePinButton === 'function') _restorePinButton();
   // Update pin button state
@@ -272,8 +388,7 @@ function openArticle(story) {
   document.getElementById('ap-src').textContent = story.src;
   document.getElementById('ap-time').textContent = story.time;
   document.getElementById('ap-region').textContent = story.region;
-  document.getElementById('ap-lead').textContent = _apStripHtml(story.summary);
-  document.getElementById('ap-text').textContent = _apStripHtml(story.body);
+  _apRenderBody(story, _seq);
   const apLink = document.getElementById('ap-link');
   if (story.url) {
     apLink.href = story.url;

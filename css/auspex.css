@@ -316,6 +316,16 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 .ap-body::-webkit-scrollbar-thumb{background:var(--b1)}
 .ap-lead{font-family:var(--f-head);font-size:15px;font-style:italic;line-height:1.72;color:var(--t2);margin-bottom:18px;padding-bottom:18px;border-bottom:1px solid var(--b1)}
 .ap-text{font-size:13.5px;line-height:1.82;color:var(--t2)}
+.ap-text:empty{display:none}
+/* AI brief loading shimmer inside .ap-text */
+.ap-brief-load{display:inline-flex;align-items:center;gap:9px;font-family:var(--f-mono);font-size:10px;color:var(--t3);letter-spacing:.04em}
+/* Structured enrichment dossier — honest signals when there is no full article body */
+.ap-enrich{display:none;flex-direction:column;margin-top:18px}
+.ap-enrich.on{display:flex}
+.ap-enrich-row{display:flex;align-items:baseline;gap:14px;padding:9px 0;border-top:1px solid var(--b1);font-family:var(--f-mono);font-size:10.5px;line-height:1.55}
+.ap-enrich-row:first-child{border-top:none;padding-top:0}
+.ap-enrich-k{flex:0 0 78px;color:#8c99a0;font-size:8.5px;font-weight:600;letter-spacing:.16em}
+.ap-enrich-v{color:var(--t2);letter-spacing:.01em}
 .ap-foot{margin-top:20px;padding:11px 14px;background:rgba(255,255,255,.02);border:1px solid var(--b1);border-radius:4px;display:flex;align-items:center;gap:9px;font-family:var(--f-mono);font-size:9px;color:var(--t3)}
 .ap-cdot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
 

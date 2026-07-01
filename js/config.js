@@ -114,6 +114,10 @@ let refreshCountdownInt = null;
 let _lastFeedStories = [];
 let _apStoryId = null;
 let _tkrHash = '';
+// Article-popup enrichment: monotonic open token (guards async AI briefs against
+// stale injection when the user switches stories) + per-story AI brief cache.
+let _apRenderSeq = 0;
+const _apBriefCache = {};
 
 // Market data
 let marketVisible = false;

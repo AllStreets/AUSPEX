@@ -998,6 +998,9 @@ function _updateAllGlobeElementsNow() {
 function openAuspexEventCard(event) {
   const panel = document.getElementById('art-panel');
   if (!panel) return;
+  // Reset the story dossier/AI-brief block so it can't leak into an event card,
+  // and advance the open token so any in-flight brief is discarded.
+  if (typeof _apBeginRender === 'function') _apBeginRender();
   const sev = event.severity ?? 0;
   // Type-distinct color (with high-severity peril red override) — matches the
   // globe marker and the live map key.
@@ -1089,6 +1092,7 @@ function openAuspexEventCard(event) {
 function openInfoPanel(opts) {
   const panel = document.getElementById('art-panel');
   if (!panel) return;
+  if (typeof _apBeginRender === 'function') _apBeginRender(); // reset story dossier/brief
   _apStoryId = null; // not a pinnable story
   const set = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
   if (G && opts.lat != null && opts.lng != null && !isNaN(opts.lat) && !isNaN(opts.lng)) {
