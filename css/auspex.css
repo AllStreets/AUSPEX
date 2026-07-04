@@ -102,7 +102,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 /* Anchored below #cmd-panel (hdr+tkr+12 top, 5 buttons*28 + 4 gaps*5 = 160px tall)
    plus a 20px clearance, so the taller cmd-panel (after adding SECTORS) no longer
    overlaps the category coverage tiles. */
-#cat-rail{position:fixed;left:18px;top:calc(var(--hdr-h) + var(--tkr-h) + 12px + 160px + 20px);z-index:100;display:flex;flex-direction:column;gap:5px}
+#cat-rail{position:fixed;left:18px;top:calc(var(--hdr-h) + var(--tkr-h) + 12px + 193px + 20px);z-index:100;display:flex;flex-direction:column;gap:5px}
 .cat-btn{display:flex;align-items:center;gap:11px;padding:9px 15px;background:var(--glass-card);backdrop-filter:blur(16px);border:1px solid var(--b1);border-radius:3px;cursor:pointer;width:200px;position:relative;overflow:hidden;transition:transform .18s ease,border-color .18s ease,background .18s ease}
 .cat-btn::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2.5px;background:var(--cc);opacity:0;transition:opacity .2s}
 .cat-btn::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,var(--cc),transparent);opacity:0;transition:opacity .2s}
