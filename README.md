@@ -27,6 +27,66 @@
 
 ---
 
+## What it looks like
+
+These were captured on October 25, 2026 from the code exactly as it was committed on July 3, 2026 ([`aae006c`](https://github.com/AllStreets/AUSPEX/commit/aae006c5c542309f2c391e6dd5cc77d1cc3af874)), the last push to this repo, run locally with no API keys. The look is from July; the news, quakes and flights on screen are live data from the day of capture.
+
+![The AUSPEX globe in daytime: NASA Blue Marble texture, event and story icons, the intelligence feed on the right](.github/assets/media/globe-day-2026-07-03.png)
+
+The globe changes with your own clock. Between 7 am and 6 pm local time it uses the Blue Marble day texture; at night it switches to the night-lights texture and the atmosphere shifts colour (`getTod`, `getTexture` and `checkDayNight` in `js/globe.js`).
+
+![The same build at night: night-lights texture, live ADS-B flights over Asia, event icons](.github/assets/media/globe-night-2026-07-03.png)
+
+Every marker is a glyph in its category colour with no ring or border around it. It sits on a soft shadow that fades to nothing, so it reads over ocean and desert alike: a government building for geopolitics, a shield for military, a chip for technology, a leaf for climate, and its own shape for each kind of hazard.
+
+![Close in over the Mediterranean and Middle East, showing the bare category icons](.github/assets/media/icons-close-2026-07-03.png)
+
+![The map key, which builds itself from what is on the globe](.github/assets/media/map-key-2026-07-03.png)
+
+The moon, the 1,000-city layer and its icons were already there on June 19, 2026 ([`f1324e7`](https://github.com/AllStreets/AUSPEX/commit/f1324e7)). In this earlier build the feed and ticker show the sample stories that shipped with the code, not real headlines.
+
+![The June 19, 2026 build with the cities layer on and the moon in orbit](.github/assets/media/cities-2026-06-19.png)
+
+Clips (click to play):
+
+[![Clip: the day globe turning, with the moon in orbit](.github/assets/media/clip-globe-day-2026-07-03.png)](.github/assets/media/clip-globe-day-2026-07-03.mp4)
+
+[![Clip: the night globe turning, with live flights](.github/assets/media/clip-globe-night-2026-07-03.png)](.github/assets/media/clip-globe-night-2026-07-03.mp4)
+
+[![Clip: switching on cities and flights, then opening the map key](.github/assets/media/clip-layers-2026-07-03.png)](.github/assets/media/clip-layers-2026-07-03.mp4)
+
+---
+
+## Timeline
+
+Dates come from the git history (author and commit dates match). GitHub records this repo as created on June 17, 2026 at 03:22 UTC, and the last push was on July 4, 2026, so everything up to `aae006c` was on GitHub by then.
+
+| date | commit | what landed |
+|---|---|---|
+| 2026-04-20 | (private Meridian repo) | My earlier Meridian dashboard: the globe.gl globe with the Blue Marble day texture and the time-of-day switch that AUSPEX started from |
+| 2026-06-16 | [`eafca19`](https://github.com/AllStreets/AUSPEX/commit/eafca19211af0dd42b3fc69e6bde50e9c8741945) | AUSPEX founded: vision and manifesto |
+| 2026-06-17 | [`8194802`](https://github.com/AllStreets/AUSPEX/commit/8194802dfc52ce409923264a1134dbe363953f97) | Meridian's globe brought in as the foundation (Blue Marble, night texture, local time of day) |
+| 2026-06-17 | [`19cd331`](https://github.com/AllStreets/AUSPEX/commit/19cd33113feda806b8540210f337f386355ef69c) | Live events drawn on the globe as markers and rings |
+| 2026-06-17 | [`81ec784`](https://github.com/AllStreets/AUSPEX/commit/81ec784a0073b6cd9bb8a477f7fe171e5ee36def) | The green AUSPEX identity across the header, panels and atmosphere |
+| 2026-06-18 | [`f90e376`](https://github.com/AllStreets/AUSPEX/commit/f90e37646794e9623eafdacc5a41a7c90500bcd5) | The icon system: one SVG glyph per event type, used on the map and in the key |
+| 2026-06-19 | [`a6031dc`](https://github.com/AllStreets/AUSPEX/commit/a6031dc3b4303641333d780c0df5dd058cc5e25b) | City icons by type (capitals, finance, tech, ports, energy) |
+| 2026-06-19 | [`3dae2f8`](https://github.com/AllStreets/AUSPEX/commit/3dae2f8248db5ce86d6aabf65f4852127a42ba17) | The textured moon orbiting the Earth |
+| 2026-06-20 | [`7ad8151`](https://github.com/AllStreets/AUSPEX/commit/7ad8151054949ea68a9c449de68be9fcb8311a45) | The STORIES layer: geolocated news on the globe |
+| 2026-06-21 | [`b6e51c5`](https://github.com/AllStreets/AUSPEX/commit/b6e51c5f22c2ae4fda713dab02aae79cac6953f3) | Live ADS-B flights |
+| 2026-06-24 | [`e47286f`](https://github.com/AllStreets/AUSPEX/commit/e47286f963f29e8c05b4dbca64f5ab5d4e958b5f) | Live AIS vessels |
+| 2026-06-25 | [`7d7bfb9`](https://github.com/AllStreets/AUSPEX/commit/7d7bfb94ad6945566aae47cf49bf1830732873e8) | Story markers drawn as category icons |
+| 2026-06-28 | [`d414bfa`](https://github.com/AllStreets/AUSPEX/commit/d414bfa007090ac581977aa55e0dbbb1ee7bff07) | Category rail shows glyphs instead of dots |
+| 2026-07-03 | [`aae006c`](https://github.com/AllStreets/AUSPEX/commit/aae006c5c542309f2c391e6dd5cc77d1cc3af874) | First-open guided tour; the build in the screenshots above |
+
+For comparison, two dates from my later project:
+
+| date | commit | what happened |
+|---|---|---|
+| 2026-08-24 | [`880a672`](https://github.com/bilawalsidhu/gods-eye-view/commit/880a672b5e16ad3e41d318801d3a5203f9201923) | God's Eye View released as open source by its authors |
+| 2026-10-10 | [`7756586`](https://github.com/AllStreets/coranto/commit/7756586853694faaf67de66a91fef4a5df4bd007) | My first commit on [Coranto](https://github.com/AllStreets/coranto), the news globe I built on top of God's Eye View, which carries AUSPEX's shell, icons and analyst board |
+
+---
+
 ## What this is
 
 The *auspex* read the sky for signs and spoke them aloud, so the city could act before the storm — not a spy, but a guardian who turned what the world was already showing into warning, in time for it to matter.
