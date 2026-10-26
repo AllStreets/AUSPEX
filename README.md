@@ -47,13 +47,13 @@ The moon, the 1,000-city layer and its icons were already there on June 19, 2026
 
 ![The June 19, 2026 build with the cities layer on and the moon in orbit](.github/assets/media/cities-2026-06-19.png)
 
-Clips (click to play):
+Clips. Click one for the full-quality video.
 
-[![Clip: the day globe turning, with the moon in orbit](.github/assets/media/clip-globe-day-2026-07-03.png)](.github/assets/media/clip-globe-day-2026-07-03.mp4)
+[![Clip: the day globe turning, with the moon in orbit](.github/assets/media/clip-globe-day-2026-07-03.webp)](.github/assets/media/clip-globe-day-2026-07-03.mp4)
 
-[![Clip: the night globe turning, with live flights](.github/assets/media/clip-globe-night-2026-07-03.png)](.github/assets/media/clip-globe-night-2026-07-03.mp4)
+[![Clip: the night globe turning, with live flights](.github/assets/media/clip-globe-night-2026-07-03.webp)](.github/assets/media/clip-globe-night-2026-07-03.mp4)
 
-[![Clip: switching on cities and flights, then opening the map key](.github/assets/media/clip-layers-2026-07-03.png)](.github/assets/media/clip-layers-2026-07-03.mp4)
+[![Clip: switching on cities and flights, then opening the map key](.github/assets/media/clip-layers-2026-07-03.webp)](.github/assets/media/clip-layers-2026-07-03.mp4)
 
 ---
 
